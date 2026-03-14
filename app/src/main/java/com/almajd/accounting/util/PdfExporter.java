@@ -129,69 +129,79 @@ public class PdfExporter {
         AppSettings settings = new AppSettings(context);
         String phone = settings.getPhone();
 
-        // ─── BILINGUAL HEADER ─────────────────────────────────────────────
-        // 3-column LTR table: [English left] | [divider] | [Arabic right]
-        // Column order in code: col0=left(EN), col1=divider, col2=right(AR)
+        // ─── HEADER ───────────────────────────────────────────────────────
+        // Simple 3-column table: English | blue line | Arabic
         PdfPTable headerTable = new PdfPTable(3);
         headerTable.setWidthPercentage(100);
-        headerTable.setWidths(new float[]{1.2f, 0.05f, 1.2f});
+        headerTable.setWidths(new float[]{1f, 0.02f, 1f});
+        headerTable.setSpacingAfter(4);
 
-        // Col 0 — English (far left, LTR)
+        // ── Left column: English ──
         PdfPCell enCell = new PdfPCell();
         enCell.setBorder(Rectangle.NO_BORDER);
-        enCell.setPaddingBottom(8);
-        enCell.setVerticalAlignment(Element.ALIGN_TOP);
+        enCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        enCell.setPadding(6);
 
-        Paragraph enName = new Paragraph(settings.getCompanyNameEn(), titleBold);
-        enName.setAlignment(Element.ALIGN_LEFT);
-        enCell.addElement(enName);
+        Paragraph pEnName = new Paragraph(settings.getCompanyNameEn(), titleBold);
+        pEnName.setAlignment(Element.ALIGN_LEFT);
+        enCell.addElement(pEnName);
 
-        Paragraph enOwner = new Paragraph(settings.getOwnerNameEn(), subtitleFont);
-        enOwner.setAlignment(Element.ALIGN_LEFT);
-        enCell.addElement(enOwner);
+        Paragraph pEnOwner = new Paragraph(settings.getOwnerNameEn(), subtitleFont);
+        pEnOwner.setAlignment(Element.ALIGN_LEFT);
+        enCell.addElement(pEnOwner);
 
         if (phone != null && !phone.isEmpty()) {
-            Paragraph enPhone = new Paragraph(phone, subtitleFont);
-            enPhone.setAlignment(Element.ALIGN_LEFT);
-            enCell.addElement(enPhone);
+            Paragraph pEnPhone = new Paragraph(phone, subtitleFont);
+            pEnPhone.setAlignment(Element.ALIGN_LEFT);
+            enCell.addElement(pEnPhone);
         }
         headerTable.addCell(enCell);
 
-        // Col 1 — Vertical divider line
-        PdfPCell midCell = new PdfPCell();
-        midCell.setBorder(Rectangle.LEFT | Rectangle.RIGHT);
-        midCell.setBorderColor(BRAND_BLUE);
-        midCell.setBorderWidth(1.5f);
-        headerTable.addCell(midCell);
+        // ── Middle column: blue vertical line ──
+        PdfPCell lineCell = new PdfPCell();
+        lineCell.setBorder(Rectangle.NO_BORDER);
+        lineCell.setCellEvent(new PdfPCellEvent() {
+            @Override
+            public void cellLayout(PdfPCell cell, Rectangle rect, PdfContentByte[] canvases) {
+                PdfContentByte cb = canvases[PdfPTable.LINECANVAS];
+                cb.setColorStroke(BRAND_BLUE);
+                cb.setLineWidth(1.5f);
+                float x = (rect.getLeft() + rect.getRight()) / 2f;
+                cb.moveTo(x, rect.getBottom() + 4);
+                cb.lineTo(x, rect.getTop() - 4);
+                cb.stroke();
+            }
+        });
+        headerTable.addCell(lineCell);
 
-        // Col 2 — Arabic (far right, RTL)
+        // ── Right column: Arabic ──
         PdfPCell arCell = new PdfPCell();
         arCell.setBorder(Rectangle.NO_BORDER);
-        arCell.setPaddingBottom(8);
         arCell.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
-        arCell.setVerticalAlignment(Element.ALIGN_TOP);
+        arCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        arCell.setPadding(6);
 
-        Paragraph arName = new Paragraph(settings.getCompanyNameAr(), titleBold);
-        arName.setAlignment(Element.ALIGN_RIGHT);
-        arCell.addElement(arName);
+        Paragraph pArName = new Paragraph(settings.getCompanyNameAr(), titleBold);
+        pArName.setAlignment(Element.ALIGN_RIGHT);
+        arCell.addElement(pArName);
 
-        Paragraph arOwner = new Paragraph(settings.getOwnerNameAr(), subtitleFont);
-        arOwner.setAlignment(Element.ALIGN_RIGHT);
-        arCell.addElement(arOwner);
+        Paragraph pArOwner = new Paragraph(settings.getOwnerNameAr(), subtitleFont);
+        pArOwner.setAlignment(Element.ALIGN_RIGHT);
+        arCell.addElement(pArOwner);
 
         if (phone != null && !phone.isEmpty()) {
-            Paragraph arPhone = new Paragraph(phone, subtitleFont);
-            arPhone.setAlignment(Element.ALIGN_RIGHT);
-            arCell.addElement(arPhone);
+            Paragraph pArPhone = new Paragraph(phone, subtitleFont);
+            pArPhone.setAlignment(Element.ALIGN_RIGHT);
+            arCell.addElement(pArPhone);
         }
         headerTable.addCell(arCell);
 
         document.add(headerTable);
 
-        // ─── Divider line ─────────────────────────────────────────────────
+        // ─── Horizontal divider ──────────────────────────────────────────
         PdfPTable divider = new PdfPTable(1);
         divider.setWidthPercentage(100);
-        divider.setSpacingBefore(6);
+        divider.setSpacingBefore(4);
         divider.setSpacingAfter(10);
         PdfPCell divCell = new PdfPCell();
         divCell.setBorder(Rectangle.BOTTOM);
@@ -201,12 +211,13 @@ public class PdfExporter {
         divider.addCell(divCell);
         document.add(divider);
 
-        // ─── INVOICE INFO — right-aligned ─────────────────────────────────
+        // ─── INVOICE INFO — right-aligned block ─────────────────────────────
+        // Compact table hugging the right margin.
         // 2-column table: [value on the left] | [label on the right]
-        // This makes labels hug the right margin and values sit to their left.
         PdfPTable infoTable = new PdfPTable(2);
-        infoTable.setWidthPercentage(100);
-        infoTable.setWidths(new float[]{1, 1});
+        infoTable.setWidthPercentage(42);
+        infoTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        infoTable.setWidths(new float[]{1.4f, 1f});
         infoTable.setSpacingAfter(12);
 
         // Store
