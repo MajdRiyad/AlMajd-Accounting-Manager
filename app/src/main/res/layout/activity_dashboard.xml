@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/lightGray"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="@dimen/activity_margin">
+
+        <!-- Header Title -->
+        <TextView
+            android:id="@+id/tv_header_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/header_title"
+            android:textColor="@color/primaryColor"
+            android:textSize="@dimen/text_size_header"
+            android:textStyle="bold" />
+
+        <!-- Greeting -->
+        <TextView
+            android:id="@+id/tv_greeting"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/greeting"
+            android:textColor="@color/textSecondary"
+            android:textSize="@dimen/text_size_greeting" />
+
+        <!-- Spacer -->
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="24dp" />
+
+        <!-- Dashboard Buttons Grid -->
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:rowCount="2"
+            android:useDefaultMargins="true">
+
+            <!-- Add Customer Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_add_customer"
+                style="@style/DashboardButton"
+                android:layout_rowWeight="1"
+                android:text="@string/btn_add_customer"
+                app:icon="@android:drawable/ic_menu_my_calendar"
+                app:iconGravity="top"
+                app:iconPadding="8dp" />
+
+            <!-- New Invoice Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_new_invoice"
+                style="@style/DashboardButton"
+                android:layout_rowWeight="1"
+                android:text="@string/btn_new_invoice"
+                app:icon="@android:drawable/ic_menu_agenda"
+                app:iconGravity="top"
+                app:iconPadding="8dp" />
+
+            <!-- Add Payment Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_add_payment"
+                style="@style/DashboardButton"
+                android:layout_rowWeight="1"
+                android:text="@string/btn_add_payment"
+                app:icon="@android:drawable/ic_menu_send"
+                app:iconGravity="top"
+                app:iconPadding="8dp" />
+
+            <!-- Reports Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_reports"
+                style="@style/DashboardButton"
+                android:layout_rowWeight="1"
+                android:text="@string/btn_reports"
+                app:icon="@android:drawable/ic_menu_report_image"
+                app:iconGravity="top"
+                app:iconPadding="8dp" />
+
+        </GridLayout>
+
+        <!-- Spacer -->
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="16dp" />
+
+        <!-- Summary Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_summary"
+            style="@style/CardStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <TextView
+                    android:id="@+id/tv_total_customers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/total_customers"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="@dimen/text_size_subtitle" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:background="@color/divider" />
+
+                <TextView
+                    android:id="@+id/tv_outstanding_balance"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/outstanding_balance"
+                    android:textColor="@color/red"
+                    android:textSize="@dimen/text_size_subtitle"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+</ScrollView>

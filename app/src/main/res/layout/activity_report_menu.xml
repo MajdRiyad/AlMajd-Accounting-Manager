@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/lightGray"
+    android:orientation="vertical">
+
+    <!-- Toolbar -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/toolbar_height"
+        android:background="@color/primaryColor"
+        app:navigationIcon="@android:drawable/ic_menu_revert"
+        app:title="@string/reports"
+        app:titleTextColor="@color/white" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="@dimen/activity_margin">
+
+        <!-- Sales History Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_sales_report"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_margin="@dimen/card_margin"
+            android:text="@string/sales_history"
+            android:textSize="@dimen/text_size_subtitle"
+            app:backgroundTint="@color/primaryColor"
+            app:cornerRadius="8dp" />
+
+        <!-- Payment History Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_payment_report"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_margin="@dimen/card_margin"
+            android:text="@string/payment_history"
+            android:textSize="@dimen/text_size_subtitle"
+            app:backgroundTint="@color/primaryColor"
+            app:cornerRadius="8dp" />
+
+        <!-- Accounts Ledger Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_ledger_report"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_margin="@dimen/card_margin"
+            android:text="@string/accounts_ledger"
+            android:textSize="@dimen/text_size_subtitle"
+            app:backgroundTint="@color/primaryColor"
+            app:cornerRadius="8dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

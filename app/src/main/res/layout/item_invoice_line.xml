@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="8dp">
+
+    <!-- Item Name -->
+    <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/et_item_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="3"
+        android:hint="@string/item_name"
+        android:inputType="text"
+        android:textSize="@dimen/text_size_body" />
+
+    <!-- Quantity -->
+    <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/et_quantity"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:hint="@string/quantity"
+        android:inputType="number"
+        android:textSize="@dimen/text_size_body" />
+
+    <!-- Unit Price -->
+    <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/et_unit_price"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_weight="2"
+        android:gravity="center"
+        android:hint="@string/unit_price"
+        android:inputType="numberDecimal"
+        android:textSize="@dimen/text_size_body" />
+
+    <!-- Subtotal -->
+    <TextView
+        android:id="@+id/tv_subtotal"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_weight="2"
+        android:gravity="center"
+        android:text="0"
+        android:textColor="@color/textPrimary"
+        android:textSize="@dimen/text_size_body"
+        android:textStyle="bold" />
+
+    <!-- Delete Button -->
+    <ImageButton
+        android:id="@+id/btn_delete"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/delete"
+        android:padding="4dp"
+        android:src="@android:drawable/ic_menu_delete"
+        app:tint="@color/red" />
+
+</LinearLayout>
