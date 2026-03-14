@@ -1,17 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primaryColor">#1565C0</color>
-    <color name="primaryDarkColor">#0D47A1</color>
-    <color name="accentColor">#FF6F00</color>
+    <!-- Primary palette (Navy) — matches React #1a3a6e / #0f2347 -->
+    <color name="primaryColor">#1a3a6e</color>
+    <color name="primaryDarkColor">#0f2347</color>
+    <color name="primaryLightColor">#2a5298</color>
+
+    <!-- Accent palette — React purple accent #7c3aed -->
+    <color name="accentColor">#7c3aed</color>
+    <color name="accentLightColor">#a78bfa</color>
+
+    <!-- Neutrals -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
-    <color name="lightGray">#F5F5F5</color>
-    <color name="gray">#9E9E9E</color>
-    <color name="darkGray">#616161</color>
-    <color name="red">#D32F2F</color>
-    <color name="green">#388E3C</color>
+    <color name="lightGray">#f0f4fa</color>
+    <color name="gray">#9ca3af</color>
+    <color name="darkGray">#6b7280</color>
+
+    <!-- Semantic — React success/danger -->
+    <color name="red">#dc2626</color>
+    <color name="redLight">#fef2f2</color>
+    <color name="green">#15803d</color>
+    <color name="greenLight">#f0fdf4</color>
+
+    <!-- Additional accent colors from React -->
+    <color name="purple">#7c3aed</color>
+    <color name="purpleLight">#f5f3ff</color>
+    <color name="teal">#0891b2</color>
+    <color name="tealLight">#ecfeff</color>
+    <color name="amber">#d97706</color>
+    <color name="amberLight">#fef3c7</color>
+
+    <!-- Surface / Card -->
     <color name="cardBackground">#FFFFFF</color>
-    <color name="divider">#E0E0E0</color>
-    <color name="textPrimary">#212121</color>
-    <color name="textSecondary">#757575</color>
+    <color name="divider">#e5e7eb</color>
+    <color name="dividerLight">#f1f5f9</color>
+
+    <!-- Text — React text colors -->
+    <color name="textPrimary">#1f2937</color>
+    <color name="textSecondary">#6b7280</color>
+    <color name="textHint">#9ca3af</color>
+
+    <!-- Gradient colors for dashboard header -->
+    <color name="gradientStart">#1a3a6e</color>
+    <color name="gradientEnd">#0f2347</color>
+
+    <!-- Status bar overlay -->
+    <color name="statusBarOverlay">#1A000000</color>
+
+    <!-- Card accent bars -->
+    <color name="accentBarInvoice">#1a3a6e</color>
+    <color name="accentBarPayment">#15803d</color>
+    <color name="accentBarCustomer">#7c3aed</color>
+
+    <!-- Badge backgrounds — React style -->
+    <color name="badgePaid">#f0fdf4</color>
+    <color name="badgePaidText">#15803d</color>
+    <color name="badgeUnpaid">#fef2f2</color>
+    <color name="badgeUnpaidText">#dc2626</color>
+    <color name="badgePartial">#fef3c7</color>
+    <color name="badgePartialText">#d97706</color>
+
+    <!-- Input field — React input style -->
+    <color name="inputBorder">#d1d9e6</color>
+    <color name="inputBackground">#fafbfd</color>
+    <color name="inputBorderFocus">#1a3a6e</color>
+
+    <!-- Ghost/outline button -->
+    <color name="ghostBackground">#f1f5f9</color>
+
+    <!-- Hero decorative circle -->
+    <color name="heroCircle">#1AFFFFFF</color>
+
+    <!-- Ripple -->
+    <color name="rippleColor">#1A1a3a6e</color>
 </resources>

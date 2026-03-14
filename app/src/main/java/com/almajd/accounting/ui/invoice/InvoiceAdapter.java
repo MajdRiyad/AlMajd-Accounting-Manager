@@ -101,8 +101,9 @@ public class InvoiceAdapter extends RecyclerView.Adapter<InvoiceAdapter.InvoiceV
         void bind(final Invoice invoice) {
             if (invoice == null) return;
 
-            // Invoice ID label (Arabic format)
-            tvInvoiceId.setText("\u0641\u0627\u062a\u0648\u0631\u0629 #" + invoice.getId());
+            // Invoice ID label
+            tvInvoiceId.setText(itemView.getContext().getString(
+                    R.string.invoice_number_format, invoice.getId()));
 
             // Store name
             tvStoreName.setText(invoice.getStoreName() != null
@@ -118,14 +119,27 @@ public class InvoiceAdapter extends RecyclerView.Adapter<InvoiceAdapter.InvoiceV
             // Total amount
             tvTotal.setText(NumberUtils.formatCurrency(invoice.getTotalAmount()));
 
-            // Remaining: red if > 0 (outstanding), green if == 0 (fully paid)
-            tvRemaining.setText(NumberUtils.formatCurrency(invoice.getRemaining()));
-            if (invoice.getRemaining() > 0) {
+            // Remaining: badge style — red if outstanding, green if fully paid,
+            // orange if partially paid
+            double remaining = invoice.getRemaining();
+            if (remaining <= 0) {
+                // Fully paid
+                tvRemaining.setText(itemView.getContext().getString(R.string.status_paid));
                 tvRemaining.setTextColor(
-                        ContextCompat.getColor(itemView.getContext(), R.color.red));
+                        ContextCompat.getColor(itemView.getContext(), R.color.badgePaidText));
+                tvRemaining.setBackgroundResource(R.drawable.bg_badge_paid);
+            } else if (invoice.getPaidAmount() > 0) {
+                // Partially paid
+                tvRemaining.setText(NumberUtils.formatCurrency(remaining));
+                tvRemaining.setTextColor(
+                        ContextCompat.getColor(itemView.getContext(), R.color.badgePartialText));
+                tvRemaining.setBackgroundResource(R.drawable.bg_badge_partial);
             } else {
+                // Unpaid
+                tvRemaining.setText(NumberUtils.formatCurrency(remaining));
                 tvRemaining.setTextColor(
-                        ContextCompat.getColor(itemView.getContext(), R.color.green));
+                        ContextCompat.getColor(itemView.getContext(), R.color.badgeUnpaidText));
+                tvRemaining.setBackgroundResource(R.drawable.bg_badge_unpaid);
             }
 
             // Click -> navigate to detail

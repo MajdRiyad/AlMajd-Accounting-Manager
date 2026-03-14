@@ -12,13 +12,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.model.Customer;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -32,7 +32,7 @@ import java.util.List;
  * Layout: activity_customer_list.xml
  * Contains: Toolbar, RecyclerView (rv_customers), empty state (tv_empty), FAB (fab_add)
  */
-public class CustomerListActivity extends AppCompatActivity
+public class CustomerListActivity extends BaseActivity
         implements CustomerAdapter.OnCustomerClickListener {
 
     public static final String EXTRA_STORE_NAME = "extra_store_name";

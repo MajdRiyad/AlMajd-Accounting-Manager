@@ -345,6 +345,50 @@ public class InvoiceDao {
     }
 
     /**
+     * Get the total count of invoices.
+     */
+    public int getCount() {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery("SELECT COUNT(*) FROM " + DatabaseHelper.TABLE_INVOICES, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                return cursor.getInt(0);
+            }
+            return 0;
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+    }
+
+    /**
+     * Get the most recent invoices, limited to the given count.
+     */
+    public List<Invoice> getRecent(int limit) {
+        List<Invoice> invoices = new ArrayList<>();
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.query(DatabaseHelper.TABLE_INVOICES, null,
+                    null, null, null, null,
+                    DatabaseHelper.COL_CREATED_AT + " DESC",
+                    String.valueOf(limit));
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    invoices.add(cursorToInvoice(cursor));
+                } while (cursor.moveToNext());
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return invoices;
+    }
+
+    /**
      * Convert a cursor row to an Invoice object.
      */
     private Invoice cursorToInvoice(Cursor cursor) {

@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/toolbar_height"
         android:background="@color/primaryColor"
-        app:navigationIcon="@android:drawable/ic_menu_revert"
+        app:navigationIcon="@drawable/ic_arrow_back"
         app:title="@string/customer_details"
         app:titleTextColor="@color/white" />
 
@@ -196,7 +196,7 @@
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="عرض الكل"
+                    android:text="@string/view_all"
                     android:textColor="@color/primaryColor" />
 
             </LinearLayout>
@@ -230,7 +230,7 @@
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="عرض الكل"
+                    android:text="@string/view_all"
                     android:textColor="@color/primaryColor" />
 
             </LinearLayout>

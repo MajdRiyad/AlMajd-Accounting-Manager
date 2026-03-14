@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/toolbar_height"
         android:background="@color/primaryColor"
-        app:navigationIcon="@android:drawable/ic_menu_revert"
+        app:navigationIcon="@drawable/ic_arrow_back"
         app:title="@string/reports"
         app:titleTextColor="@color/white" />
 
@@ -23,38 +23,77 @@
         android:orientation="vertical"
         android:padding="@dimen/activity_margin">
 
-        <!-- Sales History Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_sales_report"
+        <!-- Sales History -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="wrap_content"
             android:layout_margin="@dimen/card_margin"
-            android:text="@string/sales_history"
-            android:textSize="@dimen/text_size_subtitle"
-            app:backgroundTint="@color/primaryColor"
-            app:cornerRadius="8dp" />
+            app:cardCornerRadius="@dimen/card_corner_radius"
+            app:cardElevation="3dp">
 
-        <!-- Payment History Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_payment_report"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_margin="@dimen/card_margin"
-            android:text="@string/payment_history"
-            android:textSize="@dimen/text_size_subtitle"
-            app:backgroundTint="@color/primaryColor"
-            app:cornerRadius="8dp" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_sales_report"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:text="@string/sales_history"
+                android:textColor="@color/primaryColor"
+                android:textSize="@dimen/text_size_subtitle"
+                app:icon="@drawable/ic_new_invoice"
+                app:iconGravity="textStart"
+                app:iconPadding="12dp"
+                app:iconSize="24dp"
+                app:iconTint="@color/primaryColor" />
 
-        <!-- Accounts Ledger Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_ledger_report"
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Payment History -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="wrap_content"
             android:layout_margin="@dimen/card_margin"
-            android:text="@string/accounts_ledger"
-            android:textSize="@dimen/text_size_subtitle"
-            app:backgroundTint="@color/primaryColor"
-            app:cornerRadius="8dp" />
+            app:cardCornerRadius="@dimen/card_corner_radius"
+            app:cardElevation="3dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_payment_report"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:text="@string/payment_history"
+                android:textColor="@color/green"
+                android:textSize="@dimen/text_size_subtitle"
+                app:icon="@drawable/ic_payment"
+                app:iconGravity="textStart"
+                app:iconPadding="12dp"
+                app:iconSize="24dp"
+                app:iconTint="@color/green" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Accounts Ledger -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/card_margin"
+            app:cardCornerRadius="@dimen/card_corner_radius"
+            app:cardElevation="3dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_ledger_report"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:text="@string/accounts_ledger"
+                android:textColor="@color/accentColor"
+                android:textSize="@dimen/text_size_subtitle"
+                app:icon="@drawable/ic_reports"
+                app:iconGravity="textStart"
+                app:iconPadding="12dp"
+                app:iconSize="24dp"
+                app:iconTint="@color/accentColor" />
+
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 

@@ -13,70 +13,94 @@
         android:layout_height="@dimen/toolbar_height"
         android:background="@color/primaryColor"
         app:menu="@menu/menu_report"
-        app:navigationIcon="@android:drawable/ic_menu_revert"
+        app:navigationIcon="@drawable/ic_arrow_back"
         app:title="@string/payment_history"
         app:titleTextColor="@color/white" />
 
     <!-- Filter Section -->
-    <LinearLayout
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/white"
-        android:elevation="2dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="@dimen/card_margin">
+        app:cardCornerRadius="0dp"
+        app:cardElevation="4dp"
+        app:contentPadding="12dp">
 
-        <!-- Store Filter Spinner -->
-        <Spinner
-            android:id="@+id/spinner_store_filter"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="2"
-            android:background="@android:drawable/btn_dropdown" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
 
-        <!-- From Date -->
-        <TextView
-            android:id="@+id/tv_from_date"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1.5"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:hint="@string/from_date"
-            android:textColor="@color/textPrimary"
-            android:textSize="@dimen/text_size_small" />
+            <!-- Store filter row -->
+            <Spinner
+                android:id="@+id/spinner_store_filter"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_spinner" />
 
-        <!-- To Date -->
-        <TextView
-            android:id="@+id/tv_to_date"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1.5"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:hint="@string/to_date"
-            android:textColor="@color/textPrimary"
-            android:textSize="@dimen/text_size_small" />
+            <!-- Date range row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-        <!-- Filter Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_filter"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:text="@string/filter"
-            android:textColor="@color/primaryColor"
-            android:textSize="@dimen/text_size_small" />
+                <!-- From Date -->
+                <TextView
+                    android:id="@+id/tv_from_date"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_spinner"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:hint="@string/from_date"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="@dimen/text_size_small" />
 
-    </LinearLayout>
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:src="@drawable/ic_arrow_back"
+                    android:rotation="180"
+                    app:tint="@color/gray" />
+
+                <!-- To Date -->
+                <TextView
+                    android:id="@+id/tv_to_date"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_spinner"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:hint="@string/to_date"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="@dimen/text_size_small" />
+
+            </LinearLayout>
+
+            <!-- Filter Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_filter"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="8dp"
+                android:text="@string/filter"
+                android:textSize="@dimen/text_size_body"
+                app:backgroundTint="@color/primaryColor"
+                app:cornerRadius="8dp"
+                app:icon="@drawable/ic_search"
+                app:iconGravity="textStart" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Report List -->
     <androidx.recyclerview.widget.RecyclerView

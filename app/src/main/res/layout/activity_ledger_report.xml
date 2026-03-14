@@ -13,7 +13,7 @@
         android:layout_height="@dimen/toolbar_height"
         android:background="@color/primaryColor"
         app:menu="@menu/menu_report"
-        app:navigationIcon="@android:drawable/ic_menu_revert"
+        app:navigationIcon="@drawable/ic_arrow_back"
         app:title="@string/accounts_ledger"
         app:titleTextColor="@color/white" />
 
@@ -46,6 +46,13 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginEnd="8dp"
+                    android:src="@drawable/ic_new_invoice"
+                    app:tint="@color/primaryColor" />
+
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -68,9 +75,16 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="6dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginEnd="8dp"
+                    android:src="@drawable/ic_payment"
+                    app:tint="@color/green" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -103,6 +117,13 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginEnd="8dp"
+                    android:src="@drawable/ic_warning"
+                    app:tint="@color/red" />
 
                 <TextView
                     android:layout_width="0dp"

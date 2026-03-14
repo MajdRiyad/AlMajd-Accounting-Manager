@@ -5,27 +5,126 @@
         <item name="colorPrimaryDark">@color/primaryDarkColor</item>
         <item name="colorAccent">@color/accentColor</item>
         <item name="colorSecondary">@color/accentColor</item>
+        <item name="android:statusBarColor">@color/primaryDarkColor</item>
+        <item name="android:windowBackground">@color/lightGray</item>
+        <!-- Force RTL for Arabic -->
+        <item name="android:layoutDirection">rtl</item>
+        <item name="android:textDirection">anyRtl</item>
+        <item name="android:textAlignment">viewStart</item>
     </style>
 
     <style name="AppTheme.Toolbar">
         <item name="android:background">@color/primaryColor</item>
     </style>
 
-    <style name="DashboardButton" parent="Widget.MaterialComponents.Button">
-        <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">120dp</item>
-        <item name="android:layout_columnWeight">1</item>
-        <item name="android:layout_margin">8dp</item>
-        <item name="android:textSize">16sp</item>
-        <item name="cornerRadius">12dp</item>
-        <item name="android:textColor">@color/white</item>
-        <item name="backgroundTint">@color/primaryColor</item>
-    </style>
-
+    <!-- Card with rounded corners and subtle shadow — React: 14px radius, shadow 0 2px 12px -->
     <style name="CardStyle" parent="Widget.MaterialComponents.CardView">
         <item name="cardElevation">@dimen/card_elevation</item>
-        <item name="cardCornerRadius">8dp</item>
-        <item name="contentPadding">@dimen/card_padding</item>
+        <item name="cardCornerRadius">@dimen/card_corner_radius</item>
+        <item name="contentPadding">0dp</item>
         <item name="android:layout_margin">@dimen/card_margin</item>
+    </style>
+
+    <!-- Outlined input fields — React: border 1.5px #d1d9e6, radius 9px, bg #fafbfd -->
+    <style name="AppTextInputStyle" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/inputBorderFocus</item>
+        <item name="boxStrokeWidth">1.5dp</item>
+        <item name="boxStrokeWidthFocused">2dp</item>
+        <item name="hintTextColor">@color/primaryColor</item>
+        <item name="boxCornerRadiusTopStart">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/input_corner_radius</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/input_corner_radius</item>
+        <item name="boxBackgroundColor">@color/inputBackground</item>
+    </style>
+
+    <!-- Primary action button — React: bg #1a3a6e, radius 9px -->
+    <style name="PrimaryButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:textSize">@dimen/text_size_subtitle</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">@color/primaryColor</item>
+        <item name="cornerRadius">@dimen/button_corner_radius</item>
+        <item name="android:elevation">2dp</item>
+    </style>
+
+    <!-- Success button — React: bg #15803d, radius 9px -->
+    <style name="SuccessButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:textSize">@dimen/text_size_subtitle</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">@color/green</item>
+        <item name="cornerRadius">@dimen/button_corner_radius</item>
+        <item name="android:elevation">2dp</item>
+    </style>
+
+    <!-- Danger button — React: bg #dc2626, radius 9px -->
+    <style name="DangerButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:textSize">@dimen/text_size_subtitle</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">@color/red</item>
+        <item name="cornerRadius">@dimen/button_corner_radius</item>
+        <item name="android:elevation">2dp</item>
+    </style>
+
+    <!-- Ghost button — React: bg #f1f5f9, text dark -->
+    <style name="GhostButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:textSize">@dimen/text_size_body</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/textPrimary</item>
+        <item name="backgroundTint">@color/ghostBackground</item>
+        <item name="cornerRadius">@dimen/button_corner_radius</item>
+        <item name="android:elevation">0dp</item>
+    </style>
+
+    <!-- Outline button — React: white bg, #1a3a6e border -->
+    <style name="OutlineButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:textSize">@dimen/text_size_body</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/primaryColor</item>
+        <item name="strokeColor">@color/primaryColor</item>
+        <item name="strokeWidth">1.5dp</item>
+        <item name="cornerRadius">@dimen/button_corner_radius</item>
+    </style>
+
+    <!-- Accent action button (kept for backward compat) -->
+    <style name="AccentButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:textSize">@dimen/text_size_subtitle</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">@color/accentColor</item>
+        <item name="cornerRadius">@dimen/button_corner_radius</item>
+        <item name="android:elevation">2dp</item>
+    </style>
+
+    <!-- Dashboard nav cards (2x2 grid) — now white cards with colored icon circles -->
+    <style name="DashboardButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">@dimen/nav_card_height</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:layout_margin">6dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="cornerRadius">@dimen/card_corner_radius</item>
+        <item name="android:textColor">@color/textPrimary</item>
+        <item name="backgroundTint">@color/white</item>
+        <item name="android:elevation">@dimen/card_elevation</item>
+        <item name="rippleColor">@color/rippleColor</item>
+    </style>
+
+    <!-- Status badge (paid/unpaid/partial) -->
+    <style name="StatusBadge">
+        <item name="android:textSize">@dimen/text_size_tiny</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:paddingStart">@dimen/badge_padding_horizontal</item>
+        <item name="android:paddingEnd">@dimen/badge_padding_horizontal</item>
+        <item name="android:paddingTop">@dimen/badge_padding_vertical</item>
+        <item name="android:paddingBottom">@dimen/badge_padding_vertical</item>
+    </style>
+
+    <!-- Section header text -->
+    <style name="SectionHeader">
+        <item name="android:textSize">@dimen/text_size_subtitle</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/textPrimary</item>
+        <item name="android:layout_marginTop">16dp</item>
+        <item name="android:layout_marginBottom">8dp</item>
     </style>
 </resources>

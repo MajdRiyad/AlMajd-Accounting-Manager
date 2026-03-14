@@ -16,12 +16,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.InvoiceDao;
 import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.InvoiceItem;
@@ -29,6 +29,7 @@ import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.model.Customer;
 import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.NumberUtils;
+import com.almajd.accounting.util.AppSettings;
 import com.almajd.accounting.util.PdfExporter;
 import com.almajd.accounting.util.ShareHelper;
 
@@ -41,7 +42,7 @@ import java.util.List;
  * <p>
  * Toolbar menu provides Edit, Delete, Share (PDF), and Export PDF actions.
  */
-public class InvoiceDetailActivity extends AppCompatActivity {
+public class InvoiceDetailActivity extends BaseActivity {
 
     public static final String EXTRA_INVOICE_ID = "extra_invoice_id";
 
@@ -49,6 +50,7 @@ public class InvoiceDetailActivity extends AppCompatActivity {
 
     private InvoiceDao invoiceDao;
     private CustomerDao customerDao;
+    private AppSettings appSettings;
     private Invoice invoice;
     private long invoiceId;
 
@@ -78,6 +80,7 @@ public class InvoiceDetailActivity extends AppCompatActivity {
         // --- DAO ---
         invoiceDao = new InvoiceDao(this);
         customerDao = new CustomerDao(this);
+        appSettings = new AppSettings(this);
 
         // --- Get invoice ID from intent ---
         if (getIntent() == null || !getIntent().hasExtra(EXTRA_INVOICE_ID)) {
@@ -124,19 +127,26 @@ public class InvoiceDetailActivity extends AppCompatActivity {
     }
 
     /**
-     * Displays the bilingual business header.
-     * Arabic side: company name, owner, phone placeholder.
-     * English side: company name, owner, phone placeholder.
+     * Displays the bilingual business header using AppSettings.
+     * Arabic side: company name, owner, phone.
+     * English side: company name, owner, phone.
      */
     private void displayHeader() {
-        String arHeader = getString(R.string.pdf_header_ar_line1) + "\n"
-                + getString(R.string.pdf_header_ar_line2) + "\n"
-                + getString(R.string.pdf_phone_placeholder);
+        String phone = appSettings.getPhone();
+        String phoneDisplay = (phone != null && !phone.isEmpty()) ? phone : "";
+
+        String arHeader = appSettings.getCompanyNameAr() + "\n"
+                + appSettings.getOwnerNameAr();
+        if (!phoneDisplay.isEmpty()) {
+            arHeader += "\n" + phoneDisplay;
+        }
         tvArHeader.setText(arHeader);
 
-        String enHeader = getString(R.string.pdf_header_en_line1) + "\n"
-                + getString(R.string.pdf_header_en_line2) + "\n"
-                + getString(R.string.pdf_phone_placeholder);
+        String enHeader = appSettings.getCompanyNameEn() + "\n"
+                + appSettings.getOwnerNameEn();
+        if (!phoneDisplay.isEmpty()) {
+            enHeader += "\n" + phoneDisplay;
+        }
         tvEnHeader.setText(enHeader);
     }
 
@@ -156,7 +166,7 @@ public class InvoiceDetailActivity extends AppCompatActivity {
         // Update toolbar subtitle with invoice number
         if (getSupportActionBar() != null) {
             getSupportActionBar().setSubtitle(
-                    "\u0641\u0627\u062a\u0648\u0631\u0629 #" + invoice.getId());
+                    getString(R.string.invoice_number_format, invoice.getId()));
         }
     }
 
