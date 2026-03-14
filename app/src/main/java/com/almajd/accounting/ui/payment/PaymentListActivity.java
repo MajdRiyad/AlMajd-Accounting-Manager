@@ -12,12 +12,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.PaymentDao;
 import com.almajd.accounting.model.Payment;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -34,7 +34,7 @@ import java.util.List;
  * Layout: activity_payment_list.xml
  * Contains: Toolbar, RecyclerView (rv_payments), empty state (tv_empty), FAB (fab_add)
  */
-public class PaymentListActivity extends AppCompatActivity
+public class PaymentListActivity extends BaseActivity
         implements PaymentAdapter.OnPaymentClickListener {
 
     public static final String EXTRA_STORE_NAME = "extra_store_name";

@@ -7,12 +7,12 @@ import android.view.MenuItem;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.LedgerDao;
 import com.almajd.accounting.model.LedgerEntry;
 import com.almajd.accounting.util.DateUtils;
@@ -37,7 +37,7 @@ import java.util.List;
  * Layout: activity_ledger_report.xml
  * IDs: toolbar, rv_report, tv_total_sales, tv_total_paid, tv_total_balance
  */
-public class LedgerReportActivity extends AppCompatActivity {
+public class LedgerReportActivity extends BaseActivity {
 
     private RecyclerView rvReport;
     private TextView tvTotalSales;

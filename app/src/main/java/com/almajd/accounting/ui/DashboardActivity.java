@@ -8,8 +8,6 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import com.almajd.accounting.R;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.db.InvoiceDao;
@@ -34,7 +32,7 @@ import java.util.List;
  * <p>
  * Layout: activity_dashboard.xml
  */
-public class DashboardActivity extends AppCompatActivity {
+public class DashboardActivity extends BaseActivity {
 
     // Stat TextViews
     private TextView tvStatTotalSales;

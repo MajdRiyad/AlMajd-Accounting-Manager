@@ -7,6 +7,10 @@
         <item name="colorSecondary">@color/accentColor</item>
         <item name="android:statusBarColor">@color/primaryDarkColor</item>
         <item name="android:windowBackground">@color/lightGray</item>
+        <!-- Force RTL for Arabic -->
+        <item name="android:layoutDirection">rtl</item>
+        <item name="android:textDirection">anyRtl</item>
+        <item name="android:textAlignment">viewStart</item>
     </style>
 
     <style name="AppTheme.Toolbar">

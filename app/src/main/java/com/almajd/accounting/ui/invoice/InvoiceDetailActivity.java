@@ -16,12 +16,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.InvoiceDao;
 import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.InvoiceItem;
@@ -42,7 +42,7 @@ import java.util.List;
  * <p>
  * Toolbar menu provides Edit, Delete, Share (PDF), and Export PDF actions.
  */
-public class InvoiceDetailActivity extends AppCompatActivity {
+public class InvoiceDetailActivity extends BaseActivity {
 
     public static final String EXTRA_INVOICE_ID = "extra_invoice_id";
 

@@ -3,8 +3,6 @@ package com.almajd.accounting.ui;
 import android.os.Bundle;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import com.almajd.accounting.R;
 import com.almajd.accounting.util.AppSettings;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -17,7 +15,7 @@ import com.google.android.material.textfield.TextInputEditText;
  * Values are persisted to SharedPreferences via AppSettings and
  * used by PdfExporter for the bilingual invoice/report headers.
  */
-public class SettingsActivity extends AppCompatActivity {
+public class SettingsActivity extends BaseActivity {
 
     private TextInputEditText etCompanyNameAr;
     private TextInputEditText etCompanyNameEn;

@@ -11,12 +11,12 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.db.InvoiceDao;
 import com.almajd.accounting.model.Customer;
@@ -46,7 +46,7 @@ import java.util.List;
  *   <li>{@code EXTRA_STORE_NAME} (String) - add mode: pre-selects the store</li>
  * </ul>
  */
-public class InvoiceFormActivity extends AppCompatActivity
+public class InvoiceFormActivity extends BaseActivity
         implements InvoiceItemAdapter.OnTotalsChangedListener {
 
     public static final String EXTRA_INVOICE_ID = "extra_invoice_id";

@@ -11,12 +11,12 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.db.PaymentDao;
 import com.almajd.accounting.model.Customer;
@@ -43,7 +43,7 @@ import java.util.List;
  * Layout: activity_payment_report.xml
  * IDs: toolbar, spinner_store, et_from_date, et_to_date, btn_filter, rv_report, tv_total
  */
-public class PaymentReportActivity extends AppCompatActivity {
+public class PaymentReportActivity extends BaseActivity {
 
     private Spinner spinnerStore;
     private TextView etFromDate;

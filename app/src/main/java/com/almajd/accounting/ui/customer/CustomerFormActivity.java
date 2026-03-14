@@ -8,10 +8,10 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.model.Customer;
 import com.google.android.material.textfield.TextInputLayout;
@@ -25,7 +25,7 @@ import com.google.android.material.textfield.TextInputLayout;
  * <p>
  * Layout: activity_customer_form.xml
  */
-public class CustomerFormActivity extends AppCompatActivity {
+public class CustomerFormActivity extends BaseActivity {
 
     /** Re-use the same extra key defined in the list activity. */
     public static final String EXTRA_STORE_NAME = "extra_store_name";

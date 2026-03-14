@@ -7,10 +7,10 @@ import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.db.PaymentDao;
 import com.almajd.accounting.model.Customer;
@@ -40,7 +40,7 @@ import java.util.List;
  * Contains: Toolbar, Spinner (spinner_store), TextInputEditText fields
  *           (et_amount, et_date, et_notes), MaterialButton (btn_save)
  */
-public class PaymentFormActivity extends AppCompatActivity {
+public class PaymentFormActivity extends BaseActivity {
 
     private Spinner spinnerStore;
     private TextInputEditText etAmount;

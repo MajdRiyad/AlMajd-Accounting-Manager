@@ -16,13 +16,13 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.db.InvoiceDao;
 import com.almajd.accounting.db.LedgerDao;
@@ -45,7 +45,7 @@ import java.util.List;
  * <p>
  * Layout: activity_customer_detail.xml
  */
-public class CustomerDetailActivity extends AppCompatActivity {
+public class CustomerDetailActivity extends BaseActivity {
 
     public static final String EXTRA_STORE_NAME = "extra_store_name";
 

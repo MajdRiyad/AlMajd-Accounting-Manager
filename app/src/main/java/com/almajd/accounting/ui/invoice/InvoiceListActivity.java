@@ -11,12 +11,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.InvoiceDao;
 import com.almajd.accounting.model.Invoice;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -27,7 +27,7 @@ import java.util.List;
  * Displays a list of invoices. Supports optional filtering by store name via intent extra.
  * Provides a FAB for creating new invoices and context menus for editing / deleting existing ones.
  */
-public class InvoiceListActivity extends AppCompatActivity
+public class InvoiceListActivity extends BaseActivity
         implements InvoiceAdapter.OnInvoiceClickListener {
 
     public static final String EXTRA_STORE_NAME = "extra_store_name";
