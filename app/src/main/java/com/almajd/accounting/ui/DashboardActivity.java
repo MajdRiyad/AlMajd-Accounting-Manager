@@ -16,6 +16,7 @@ import com.almajd.accounting.ui.invoice.InvoiceFormActivity;
 import com.almajd.accounting.ui.payment.PaymentFormActivity;
 import com.almajd.accounting.ui.report.ReportMenuActivity;
 import com.almajd.accounting.util.NumberUtils;
+import android.widget.ImageButton;
 
 /**
  * Launcher / home screen for the AlMajd Communications accounting application.
@@ -85,6 +86,18 @@ public class DashboardActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+
+        // Settings button
+        ImageButton btnSettings = findViewById(R.id.btn_settings);
+        if (btnSettings != null) {
+            btnSettings.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(DashboardActivity.this, SettingsActivity.class);
+                    startActivity(intent);
+                }
+            });
+        }
     }
 
     @Override

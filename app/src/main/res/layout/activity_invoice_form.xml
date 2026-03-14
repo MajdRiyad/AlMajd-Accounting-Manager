@@ -52,7 +52,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
                         android:layout_marginTop="4dp"
-                        android:background="@android:drawable/btn_dropdown" />
+                        android:background="@drawable/bg_spinner" />
 
                     <!-- Date -->
                     <com.google.android.material.textfield.TextInputLayout
@@ -85,7 +85,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="8dp"
-                android:text="البنود"
+                android:text="@string/items_section_title"
                 android:textColor="@color/textPrimary"
                 android:textSize="@dimen/text_size_subtitle"
                 android:textStyle="bold" />

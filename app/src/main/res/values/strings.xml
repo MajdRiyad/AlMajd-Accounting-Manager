@@ -80,4 +80,18 @@
     <string name="pdf_phone_placeholder">[PHONE]</string>
     <string name="export">تصدير</string>
     <string name="last_payment_date">تاريخ آخر دفعة</string>
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_company_info">معلومات الشركة</string>
+    <string name="settings_company_name_ar">اسم الشركة (عربي)</string>
+    <string name="settings_company_name_en">Company Name (English)</string>
+    <string name="settings_owner_info">معلومات المالك</string>
+    <string name="settings_owner_name_ar">اسم المالك (عربي)</string>
+    <string name="settings_owner_name_en">Owner Name (English)</string>
+    <string name="settings_contact_info">معلومات الاتصال</string>
+    <string name="settings_phone">رقم الهاتف</string>
+    <string name="settings_saved">تم حفظ الإعدادات</string>
+    <string name="items_section_title">البنود</string>
+    <string name="view_all">عرض الكل</string>
+    <string name="invoice_number_format">فاتورة #%d</string>
+    <string name="status_paid">مدفوعة</string>
 </resources>

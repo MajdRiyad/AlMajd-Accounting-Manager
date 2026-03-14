@@ -5,27 +5,81 @@
         <item name="colorPrimaryDark">@color/primaryDarkColor</item>
         <item name="colorAccent">@color/accentColor</item>
         <item name="colorSecondary">@color/accentColor</item>
+        <item name="android:statusBarColor">@color/primaryDarkColor</item>
+        <item name="android:windowBackground">@color/lightGray</item>
     </style>
 
     <style name="AppTheme.Toolbar">
         <item name="android:background">@color/primaryColor</item>
     </style>
 
+    <!-- Dashboard nav cards (2x2 grid) -->
     <style name="DashboardButton" parent="Widget.MaterialComponents.Button">
         <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">120dp</item>
+        <item name="android:layout_height">@dimen/dashboard_card_height</item>
         <item name="android:layout_columnWeight">1</item>
-        <item name="android:layout_margin">8dp</item>
-        <item name="android:textSize">16sp</item>
-        <item name="cornerRadius">12dp</item>
+        <item name="android:layout_margin">6dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="cornerRadius">@dimen/card_corner_radius</item>
         <item name="android:textColor">@color/white</item>
         <item name="backgroundTint">@color/primaryColor</item>
+        <item name="android:elevation">4dp</item>
+        <item name="rippleColor">@color/rippleColor</item>
     </style>
 
+    <!-- Card with rounded corners and subtle shadow -->
     <style name="CardStyle" parent="Widget.MaterialComponents.CardView">
         <item name="cardElevation">@dimen/card_elevation</item>
-        <item name="cardCornerRadius">8dp</item>
-        <item name="contentPadding">@dimen/card_padding</item>
+        <item name="cardCornerRadius">@dimen/card_corner_radius</item>
+        <item name="contentPadding">0dp</item>
         <item name="android:layout_margin">@dimen/card_margin</item>
+    </style>
+
+    <!-- Outlined input fields (for forms) -->
+    <style name="AppTextInputStyle" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/primaryColor</item>
+        <item name="hintTextColor">@color/primaryColor</item>
+        <item name="boxCornerRadiusTopStart">8dp</item>
+        <item name="boxCornerRadiusTopEnd">8dp</item>
+        <item name="boxCornerRadiusBottomStart">8dp</item>
+        <item name="boxCornerRadiusBottomEnd">8dp</item>
+    </style>
+
+    <!-- Primary action button (full-width, bottom-pinned) -->
+    <style name="PrimaryButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:textSize">@dimen/text_size_subtitle</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">@color/primaryColor</item>
+        <item name="cornerRadius">10dp</item>
+        <item name="android:elevation">4dp</item>
+    </style>
+
+    <!-- Accent action button -->
+    <style name="AccentButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:textSize">@dimen/text_size_subtitle</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">@color/accentColor</item>
+        <item name="cornerRadius">10dp</item>
+        <item name="android:elevation">4dp</item>
+    </style>
+
+    <!-- Status badge (paid/unpaid/partial) -->
+    <style name="StatusBadge">
+        <item name="android:textSize">@dimen/text_size_tiny</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:paddingStart">@dimen/badge_padding_horizontal</item>
+        <item name="android:paddingEnd">@dimen/badge_padding_horizontal</item>
+        <item name="android:paddingTop">@dimen/badge_padding_vertical</item>
+        <item name="android:paddingBottom">@dimen/badge_padding_vertical</item>
+    </style>
+
+    <!-- Section header text (e.g. "Items", "Recent Invoices") -->
+    <style name="SectionHeader">
+        <item name="android:textSize">@dimen/text_size_subtitle</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/textPrimary</item>
+        <item name="android:layout_marginTop">16dp</item>
+        <item name="android:layout_marginBottom">8dp</item>
     </style>
 </resources>

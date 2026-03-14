@@ -2,16 +2,23 @@
 <resources>
     <dimen name="activity_margin">16dp</dimen>
     <dimen name="card_margin">8dp</dimen>
-    <dimen name="card_padding">12dp</dimen>
-    <dimen name="card_elevation">4dp</dimen>
+    <dimen name="card_padding">16dp</dimen>
+    <dimen name="card_elevation">3dp</dimen>
+    <dimen name="card_corner_radius">12dp</dimen>
     <dimen name="text_size_title">20sp</dimen>
     <dimen name="text_size_subtitle">16sp</dimen>
     <dimen name="text_size_body">14sp</dimen>
     <dimen name="text_size_small">12sp</dimen>
-    <dimen name="text_size_header">36sp</dimen>
-    <dimen name="text_size_greeting">18sp</dimen>
+    <dimen name="text_size_tiny">10sp</dimen>
+    <dimen name="text_size_header">28sp</dimen>
+    <dimen name="text_size_greeting">16sp</dimen>
     <dimen name="button_height">120dp</dimen>
     <dimen name="fab_margin">16dp</dimen>
     <dimen name="toolbar_height">56dp</dimen>
     <dimen name="item_padding">12dp</dimen>
+    <dimen name="accent_bar_width">4dp</dimen>
+    <dimen name="icon_size_dashboard">32dp</dimen>
+    <dimen name="dashboard_card_height">100dp</dimen>
+    <dimen name="badge_padding_horizontal">10dp</dimen>
+    <dimen name="badge_padding_vertical">3dp</dimen>
 </resources>

@@ -3,72 +3,92 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="4dp"
-    app:cardCornerRadius="8dp"
-    app:cardElevation="@dimen/card_elevation"
-    app:contentPadding="@dimen/card_padding">
+    android:layout_marginStart="@dimen/card_margin"
+    android:layout_marginEnd="@dimen/card_margin"
+    android:layout_marginBottom="6dp"
+    app:cardCornerRadius="@dimen/card_corner_radius"
+    app:cardElevation="2dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <!-- Invoice Info -->
+        <!-- Accent bar (blue for invoices) -->
+        <View
+            android:layout_width="@dimen/accent_bar_width"
+            android:layout_height="match_parent"
+            android:background="@color/accentBarInvoice" />
+
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="@dimen/card_padding">
 
-            <TextView
-                android:id="@+id/tv_invoice_id"
-                android:layout_width="match_parent"
+            <!-- Invoice Info -->
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:textColor="@color/textPrimary"
-                android:textSize="@dimen/text_size_subtitle"
-                android:textStyle="bold" />
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tv_store_name"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="@color/textSecondary"
-                android:textSize="@dimen/text_size_body" />
+                <TextView
+                    android:id="@+id/tv_invoice_id"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="@dimen/text_size_subtitle"
+                    android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/tv_date"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="@color/gray"
-                android:textSize="@dimen/text_size_small" />
+                <TextView
+                    android:id="@+id/tv_store_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="@dimen/text_size_body" />
 
-        </LinearLayout>
+                <TextView
+                    android:id="@+id/tv_date"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/gray"
+                    android:textSize="@dimen/text_size_small" />
 
-        <!-- Amounts -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="end"
-            android:orientation="vertical">
+            </LinearLayout>
 
-            <TextView
-                android:id="@+id/tv_total"
+            <!-- Amounts -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/textPrimary"
-                android:textSize="@dimen/text_size_subtitle"
-                android:textStyle="bold" />
+                android:gravity="end"
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tv_remaining"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="@color/red"
-                android:textSize="@dimen/text_size_small" />
+                <TextView
+                    android:id="@+id/tv_total"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="@dimen/text_size_subtitle"
+                    android:textStyle="bold" />
+
+                <!-- Status badge -->
+                <TextView
+                    android:id="@+id/tv_remaining"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:paddingStart="@dimen/badge_padding_horizontal"
+                    android:paddingEnd="@dimen/badge_padding_horizontal"
+                    android:paddingTop="@dimen/badge_padding_vertical"
+                    android:paddingBottom="@dimen/badge_padding_vertical"
+                    android:textSize="@dimen/text_size_tiny"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
 
         </LinearLayout>
 

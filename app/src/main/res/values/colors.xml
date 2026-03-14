@@ -1,17 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Primary palette (Blue) -->
     <color name="primaryColor">#1565C0</color>
     <color name="primaryDarkColor">#0D47A1</color>
+    <color name="primaryLightColor">#1E88E5</color>
+
+    <!-- Accent palette (Orange) -->
     <color name="accentColor">#FF6F00</color>
+    <color name="accentLightColor">#FF8F00</color>
+
+    <!-- Neutrals -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
-    <color name="lightGray">#F5F5F5</color>
+    <color name="lightGray">#F0F2F5</color>
     <color name="gray">#9E9E9E</color>
     <color name="darkGray">#616161</color>
+
+    <!-- Semantic -->
     <color name="red">#D32F2F</color>
+    <color name="redLight">#FFEBEE</color>
     <color name="green">#388E3C</color>
+    <color name="greenLight">#E8F5E9</color>
+
+    <!-- Surface / Card -->
     <color name="cardBackground">#FFFFFF</color>
     <color name="divider">#E0E0E0</color>
+    <color name="dividerLight">#EEEEEE</color>
+
+    <!-- Text -->
     <color name="textPrimary">#212121</color>
     <color name="textSecondary">#757575</color>
+    <color name="textHint">#BDBDBD</color>
+
+    <!-- Gradient colors for dashboard header -->
+    <color name="gradientStart">#0D47A1</color>
+    <color name="gradientEnd">#1E88E5</color>
+
+    <!-- Status bar overlay -->
+    <color name="statusBarOverlay">#1A000000</color>
+
+    <!-- Card accent bars -->
+    <color name="accentBarInvoice">#1565C0</color>
+    <color name="accentBarPayment">#388E3C</color>
+    <color name="accentBarCustomer">#FF6F00</color>
+
+    <!-- Badge backgrounds -->
+    <color name="badgePaid">#E8F5E9</color>
+    <color name="badgePaidText">#2E7D32</color>
+    <color name="badgeUnpaid">#FFEBEE</color>
+    <color name="badgeUnpaidText">#C62828</color>
+    <color name="badgePartial">#FFF3E0</color>
+    <color name="badgePartialText">#E65100</color>
+
+    <!-- Ripple -->
+    <color name="rippleColor">#1A1565C0</color>
 </resources>
