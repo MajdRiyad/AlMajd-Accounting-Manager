@@ -24,11 +24,18 @@ public class PdfExporter {
 
     /**
      * Loads the Cairo font from assets. Caches for reuse.
+     * If font loading fails, resets the cache so the next call retries.
      */
     private static BaseFont getCairoRegular(Context context) throws Exception {
         if (cairoRegular == null) {
             String fontPath = copyFontToCache(context, "fonts/Cairo-Regular.ttf", "Cairo-Regular.ttf");
-            cairoRegular = BaseFont.createFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+            try {
+                cairoRegular = BaseFont.createFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+            } catch (Exception e) {
+                // Delete the potentially corrupt cached file so the next attempt re-copies
+                new File(fontPath).delete();
+                throw e;
+            }
         }
         return cairoRegular;
     }
@@ -36,7 +43,12 @@ public class PdfExporter {
     private static BaseFont getCairoBold(Context context) throws Exception {
         if (cairoBold == null) {
             String fontPath = copyFontToCache(context, "fonts/Cairo-Bold.ttf", "Cairo-Bold.ttf");
-            cairoBold = BaseFont.createFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+            try {
+                cairoBold = BaseFont.createFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+            } catch (Exception e) {
+                new File(fontPath).delete();
+                throw e;
+            }
         }
         return cairoBold;
     }
@@ -44,19 +56,26 @@ public class PdfExporter {
     /**
      * iText can't read from Android assets directly, so we copy the font
      * to the cache directory and return its absolute path.
+     * Always overwrites to ensure the cached file matches the bundled asset.
      */
     private static String copyFontToCache(Context context, String assetPath, String fileName) throws Exception {
         File fontFile = new File(context.getCacheDir(), fileName);
-        if (!fontFile.exists()) {
-            InputStream is = context.getAssets().open(assetPath);
-            FileOutputStream fos = new FileOutputStream(fontFile);
-            byte[] buffer = new byte[4096];
-            int len;
-            while ((len = is.read(buffer)) != -1) {
-                fos.write(buffer, 0, len);
-            }
-            fos.close();
-            is.close();
+        // Always overwrite — guarantees the cached copy matches the bundled asset
+        // (protects against previously cached corrupt files)
+        InputStream is = context.getAssets().open(assetPath);
+        FileOutputStream fos = new FileOutputStream(fontFile);
+        byte[] buffer = new byte[4096];
+        int len;
+        while ((len = is.read(buffer)) != -1) {
+            fos.write(buffer, 0, len);
+        }
+        fos.flush();
+        fos.close();
+        is.close();
+
+        // Basic sanity check — a valid TTF should be at least 10 KB
+        if (fontFile.length() < 10000) {
+            throw new Exception("Font file too small, likely corrupt: " + fontFile.getAbsolutePath());
         }
         return fontFile.getAbsolutePath();
     }
