@@ -235,6 +235,25 @@ public class PaymentDao {
     }
 
     /**
+     * Get the total count of payments.
+     */
+    public int getCount() {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery("SELECT COUNT(*) FROM " + DatabaseHelper.TABLE_PAYMENTS, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                return cursor.getInt(0);
+            }
+            return 0;
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+    }
+
+    /**
      * Convert a cursor row to a Payment object.
      */
     private Payment cursorToPayment(Cursor cursor) {

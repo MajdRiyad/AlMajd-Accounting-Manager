@@ -224,6 +224,6 @@
         android:text="@string/save"
         android:textSize="@dimen/text_size_subtitle"
         app:backgroundTint="@color/primaryColor"
-        app:cornerRadius="8dp" />
+        app:cornerRadius="@dimen/button_corner_radius" />
 
 </LinearLayout>

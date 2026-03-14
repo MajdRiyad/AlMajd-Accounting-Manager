@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">AlMajd Accounting</string>
     <string name="header_title">المجد للاتصالات</string>
+    <string name="header_title_en">AlMajd Communications</string>
     <string name="greeting">مرحباً بك، أبو المجد</string>
     <string name="btn_add_customer">إضافة عميل</string>
     <string name="btn_new_invoice">فاتورة جديدة</string>
@@ -94,4 +95,27 @@
     <string name="view_all">عرض الكل</string>
     <string name="invoice_number_format">فاتورة #%d</string>
     <string name="status_paid">مدفوعة</string>
+
+    <!-- Dashboard stat card labels (React design) -->
+    <string name="stat_total_sales">إجمالي المبيعات</string>
+    <string name="stat_total_received">المبالغ المستلمة</string>
+    <string name="stat_total_debts">الديون المستحقة</string>
+    <string name="stat_customer_count">عدد العملاء</string>
+    <string name="stat_invoice_count">عدد الفواتير</string>
+    <string name="stat_payment_count">عدد الدفعات</string>
+
+    <!-- Dashboard nav card labels -->
+    <string name="nav_customers">العملاء</string>
+    <string name="nav_invoices">الفواتير</string>
+    <string name="nav_payments">المدفوعات</string>
+    <string name="nav_reports">التقارير</string>
+
+    <!-- Recent invoices section -->
+    <string name="recent_invoices">آخر الفواتير</string>
+    <string name="no_recent_invoices">لا توجد فواتير حديثة</string>
+
+    <!-- Report tabs -->
+    <string name="tab_accounts">الحسابات</string>
+    <string name="tab_sales">المبيعات</string>
+    <string name="tab_payments">الدفعات</string>
 </resources>
