@@ -29,7 +29,10 @@ import com.almajd.accounting.model.InvoiceItem;
 import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.NumberUtils;
+import com.almajd.accounting.util.PdfExporter;
+import com.almajd.accounting.util.ShareHelper;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -64,6 +67,13 @@ public class InvoiceFormActivity extends BaseActivity
     private static final String STATE_ITEM_SUBTOTALS = "state_item_subtotals";
     private static final String STATE_STORE_NAME = "state_store_name";
 
+    /**
+     * Id of the invoice saved before a configuration change. Persisted so that
+     * rotating the device while the PDF/share sheet is being prepared cannot
+     * re-enable Save and let the user create a duplicate.
+     */
+    private static final String STATE_SAVED_INVOICE_ID = "state_saved_invoice_id";
+
     private Spinner spinnerStore;
     private EditText etDate;
     private EditText etPaid;
@@ -94,6 +104,13 @@ public class InvoiceFormActivity extends BaseActivity
     /** ID of the invoice being edited (only valid when editMode is true). */
     private long editInvoiceId = -1;
 
+    /**
+     * ID of the invoice saved by this (create-mode) form, or -1 before a
+     * successful save. Once it is set the form only reports success and closes;
+     * it must never save again.
+     */
+    private long savedInvoiceId = -1;
+
     /** True when create-mode line items were restored from saved state (rotation). */
     private boolean restoredItems = false;
 
@@ -104,6 +121,16 @@ public class InvoiceFormActivity extends BaseActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_invoice_form);
+
+        // Recovery: the invoice was already saved before the device rotated while
+        // the share sheet was being prepared. The form must not save again, so it
+        // closes immediately and still reports the saved invoice to the caller.
+        if (savedInstanceState != null
+                && savedInstanceState.getLong(STATE_SAVED_INVOICE_ID, -1) > 0) {
+            setResult(RESULT_OK);
+            finish();
+            return;
+        }
 
         // --- Toolbar ---
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -523,29 +550,97 @@ public class InvoiceFormActivity extends BaseActivity
      * second tap cannot insert a duplicate. {@code linkedPaid} is recorded as a
      * payment linked to the invoice; {@code onAccountPaid} (the excess of
      * "paid now" over the total) as a separate on-account payment.
+     * <p>
+     * In create mode a successful save also generates the invoice PDF and opens
+     * the system share sheet (see {@link #generateAndShare}). Edit mode keeps its
+     * previous behaviour and never opens the share sheet.
      */
     private void saveInvoice(final Invoice invoice, final boolean isEdit,
                              final double linkedPaid, final double onAccountPaid) {
         btnSave.setEnabled(false);
         AppExecutors.runOnDb(() -> {
-            final boolean saved = isEdit
-                    ? invoiceDao.update(invoice)
-                    : invoiceDao.insert(invoice, linkedPaid, onAccountPaid) > 0;
+            final long invoiceId;
+            if (isEdit) {
+                invoiceId = invoiceDao.update(invoice) ? invoice.getId() : -1L;
+            } else {
+                invoiceId = invoiceDao.insert(invoice, linkedPaid, onAccountPaid);
+            }
 
             AppExecutors.runOnMain(() -> {
                 if (isFinishing() || isDestroyed()) {
                     return;
                 }
-                if (saved) {
-                    Toast.makeText(InvoiceFormActivity.this,
-                            R.string.invoice_saved, Toast.LENGTH_SHORT).show();
-                    setResult(RESULT_OK);
-                    finish();
-                } else {
+                if (invoiceId <= 0) {
                     Toast.makeText(InvoiceFormActivity.this,
                             R.string.save_failed, Toast.LENGTH_SHORT).show();
                     btnSave.setEnabled(true);
+                    return;
                 }
+                Toast.makeText(InvoiceFormActivity.this,
+                        R.string.invoice_saved, Toast.LENGTH_SHORT).show();
+                // The invoice is committed: report success *now*, so the caller
+                // refreshes even if the user leaves while the PDF is generated.
+                setResult(RESULT_OK);
+                savedInvoiceId = invoiceId;
+
+                if (isEdit) {
+                    // Edit mode: unchanged -- just close.
+                    finish();
+                } else {
+                    // Create mode: build the PDF off the main thread and open the
+                    // system share sheet. Save stays disabled meanwhile.
+                    generateAndShare(invoiceId);
+                }
+            });
+        });
+    }
+
+    /**
+     * Re-loads the freshly saved invoice (so it carries its items and its
+     * effective paid/remaining values), generates the invoice PDF with the same
+     * code {@code InvoiceDetailActivity} uses, and opens the system share sheet.
+     * <p>
+     * The DB read and the PDF generation run on the shared background thread; the
+     * share sheet is launched on the main thread. The invoice is already saved, so
+     * a generation failure only shows {@code pdf_generation_failed} and the form
+     * still closes with {@code RESULT_OK} -- the save is never reported as failed.
+     */
+    private void generateAndShare(final long invoiceId) {
+        AppExecutors.runOnDb(() -> {
+            File pdfFile = null;
+            boolean failed = false;
+            try {
+                final Invoice saved = invoiceDao.getById(invoiceId);
+                if (saved != null) {
+                    final Customer customer =
+                            customerDao.getByStoreName(saved.getStoreName());
+                    pdfFile = PdfExporter.generateInvoicePdf(
+                            InvoiceFormActivity.this, saved, customer);
+                } else {
+                    failed = true;
+                }
+            } catch (Exception e) {
+                failed = true;
+            }
+
+            final File file = pdfFile;
+            final boolean error = failed || file == null;
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (error) {
+                    Toast.makeText(InvoiceFormActivity.this,
+                            R.string.pdf_generation_failed, Toast.LENGTH_SHORT).show();
+                } else {
+                    ShareHelper.sharePdf(InvoiceFormActivity.this, file);
+                }
+                // The chooser is a separate activity and the PDF is shared from
+                // cacheDir through the FileProvider, so nothing here depends on
+                // this Activity staying alive. Finishing straight after launching
+                // is safe and guarantees the caller refreshes even when the user
+                // never comes back through the form.
+                finish();
             });
         });
     }
@@ -586,11 +681,18 @@ public class InvoiceFormActivity extends BaseActivity
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        // Persist the in-progress line items so rotating the device does not lose
-        // them. Edit mode reloads from the database, so only create mode saves.
-        if (editMode || itemAdapter == null) {
+        // Edit mode reloads from the database, so only create mode saves state.
+        if (editMode) {
             return;
         }
+        // Remember a completed save so rotation during PDF generation / share
+        // cannot re-enable Save and create a duplicate.
+        outState.putLong(STATE_SAVED_INVOICE_ID, savedInvoiceId);
+        if (itemAdapter == null) {
+            return;
+        }
+        // Persist the in-progress line items so rotating the device does not lose
+        // them.
         List<InvoiceItem> items = itemAdapter.getAllItems();
         String[] names = new String[items.size()];
         int[] quantities = new int[items.size()];

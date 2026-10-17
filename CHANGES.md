@@ -1197,4 +1197,74 @@ runs and raw content stream:
   stored as `double`; hardcoded English error toasts in the pre-existing
   invoice-share code.
 
+---
+
+# Share the invoice PDF right after saving a new invoice
+
+## Goal
+In create mode only, after a new invoice is saved successfully, generate the
+invoice PDF and open the system share sheet so the owner can send it to the
+customer. Edit mode is unchanged.
+
+## What changed
+- `InvoiceFormActivity.saveInvoice` now captures the inserted/updated id and:
+  - on success: toasts `invoice_saved`, calls `setResult(RESULT_OK)` **before**
+    generating, remembers `savedInvoiceId`, then
+    - **edit mode**: `finish()` exactly as before (no share sheet);
+    - **create mode**: calls the new `generateAndShare(id)`.
+  - on failure: same as before (`save_failed`, Save re-enabled).
+- New `InvoiceFormActivity.generateAndShare(id)` (create mode only):
+  - on the shared DB thread: `InvoiceDao.getById(id)` (so the invoice carries its
+    items and its effective paid/remaining), `CustomerDao.getByStoreName`, then
+    `PdfExporter.generateInvoicePdf(...)` — the same call `InvoiceDetailActivity`
+    uses for sharing, reused as-is (no duplicated PDF code);
+  - on the main thread: `ShareHelper.sharePdf(...)` and then `finish()`.
+- Failure handling: if the DB read or the PDF throws, the invoice is already
+  committed, so the form only shows `pdf_generation_failed` (never
+  `save_failed`) and still closes with `RESULT_OK`.
+- Duplicate protection: Save is disabled for the whole save **and** stays
+  disabled through generation/share. `savedInvoiceId` is written to instance
+  state; on recreation (rotation during generation) the form closes immediately
+  with `RESULT_OK` instead of re-enabling Save.
+- Threading unchanged: DB read + PDF on `AppExecutors.runOnDb`, UI/share on
+  `AppExecutors.runOnMain`, every callback guarded by
+  `isFinishing()/isDestroyed()`.
+- No schema, accounting, backup/restore or threading-model changes; no new
+  user-facing strings were needed (`invoice_saved`, `save_failed`,
+  `pdf_generation_failed`, `share_error` already exist).
+
+## Why finish immediately after launching the share sheet
+`ShareHelper.sharePdf` is reused unchanged, so the chooser is launched with
+`startActivity` (not for result). It is a separate activity and the PDF lives in
+`cacheDir`, exposed through the `FileProvider` with a read grant, so nothing the
+chooser needs depends on the form instance. Finishing right after launching is
+therefore safe, needs no `requestCode`/`ActivityResultLauncher`, cannot leave the
+form stuck if a share target never returns a result, and guarantees the caller
+refreshes (`RESULT_OK`) even if the user never navigates back through the form.
+Because `setResult(RESULT_OK)` runs before generation, pressing Back during
+generation also refreshes the list without reporting a failure.
+
+## Build
+- `./gradlew testDebugUnitTest assembleDebug --console=plain --offline` ->
+  BUILD SUCCESSFUL. All 97 unit tests pass (unchanged; no new pure logic).
+- Built via a `subst` drive letter (the `&` in the project path), mapping removed
+  afterwards.
+- Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,415,683 bytes), built 2026-10-17.
+
+## Noticed but not fixed
+- Rotating exactly while the PDF is being generated closes the form without
+  opening the share sheet (the invoice is saved and the list refreshes; the PDF
+  can still be shared from the invoice detail screen). Preferring "no duplicate"
+  over "always share" is deliberate.
+- The result of the share itself (a target app's success/failure) is not tracked;
+  `ShareHelper`'s existing `share_error` toast covers the "no app can handle it"
+  case.
+- The same reuse pattern still exists as two small call sites
+  (`InvoiceDetailActivity` and the form) that each do
+  "load customer -> generateInvoicePdf"; only the heavy PDF code is shared.
+- Pre-existing and untouched: DB first open/migration on the main thread; money
+  stored as `double`; hardcoded English error toasts in the pre-existing
+  invoice-share code.
+
 
