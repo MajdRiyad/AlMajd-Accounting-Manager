@@ -230,8 +230,8 @@ public class PdfExporter {
         document.add(infoTable);
 
         // ─── ITEMS TABLE — RTL visual order ───────────────────────────────
-        // Visual (right to left): البند | الكمية | السعر | المجموع
-        // In code (LTR table):   المجموع | السعر | الكمية | البند
+        // Visual (right to left): الصنف | الكمية | سعر الواحدة | المجموع
+        // In code (LTR table):   المجموع | سعر الواحدة | الكمية | الصنف
         // i.e. we add columns in REVERSE visual order.
         PdfPTable itemsTable = new PdfPTable(4);
         itemsTable.setWidthPercentage(100);
@@ -241,9 +241,9 @@ public class PdfExporter {
         // Header row (code order = left to right = visual right to left)
         String[] hdrLabels = {
                 "\u0627\u0644\u0645\u062C\u0645\u0648\u0639",  // المجموع
-                "\u0627\u0644\u0633\u0639\u0631",              // السعر
+                "\u0633\u0639\u0631 \u0627\u0644\u0648\u0627\u062D\u062F\u0629", // سعر الواحدة
                 "\u0627\u0644\u0643\u0645\u064A\u0629",        // الكمية
-                "\u0627\u0644\u0628\u0646\u062F"               // البند
+                "\u0627\u0644\u0635\u0646\u0641"               // الصنف
         };
         for (String h : hdrLabels) {
             itemsTable.addCell(rtlCell(new Phrase(h, tblHdrFont),
@@ -258,9 +258,9 @@ public class PdfExporter {
                 BaseColor bg = alt ? ALT_ROW_BG : BaseColor.WHITE;
 
                 // Subtotal (leftmost column = visual rightmost... no, leftmost in code = leftmost on page)
-                // Wait — we need: visual right side = البند. So البند must be the LAST column in code.
+                // Wait — we need: visual right side = الصنف. So الصنف must be the LAST column in code.
                 // Code col 0 = page left = المجموع (visual leftmost for RTL = last thing read)
-                // Code col 3 = page right = البند (visual rightmost = first thing read in RTL)
+                // Code col 3 = page right = الصنف (visual rightmost = first thing read in RTL)
                 itemsTable.addCell(rtlCell(new Phrase(NumberUtils.formatCurrency(item.getSubtotal()), cellFont),
                         Element.ALIGN_CENTER, bg, 6));
                 itemsTable.addCell(rtlCell(new Phrase(NumberUtils.formatCurrency(item.getUnitPrice()), cellFont),

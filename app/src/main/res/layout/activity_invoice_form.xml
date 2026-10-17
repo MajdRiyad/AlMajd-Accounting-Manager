@@ -16,10 +16,12 @@
         app:titleTextColor="@color/white" />
 
     <!-- Scrollable Content -->
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/nsv_form"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -90,7 +92,76 @@
                 android:textSize="@dimen/text_size_subtitle"
                 android:textStyle="bold" />
 
-            <!-- Invoice Items RecyclerView -->
+            <!-- Column header (mirrors item_invoice_line.xml so columns line up).
+                 RTL visual order: # | اسم الصنف | الكمية | سعر الواحدة | المجموع | (delete) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="2dp">
+
+                <TextView
+                    android:layout_width="24dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="@string/col_number"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="@dimen/text_size_small"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="3"
+                    android:text="@string/item_name"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="@dimen/text_size_small"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="@string/quantity"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="@dimen/text_size_small"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="2"
+                    android:gravity="center"
+                    android:text="@string/unit_price"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="@dimen/text_size_small"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="2"
+                    android:gravity="center"
+                    android:text="@string/subtotal"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="@dimen/text_size_small"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="40dp"
+                    android:layout_height="1dp" />
+
+            </LinearLayout>
+
+            <!-- Invoice Items RecyclerView (non-scrolling: the NestedScrollView scrolls) -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_invoice_items"
                 android:layout_width="match_parent"
@@ -214,7 +285,7 @@
 
         </LinearLayout>
 
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 
     <!-- Bottom Save Bar -->
     <com.google.android.material.button.MaterialButton

@@ -13,7 +13,9 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -55,6 +57,13 @@ public class InvoiceFormActivity extends BaseActivity
     public static final String EXTRA_INVOICE_ID = "extra_invoice_id";
     public static final String EXTRA_STORE_NAME = "extra_store_name";
 
+    // Saved-instance-state keys (rotation / process death).
+    private static final String STATE_ITEM_NAMES = "state_item_names";
+    private static final String STATE_ITEM_QUANTITIES = "state_item_quantities";
+    private static final String STATE_ITEM_PRICES = "state_item_prices";
+    private static final String STATE_ITEM_SUBTOTALS = "state_item_subtotals";
+    private static final String STATE_STORE_NAME = "state_store_name";
+
     private Spinner spinnerStore;
     private EditText etDate;
     private EditText etPaid;
@@ -62,6 +71,7 @@ public class InvoiceFormActivity extends BaseActivity
     private TextView tvTotal;
     private TextView tvRemaining;
     private RecyclerView rvInvoiceItems;
+    private NestedScrollView nsvForm;
     private Button btnAddItem;
     private Button btnSave;
 
@@ -83,6 +93,12 @@ public class InvoiceFormActivity extends BaseActivity
 
     /** ID of the invoice being edited (only valid when editMode is true). */
     private long editInvoiceId = -1;
+
+    /** True when create-mode line items were restored from saved state (rotation). */
+    private boolean restoredItems = false;
+
+    /** Store name captured in saved instance state (rotation); may be null. */
+    private String restoredStoreName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,6 +124,7 @@ public class InvoiceFormActivity extends BaseActivity
         tvTotal = findViewById(R.id.tv_total);
         tvRemaining = findViewById(R.id.tv_remaining);
         rvInvoiceItems = findViewById(R.id.rv_invoice_items);
+        nsvForm = findViewById(R.id.nsv_form);
         btnAddItem = findViewById(R.id.btn_add_item);
         btnSave = findViewById(R.id.btn_save);
 
@@ -135,7 +152,18 @@ public class InvoiceFormActivity extends BaseActivity
         });
 
         // --- Invoice items RecyclerView ---
+        // On rotation, create-mode items are restored from saved state so no work
+        // is lost. Edit mode reloads from the database instead (see
+        // onStoreSpinnerReady), so it never restores here.
         List<InvoiceItem> initialItems = new ArrayList<>();
+        if (!editMode && savedInstanceState != null) {
+            List<InvoiceItem> restored = restoreItems(savedInstanceState);
+            if (restored != null) {
+                initialItems.addAll(restored);
+                restoredItems = true;
+                restoredStoreName = savedInstanceState.getString(STATE_STORE_NAME);
+            }
+        }
         itemAdapter = new InvoiceItemAdapter(initialItems, this);
         rvInvoiceItems.setLayoutManager(new LinearLayoutManager(this));
         rvInvoiceItems.setAdapter(itemAdapter);
@@ -158,9 +186,8 @@ public class InvoiceFormActivity extends BaseActivity
         btnAddItem.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                itemAdapter.addItem();
-                // Scroll to the newly added item
-                rvInvoiceItems.smoothScrollToPosition(itemAdapter.getItemCount() - 1);
+                // Add the row, then scroll it into view and focus its name field.
+                addItemAndReveal(itemAdapter.addItem());
             }
         });
 
@@ -226,7 +253,21 @@ public class InvoiceFormActivity extends BaseActivity
      */
     private void onStoreSpinnerReady() {
         if (editMode) {
+            // Edit mode always reloads the invoice from the database; the
+            // "paid now" row stays hidden (payments are managed elsewhere).
+            if (rowPaidNow != null) {
+                rowPaidNow.setVisibility(View.GONE);
+            }
             loadExistingInvoice();
+            return;
+        }
+
+        // Create mode, restored after rotation: keep the in-progress line items
+        // instead of starting over with a single blank row.
+        if (restoredItems) {
+            selectStoreInSpinner(restoredStoreName);
+            refreshTotalsFromAdapter();
+            btnSave.setEnabled(true);
             return;
         }
 
@@ -507,6 +548,117 @@ public class InvoiceFormActivity extends BaseActivity
                 }
             });
         });
+    }
+
+    // ── Scrolling / focus ────────────────────────────────────────────────
+
+    /**
+     * Scrolls the form so the just-added line item is visible and focuses its
+     * name field. The item RecyclerView is intentionally non-scrolling (its
+     * height is {@code wrap_content}), so scrolling is done on the surrounding
+     * {@link NestedScrollView} to avoid nested-scroll conflicts.
+     *
+     * @param position adapter position of the new item
+     */
+    private void addItemAndReveal(final int position) {
+        rvInvoiceItems.post(new Runnable() {
+            @Override
+            public void run() {
+                RecyclerView.ViewHolder holder =
+                        rvInvoiceItems.findViewHolderForAdapterPosition(position);
+                if (holder == null) {
+                    // Not laid out yet: fall back to scrolling to the list bottom.
+                    nsvForm.smoothScrollTo(0, rvInvoiceItems.getBottom());
+                    return;
+                }
+                View row = holder.itemView;
+                nsvForm.smoothScrollTo(0, rvInvoiceItems.getTop() + row.getTop());
+                View nameField = row.findViewById(R.id.et_item_name);
+                if (nameField != null) {
+                    nameField.requestFocus();
+                }
+            }
+        });
+    }
+
+    // ── Rotation / process-death state ───────────────────────────────────
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        // Persist the in-progress line items so rotating the device does not lose
+        // them. Edit mode reloads from the database, so only create mode saves.
+        if (editMode || itemAdapter == null) {
+            return;
+        }
+        List<InvoiceItem> items = itemAdapter.getAllItems();
+        String[] names = new String[items.size()];
+        int[] quantities = new int[items.size()];
+        double[] prices = new double[items.size()];
+        double[] subtotals = new double[items.size()];
+        for (int i = 0; i < items.size(); i++) {
+            InvoiceItem item = items.get(i);
+            names[i] = item.getItemName();
+            quantities[i] = item.getQuantity();
+            prices[i] = item.getUnitPrice();
+            subtotals[i] = item.getSubtotal();
+        }
+        outState.putStringArray(STATE_ITEM_NAMES, names);
+        outState.putIntArray(STATE_ITEM_QUANTITIES, quantities);
+        outState.putDoubleArray(STATE_ITEM_PRICES, prices);
+        outState.putDoubleArray(STATE_ITEM_SUBTOTALS, subtotals);
+        outState.putString(STATE_STORE_NAME, getSelectedStoreName());
+    }
+
+    /**
+     * Rebuilds the line items from saved instance state.
+     *
+     * @return the restored items, or {@code null} when the state contains none
+     *         (fresh start, so the caller should add a blank row)
+     */
+    private List<InvoiceItem> restoreItems(Bundle state) {
+        String[] names = state.getStringArray(STATE_ITEM_NAMES);
+        if (names == null) {
+            return null;
+        }
+        int[] quantities = state.getIntArray(STATE_ITEM_QUANTITIES);
+        double[] prices = state.getDoubleArray(STATE_ITEM_PRICES);
+        double[] subtotals = state.getDoubleArray(STATE_ITEM_SUBTOTALS);
+
+        List<InvoiceItem> items = new ArrayList<>();
+        for (int i = 0; i < names.length; i++) {
+            InvoiceItem item = new InvoiceItem();
+            item.setItemName(names[i] != null ? names[i] : "");
+            item.setQuantity(quantities != null && i < quantities.length ? quantities[i] : 0);
+            item.setUnitPrice(prices != null && i < prices.length ? prices[i] : 0.0);
+            item.setSubtotal(subtotals != null && i < subtotals.length ? subtotals[i] : 0.0);
+            items.add(item);
+        }
+        return items;
+    }
+
+    /**
+     * Recomputes the displayed grand total (and remaining) from the adapter's
+     * current items. Used when the items are restored rather than re-typed.
+     */
+    private void refreshTotalsFromAdapter() {
+        double total = 0.0;
+        for (InvoiceItem item : itemAdapter.getAllItems()) {
+            total += item.getSubtotal();
+        }
+        onTotalsChanged(NumberUtils.round2(total));
+    }
+
+    /** @return the currently selected store name, or null when none is selected. */
+    private String getSelectedStoreName() {
+        if (storeNames == null) {
+            return null;
+        }
+        int pos = spinnerStore.getSelectedItemPosition();
+        if (pos <= 0 || pos >= storeNames.size()) {
+            return null;
+        }
+        return storeNames.get(pos);
     }
 
     @Override

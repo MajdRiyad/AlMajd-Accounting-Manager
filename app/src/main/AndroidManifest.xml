@@ -22,7 +22,9 @@
         <activity android:name=".ui.customer.CustomerFormActivity" />
         <activity android:name=".ui.customer.CustomerDetailActivity" />
         <activity android:name=".ui.invoice.InvoiceListActivity" />
-        <activity android:name=".ui.invoice.InvoiceFormActivity" />
+        <activity
+            android:name=".ui.invoice.InvoiceFormActivity"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.invoice.InvoiceDetailActivity" />
         <activity android:name=".ui.payment.PaymentListActivity" />
         <activity android:name=".ui.payment.PaymentFormActivity" />

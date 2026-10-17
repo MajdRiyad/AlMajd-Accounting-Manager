@@ -823,3 +823,76 @@ changes.
   stored as `double`; the invoice "paid now" overpayment is handled on the create
   path only (the edit path intentionally never creates payments).
 
+---
+
+# Invoice form UI: full-form scrolling, RTL column order, "صنف" rename
+
+Focused UI work on the invoice form (`feature/invoice-form-ui`). No DB schema,
+accounting logic, backup/restore or threading changes.
+
+## 1. Scrolling — all line items reachable, Save always visible
+- `activity_invoice_form.xml`: the content `ScrollView` is now a
+  `androidx.core.widget.NestedScrollView` (`@+id/nsv_form`, `fillViewport=true`).
+  The root stays a vertical `LinearLayout` of toolbar / scroll area (`0dp`,
+  `weight=1`) / Save button, so Save lives **outside** the scroll area and is
+  always visible at the bottom.
+- The item list stays a **non-scrolling** `RecyclerView`
+  (`nestedScrollingEnabled=false`, `height=wrap_content`) inside that single
+  NestedScrollView — the recommended way to avoid nested-scroll conflicts. With
+  an unbounded height it lays out every row, so many rows are all reachable by
+  scrolling the one parent.
+- Adding a row calls `addItemAndReveal(position)`: after layout it computes the
+  row's offset, `nsvForm.smoothScrollTo(...)` and focuses the new row's name
+  field. `InvoiceItemAdapter.addItem()` now returns the new position.
+- `AndroidManifest.xml`: `InvoiceFormActivity` gets
+  `android:windowSoftInputMode="adjustResize"` so the keyboard resizes the window
+  (the scroll area shrinks, Save stays visible) instead of panning over the
+  focused field.
+
+## 2. RTL column order + running row number
+- `item_invoice_line.xml` child order is now (first child = rightmost in RTL):
+  row number, item name, quantity, unit price, row total, delete. The delete
+  button has a fixed 40dp width so a spacer can mirror it.
+- New `tv_row_number` shows `position + 1`; the adapter sets it on every bind and
+  the delete path already calls `notifyItemRangeChanged(pos, ...)`, so removing a
+  middle row renumbers the rows below it.
+- `activity_invoice_form.xml` adds a column header row mirroring the item row
+  (same widths/weights/margins): `# | اسم الصنف | الكمية | سعر الواحدة | المجموع`.
+- The unit-price label is now **سعر الواحدة** (`unit_price` string).
+
+## 3. "البند" -> "الصنف" rename
+- `strings.xml`: `item_name` = "اسم الصنف", `items_section_title` = "الأصناف",
+  `add_item` = "+ إضافة صنف", `add_at_least_one_item` = "أضف صنفاً واحداً على الأقل",
+  `unit_price` = "سعر الواحدة"; new `col_number` = "#".
+- `PdfExporter.java` invoice items header: "البند" -> "الصنف" and "السعر" ->
+  "سعر الواحدة" (comments updated too).
+- The invoice detail screen reuses `R.string.item_name` / `R.string.unit_price`,
+  so it picks up the rename automatically. No report shows item names, so nothing
+  else needed changing. A search for البند/بند/البنود/سعر الوحدة now returns
+  nothing.
+
+## 4. Behaviour preserved
+- Live totals/remaining, overpayment dialog, double-tap protection on Save,
+  rounding, and edit mode (paid derived from payments, "paid now" row hidden) are
+  unchanged.
+- Rotation: `onSaveInstanceState` persists the create-mode line items plus the
+  selected store; `onCreate` restores them and `onStoreSpinnerReady` skips adding
+  a blank row, so rotating no longer loses in-progress items. Edit mode still
+  reloads from the DB (unchanged behaviour).
+
+## Build
+- `./gradlew testDebugUnitTest assembleDebug --console=plain --offline` ->
+  BUILD SUCCESSFUL. All 69 unit tests pass.
+- Built via a `subst` drive letter (the `&` in the project path breaks the batch
+  wrapper when called directly), mapping removed afterwards.
+- Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,354,313 bytes / 7.01 MB), built 2026-10-17 21:13.
+
+## Noticed but not fixed
+- The `RecyclerView` inside a scroll container loses view recycling (all rows are
+  measured/laid out). Fine for invoice-sized lists; noted for very large ones.
+- Untouched (pre-existing): the adapter trims the item name on every keystroke;
+  there is no maximum item count; and in edit mode the item list is reloaded from
+  the DB on rotation rather than from saved state.
+
+
