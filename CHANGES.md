@@ -685,3 +685,141 @@ Modified:
   wrapper when called directly), mapping removed afterwards.
 - Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
   (7,416,788 bytes / 7.07 MB), built 2026-10-17 20:30.
+
+---
+
+# Small fixes: invoice overpayment, date filters, digits/locale, real .xlsx, cleanup
+
+Independent, minimal fixes on branch `feature/small-fixes` (from `Dev-0`).
+No accounting logic, schema, `SCHEMA_VERSION`, backup/restore or threading
+changes.
+
+## 1. Invoice form: "paid now" greater than the invoice total (create)
+- On **create**, when the entered "paid now" exceeds the computed invoice total,
+  a confirmation dialog is now shown (same pattern as `PaymentFormActivity`).
+  - **Confirm** writes, in the *same* transaction as the invoice + items:
+    - a payment linked to the invoice for the invoice total, and
+    - the excess as an on-account payment (`invoice_id` NULL) with note
+      `payment_excess_note`.
+  - **Cancel** saves nothing and leaves the form open with Save re-enabled.
+- The excess is never silently dropped or altered; both payments (or neither)
+  are written because they share the invoice's transaction.
+- New `InvoiceDao.insert(Invoice, double linkedPaid, double onAccountPaid)`
+  overload; the old `insert(Invoice, double paidNow)` now delegates to it.
+- Files: `ui/invoice/InvoiceFormActivity.java`, `db/InvoiceDao.java`,
+  `res/values/strings.xml` (`paid_now_overpayment_title`,
+  `paid_now_overpayment_message`).
+- Example: total 1000, paid now 1200 -> dialog; confirm => invoice paid (1000
+  linked) + 200 on-account (customer credit 200); cancel => nothing saved.
+
+## 2. Report date filter: one-sided ranges + validation
+- `SalesReportActivity` / `PaymentReportActivity` now filter with **either**
+  bound: only "from" => `date >= from`; only "to" => `date <= to`; both => range.
+- Implemented by opening the missing bound in the DAO with the sortable
+  sentinels `DateUtils.DB_DATE_MIN` (`0000-00-00`) / `DB_DATE_MAX`
+  (`9999-99-99`), so each filter run is still exactly one query.
+- When both dates are set and `from > to`, a message is shown
+  (`invalid_date_range`) and no query runs.
+- Files: `db/InvoiceDao.java`, `db/PaymentDao.java`, `util/DateUtils.java`,
+  `ui/report/SalesReportActivity.java`, `ui/report/PaymentReportActivity.java`,
+  `res/values/strings.xml`.
+
+## 3. Dashboard recent-invoice date
+- The recent-invoice row now shows the date via `DateUtils.formatForDisplay`
+  (was the raw `yyyy-MM-dd`), like every other screen.
+- File: `ui/DashboardActivity.java`.
+
+## 4. ASCII digits everywhere / Arabic-Indic input
+- `NumberUtils`:
+  - `CURRENCY_FORMAT` now uses `DecimalFormatSymbols.getInstance(Locale.US)`, so
+    formatting emits ASCII digits and a '.' decimal separator even though the app
+    forces an Arabic locale (`App.forceArabicLocale`).
+  - `parseAmount` first normalises Arabic-Indic (U+0660-U+0669) and Extended
+    Arabic-Indic (U+06F0-U+06F9) digits to ASCII and maps the Arabic decimal
+    separator U+066B to '.', then strips the currency symbol and both the Latin
+    ',' and Arabic thousands separator (U+066C).
+  - New `toAsciiDigits(String)` and `parseInt(String)` helpers.
+- `InvoiceItemAdapter` now parses quantity via `NumberUtils.parseInt` and unit
+  price via `NumberUtils.parseAmount`, so Arabic-Indic digits typed in the line
+  item fields also parse.
+- `DateUtils` already used `Locale.US` for every format/parse; left as is.
+- `SimpleJson` control-character escaping now uses `String.format(Locale.US, ...)`.
+- PDF/CSV exporters delegate to `NumberUtils`/`DateUtils` (no direct formatting),
+  so they inherit the fix; nothing else to change there. `String.valueOf(int/long)`
+  and `Double.toString` are locale-independent (ASCII).
+- Files: `util/NumberUtils.java`, `ui/invoice/InvoiceItemAdapter.java`,
+  `backup/SimpleJson.java`.
+
+## 5. Real .xlsx export (replaces the HTML table named .xls)
+- New pure-Java `util/XlsxWriter.java` writes a minimal but valid Office Open XML
+  workbook using `java.util.zip` only:
+  - parts `[Content_Types].xml`, `_rels/.rels`, `xl/workbook.xml`,
+    `xl/_rels/workbook.xml.rels`, `xl/styles.xml`, `xl/worksheets/sheet1.xml`;
+  - inline strings (`t="inlineStr"`) for text, **real numeric cells** for values
+    that look like amounts (currency symbol/grouping stripped), so they can be
+    summed;
+  - `sheetView rightToLeft="1"` and a bold header row (`s="1"`);
+  - XML escaping for `& < >` (and `" '` in attributes); control characters are
+    dropped.
+- `ExcelExporter.generateExcel` now delegates to `XlsxWriter` and writes a
+  `.xlsx` file; the three report screens already shared it with the correct MIME
+  `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+  `ShareHelper.shareExcel` MIME updated to match.
+- CSV export is unchanged except that its numbers/dates come from the fixed
+  `NumberUtils`/`DateUtils`.
+- Files: `util/XlsxWriter.java` (new), `util/ExcelExporter.java`,
+  `util/ShareHelper.java`.
+
+## 6. Cleanup
+- Removed the unused `WRITE_EXTERNAL_STORAGE` and `READ_EXTERNAL_STORAGE`
+  permissions (all files go through `cacheDir` + `FileProvider`; restore uses the
+  SAF `ACTION_OPEN_DOCUMENT` document picker). The final packaged manifest
+  contains no storage permission.
+- Removed 23 strings proven unused (searched all `.java`/`.xml` for
+  `R.string.<name>` and `@string/<name>`): `btn_add_customer`, `btn_new_invoice`,
+  `btn_add_payment`, `btn_reports`, `invoice`, `payment`, `total_customers`,
+  `outstanding_balance`, `pdf_header_ar_line1`, `pdf_header_ar_line2`,
+  `pdf_header_en_line1`, `pdf_header_en_line2`, `pdf_phone_placeholder`, `export`,
+  `status_partial`, `status_unpaid`, `tab_accounts`, `tab_sales`, `tab_payments`,
+  `backup_created_share`, `backup_in_progress`, `restore_validating`,
+  `restore_failed`.
+- `CustomerDetailActivity` no longer navigates by `Class.forName`; it uses direct
+  `Intent`s to `InvoiceListActivity` / `PaymentListActivity`.
+
+### Deliberately NOT done (checked, kept)
+- `res/menu/menu_report.xml` -- **not** dead: it is referenced by
+  `activity_sales_report.xml`, `activity_payment_report.xml` and
+  `activity_ledger_report.xml` via `app:menu="@menu/menu_report"`.
+- `androidx.constraintlayout:constraintlayout:2.1.4` -- no layout uses it, but it
+  is a **transitive dependency of `com.google.android.material:material:1.11.0`**
+  (which resolves it to 2.0.1 if the explicit pin is removed; 2.0.1 is not in the
+  offline cache and the build then fails). It cannot be removed, so it is kept as
+  an explicit pin.
+- Nothing else was removed; only resources that could be proven unused.
+
+## Build
+- `./gradlew testDebugUnitTest assembleDebug --console=plain --offline` ->
+  BUILD SUCCESSFUL (AGP 7.4.2 / Gradle 7.5).
+- All 69 unit tests pass; 18 new plain-JVM tests: `NumberUtilsTest` (9) and
+  `XlsxWriterTest` (9).
+- The generated `.xlsx` was additionally opened with Microsoft Excel (COM) to
+  confirm it is valid: cell text is real Arabic (U+0645), `& < >` survive as
+  literals, amount cells are numeric (`SUM` of the two amounts = 3500.5), the
+  sheet view is RTL and the header row is bold.
+- Built via a `subst` drive letter (the `&` in the project path breaks the batch
+  wrapper when called directly), mapping removed afterwards.
+- Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,365,561 bytes / 7.02 MB), built 2026-10-17 20:46.
+
+## Remaining risks / noticed but not fixed
+- Excel numeric auto-detection: a *text* cell that looks like a bare number (for
+  example a payment note of `123`) is written as a numeric cell. Accepted
+  trade-off to keep the export API string-based; documented in `XlsxWriter`.
+- The workbook has no column widths/`autoFilter`/date number formats; formatted
+  amounts are written as plain numbers (the `NIS` symbol is not repeated per row).
+- `PaymentFormActivity` still shows an edited amount via `String.valueOf(double)`
+  (ASCII, but e.g. `1500.0`); left unchanged to avoid touching that flow.
+- Pre-existing, untouched: DB first open/migration on the main thread; money
+  stored as `double`; the invoice "paid now" overpayment is handled on the create
+  path only (the edit path intentionally never creates payments).
+

@@ -166,10 +166,17 @@ public class SalesReportActivity extends BaseActivity {
         final String fromDate = etFromDate.getText().toString().trim();
         final String toDate = etToDate.getText().toString().trim();
 
+        // A complete range must be ordered; otherwise tell the user and stop.
+        if (!fromDate.isEmpty() && !toDate.isEmpty() && fromDate.compareTo(toDate) > 0) {
+            Toast.makeText(this, R.string.invalid_date_range, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         final boolean isAllStores = (storeIndex <= 0);
         final String selectedStore =
                 (isAllStores || storeIndex >= storeNames.size()) ? null : storeNames.get(storeIndex);
-        final boolean hasDates = !fromDate.isEmpty() && !toDate.isEmpty();
+        // One-sided ranges are supported: the DAO opens the missing bound.
+        final boolean hasDates = !fromDate.isEmpty() || !toDate.isEmpty();
         final int token = ++loadToken;
 
         AppExecutors.runOnDb(() -> {

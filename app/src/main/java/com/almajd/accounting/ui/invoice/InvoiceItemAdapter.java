@@ -209,22 +209,9 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
      * updates the model and the subtotal TextView, then triggers grand total recalculation.
      */
     private void updateSubtotal(ViewHolder holder, int position) {
-        int qty = 0;
-        double price = 0.0;
-
-        try {
-            String qtyStr = holder.etQuantity.getText().toString().trim();
-            if (!qtyStr.isEmpty()) {
-                qty = Integer.parseInt(qtyStr);
-            }
-        } catch (NumberFormatException ignored) { }
-
-        try {
-            String priceStr = holder.etUnitPrice.getText().toString().trim();
-            if (!priceStr.isEmpty()) {
-                price = Double.parseDouble(priceStr);
-            }
-        } catch (NumberFormatException ignored) { }
+        // NumberUtils tolerates Arabic-Indic digits typed on an Arabic keyboard.
+        int qty = NumberUtils.parseInt(holder.etQuantity.getText().toString().trim());
+        double price = NumberUtils.parseAmount(holder.etUnitPrice.getText().toString().trim());
 
         double subtotal = NumberUtils.round2(qty * price);
 

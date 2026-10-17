@@ -49,7 +49,8 @@ public class ShareHelper {
      * Share an Excel file.
      */
     public static void shareExcel(Context context, File excelFile) {
-        shareFile(context, excelFile, "application/vnd.ms-excel");
+        shareFile(context, excelFile,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
 
     /**

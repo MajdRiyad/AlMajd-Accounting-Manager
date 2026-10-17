@@ -31,6 +31,8 @@ import com.almajd.accounting.model.Customer;
 import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.LedgerEntry;
 import com.almajd.accounting.model.Payment;
+import com.almajd.accounting.ui.invoice.InvoiceListActivity;
+import com.almajd.accounting.ui.payment.PaymentListActivity;
 import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.BalanceUtils;
 import com.almajd.accounting.util.DateUtils;
@@ -250,26 +252,15 @@ public class CustomerDetailActivity extends BaseActivity {
     // ── Navigation helpers ───────────────────────────────────────────────
 
     private void navigateToInvoiceList() {
-        try {
-            // InvoiceListActivity is assumed to exist in a sibling package
-            Class<?> cls = Class.forName("com.almajd.accounting.ui.invoice.InvoiceListActivity");
-            Intent intent = new Intent(this, cls);
-            intent.putExtra(EXTRA_STORE_NAME, storeName);
-            startActivity(intent);
-        } catch (ClassNotFoundException e) {
-            Toast.makeText(this, R.string.no_invoices, Toast.LENGTH_SHORT).show();
-        }
+        Intent intent = new Intent(this, InvoiceListActivity.class);
+        intent.putExtra(InvoiceListActivity.EXTRA_STORE_NAME, storeName);
+        startActivity(intent);
     }
 
     private void navigateToPaymentList() {
-        try {
-            Class<?> cls = Class.forName("com.almajd.accounting.ui.payment.PaymentListActivity");
-            Intent intent = new Intent(this, cls);
-            intent.putExtra(EXTRA_STORE_NAME, storeName);
-            startActivity(intent);
-        } catch (ClassNotFoundException e) {
-            Toast.makeText(this, R.string.no_payments, Toast.LENGTH_SHORT).show();
-        }
+        Intent intent = new Intent(this, PaymentListActivity.class);
+        intent.putExtra(PaymentListActivity.EXTRA_STORE_NAME, storeName);
+        startActivity(intent);
     }
 
     // ── Toolbar menu (Edit / Delete) ─────────────────────────────────────

@@ -17,6 +17,24 @@ public class DateUtils {
     /** Human-readable timestamp used for "last backup" and the restore dialog. */
     public static final String HUMAN_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm";
 
+    /**
+     * Sortable sentinel bounds for open-ended date-range filters. Because dates
+     * are stored as fixed-width {@code yyyy-MM-dd} strings, a one-sided filter
+     * can reuse the same {@code >= ? AND <= ?} query by substituting these.
+     */
+    public static final String DB_DATE_MIN = "0000-00-00";
+    public static final String DB_DATE_MAX = "9999-99-99";
+
+    /** @return {@code from}, or {@link #DB_DATE_MIN} when it is null/blank. */
+    public static String rangeLower(String from) {
+        return (from == null || from.trim().isEmpty()) ? DB_DATE_MIN : from.trim();
+    }
+
+    /** @return {@code to}, or {@link #DB_DATE_MAX} when it is null/blank. */
+    public static String rangeUpper(String to) {
+        return (to == null || to.trim().isEmpty()) ? DB_DATE_MAX : to.trim();
+    }
+
     public static String todayAsDbFormat() {
         return new SimpleDateFormat(DB_DATE_FORMAT, Locale.US).format(new Date());
     }

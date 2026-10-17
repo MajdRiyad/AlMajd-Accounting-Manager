@@ -10,6 +10,7 @@ import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.InvoiceItem;
 import com.almajd.accounting.model.InvoiceStatus;
 import com.almajd.accounting.util.ChunkUtils;
+import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.NumberUtils;
 
 import java.util.ArrayList;
@@ -27,14 +28,31 @@ public class InvoiceDao {
     }
 
     /**
-     * Insert an invoice with its items in a single transaction.
-     * If {@code paidNow > 0}, a normal payment linked to the new invoice is also
-     * created (same date as the invoice). The invoice stores no paid/remaining
-     * columns -- those are derived by invoice_view.
+     * Insert an invoice with its items in a single transaction and, if
+     * {@code paidNow > 0}, a linked payment for the whole amount (same date as
+     * the invoice). The invoice stores no paid/remaining columns -- those are
+     * derived by invoice_view.
      *
      * @return the newly generated invoice id, or -1 on failure
      */
     public long insert(Invoice invoice, double paidNow) {
+        return insert(invoice, paidNow, 0.0);
+    }
+
+    /**
+     * Insert an invoice with its items, plus up to two payments, in a single
+     * transaction:
+     * <ul>
+     *   <li>{@code linkedPaid} -- a payment linked to the new invoice</li>
+     *   <li>{@code onAccountPaid} -- an on-account payment (invoice_id NULL),
+     *       used for the excess of "paid now" over the invoice total</li>
+     * </ul>
+     * Everything is written in one transaction, so either the whole thing is
+     * saved or nothing is (the excess is never silently dropped).
+     *
+     * @return the newly generated invoice id, or -1 on failure
+     */
+    public long insert(Invoice invoice, double linkedPaid, double onAccountPaid) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         long invoiceId = -1;
         db.beginTransaction();
@@ -67,18 +85,34 @@ public class InvoiceDao {
                 }
             }
 
-            // Paid-now: create a normal linked payment (create path only)
-            double roundedPaid = NumberUtils.round2(paidNow);
-            if (roundedPaid > 0) {
+            // Paid-now applied to the invoice: a normal linked payment.
+            double roundedLinked = NumberUtils.round2(linkedPaid);
+            if (roundedLinked > 0) {
                 ContentValues paymentValues = new ContentValues();
                 paymentValues.put(DatabaseHelper.COL_STORE_NAME, invoice.getStoreName());
-                paymentValues.put(DatabaseHelper.COL_AMOUNT, roundedPaid);
+                paymentValues.put(DatabaseHelper.COL_AMOUNT, roundedLinked);
                 paymentValues.put(DatabaseHelper.COL_PAYMENT_DATE, invoice.getInvoiceDate());
                 paymentValues.put(DatabaseHelper.COL_NOTES,
                         context.getString(R.string.payment_linked_note, invoiceId));
                 paymentValues.put(DatabaseHelper.COL_INVOICE_ID, invoiceId);
                 long paymentId = db.insert(DatabaseHelper.TABLE_PAYMENTS, null, paymentValues);
                 if (paymentId == -1) {
+                    return -1;
+                }
+            }
+
+            // Paid-now excess: a separate on-account payment (invoice_id NULL).
+            double roundedOnAccount = NumberUtils.round2(onAccountPaid);
+            if (roundedOnAccount > 0) {
+                ContentValues excessValues = new ContentValues();
+                excessValues.put(DatabaseHelper.COL_STORE_NAME, invoice.getStoreName());
+                excessValues.put(DatabaseHelper.COL_AMOUNT, roundedOnAccount);
+                excessValues.put(DatabaseHelper.COL_PAYMENT_DATE, invoice.getInvoiceDate());
+                excessValues.put(DatabaseHelper.COL_NOTES,
+                        context.getString(R.string.payment_excess_note, invoiceId));
+                excessValues.putNull(DatabaseHelper.COL_INVOICE_ID);
+                long excessId = db.insert(DatabaseHelper.TABLE_PAYMENTS, null, excessValues);
+                if (excessId == -1) {
                     return -1;
                 }
             }
@@ -230,14 +264,14 @@ public class InvoiceDao {
     }
 
     /**
-     * Get invoices within a date range (inclusive).
-     *
-     * @param loadItems see {@link #getAll(boolean)}
+     * Get invoices within a date range (inclusive). An empty/null {@code from}
+     * or {@code to} leaves that side of the range open, so the same query serves
+     * "from only", "to only" and "both".
      */
     public List<Invoice> getByDateRange(String from, String to, boolean loadItems) {
         return queryInvoices(
                 DatabaseHelper.COL_INVOICE_DATE + " >= ? AND " + DatabaseHelper.COL_INVOICE_DATE + " <= ?",
-                new String[]{from, to},
+                new String[]{DateUtils.rangeLower(from), DateUtils.rangeUpper(to)},
                 DatabaseHelper.COL_INVOICE_DATE + " DESC",
                 loadItems);
     }
@@ -250,16 +284,15 @@ public class InvoiceDao {
     }
 
     /**
-     * Get invoices for a specific store within a date range.
-     *
-     * @param loadItems see {@link #getAll(boolean)}
+     * Get invoices for a specific store within a date range. An empty/null
+     * {@code from} or {@code to} leaves that side of the range open.
      */
     public List<Invoice> getByStoreAndDateRange(String store, String from, String to, boolean loadItems) {
         return queryInvoices(
                 DatabaseHelper.COL_STORE_NAME + " = ? AND " +
                         DatabaseHelper.COL_INVOICE_DATE + " >= ? AND " +
                         DatabaseHelper.COL_INVOICE_DATE + " <= ?",
-                new String[]{store, from, to},
+                new String[]{store, DateUtils.rangeLower(from), DateUtils.rangeUpper(to)},
                 DatabaseHelper.COL_INVOICE_DATE + " DESC",
                 loadItems);
     }

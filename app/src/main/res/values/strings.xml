@@ -4,10 +4,6 @@
     <string name="header_title">المجد للاتصالات</string>
     <string name="header_title_en">AlMajd Communications</string>
     <string name="greeting">مرحباً بك، أبو المجد</string>
-    <string name="btn_add_customer">إضافة عميل</string>
-    <string name="btn_new_invoice">فاتورة جديدة</string>
-    <string name="btn_add_payment">إضافة دفعة</string>
-    <string name="btn_reports">التقارير</string>
     <string name="customers">العملاء</string>
     <string name="owner_name">اسم صاحب المحل</string>
     <string name="store_name">اسم المحل</string>
@@ -40,10 +36,8 @@
     <string name="confirm_delete_title">تأكيد الحذف</string>
     <string name="confirm_delete_message">هل أنت متأكد من الحذف؟</string>
     <string name="no_data">لا توجد بيانات</string>
-    <string name="invoice">فاتورة</string>
     <string name="invoices">الفواتير</string>
     <string name="payments">المدفوعات</string>
-    <string name="payment">دفعة</string>
     <string name="reports">التقارير</string>
     <string name="add_customer">إضافة عميل</string>
     <string name="edit_customer">تعديل العميل</string>
@@ -53,8 +47,6 @@
     <string name="edit_payment">تعديل الدفعة</string>
     <string name="customer_details">تفاصيل العميل</string>
     <string name="invoice_details">تفاصيل الفاتورة</string>
-    <string name="total_customers">عدد العملاء: %d</string>
-    <string name="outstanding_balance">الرصيد المستحق: %s</string>
     <string name="search">بحث</string>
     <string name="all_stores">كل المحلات</string>
     <string name="from_date">من تاريخ</string>
@@ -75,12 +67,6 @@
     <string name="no_invoices">لا توجد فواتير</string>
     <string name="no_payments">لا توجد مدفوعات</string>
     <string name="add_at_least_one_item">أضف بنداً واحداً على الأقل</string>
-    <string name="pdf_header_ar_line1">المجد للاتصالات</string>
-    <string name="pdf_header_ar_line2">رياض برهم</string>
-    <string name="pdf_header_en_line1">AlMajd Communications</string>
-    <string name="pdf_header_en_line2">Riyad Barham</string>
-    <string name="pdf_phone_placeholder">[PHONE]</string>
-    <string name="export">تصدير</string>
     <string name="last_payment_date">تاريخ آخر دفعة</string>
     <string name="settings_title">الإعدادات</string>
     <string name="settings_company_info">معلومات الشركة</string>
@@ -97,10 +83,6 @@
     <string name="invoice_number_format">فاتورة #%d</string>
     <string name="status_paid">مدفوعة</string>
 
-    <!-- Invoice status badges (derived) -->
-    <string name="status_partial">جزئية</string>
-    <string name="status_unpaid">غير مدفوعة</string>
-
     <!-- Payment <-> invoice linking -->
     <string name="on_account">دفعة على الحساب</string>
     <string name="select_invoice">الفاتورة</string>
@@ -109,6 +91,9 @@
     <string name="payment_excess_note">فائض عن الفاتورة رقم %1$d</string>
     <string name="overpayment_title">مبلغ أكبر من المتبقي</string>
     <string name="overpayment_message">المبلغ المدخل أكبر من المتبقي على الفاتورة. سيتم تسجيل %1$s على الفاتورة و%2$s كدفعة على الحساب.</string>
+    <string name="paid_now_overpayment_title">المدفوع أكبر من إجمالي الفاتورة</string>
+    <string name="paid_now_overpayment_message">المبلغ المدفوع مقدماً أكبر من إجمالي الفاتورة. سيتم تسجيل %1$s على الفاتورة و%2$s كدفعة على الحساب.</string>
+    <string name="invalid_date_range">تاريخ البداية يجب أن يكون قبل تاريخ النهاية أو مساوياً له.</string>
     <string name="confirm">تأكيد</string>
     <string name="save_failed">تعذر الحفظ، حاول مرة أخرى</string>
     <string name="add_payment">إضافة دفعة</string>
@@ -139,11 +124,6 @@
     <string name="recent_invoices">آخر الفواتير</string>
     <string name="no_recent_invoices">لا توجد فواتير حديثة</string>
 
-    <!-- Report tabs -->
-    <string name="tab_accounts">الحسابات</string>
-    <string name="tab_sales">المبيعات</string>
-    <string name="tab_payments">الدفعات</string>
-
     <!-- Backup & restore -->
     <string name="backup_section_title">النسخ الاحتياطي</string>
     <string name="backup_section_description">احفظ بياناتك في ملف واحد يمكنك الاحتفاظ به خارج التطبيق (Google Drive أو واتساب أو البريد).</string>
@@ -151,9 +131,7 @@
     <string name="backup_restore">استعادة من نسخة احتياطية</string>
     <string name="backup_last_never">لا توجد نسخة احتياطية بعد</string>
     <string name="backup_last_at">آخر نسخة احتياطية: %s</string>
-    <string name="backup_created_share">تم إنشاء النسخة. اختر مكان الحفظ من القائمة.</string>
     <string name="backup_failed">تعذر إنشاء النسخة الاحتياطية</string>
-    <string name="backup_in_progress">جارٍ إنشاء النسخة الاحتياطية…</string>
 
     <!-- Backup reminder banner -->
     <string name="backup_reminder_never">لم تقم بإنشاء نسخة احتياطية بعد. احمِ بياناتك الآن.</string>
@@ -161,7 +139,6 @@
     <string name="backup_now">نسخ الآن</string>
 
     <!-- Restore -->
-    <string name="restore_validating">جارٍ التحقق من الملف…</string>
     <string name="restore_confirm_title">تأكيد الاستعادة</string>
     <string name="restore_confirm_message">سيتم استبدال بياناتك الحالية بالكامل ببيانات النسخة الاحتياطية.\n\nتاريخ النسخة: %1$s\nالعملاء: %2$d\nالفواتير: %3$d\nالدفعات: %4$d</string>
     <string name="restore_success">تمت الاستعادة بنجاح. سيتم إعادة تشغيل التطبيق.</string>
@@ -171,7 +148,6 @@
     <string name="restore_newer_version">هذه النسخة من إصدار أحدث من التطبيق. حدّث التطبيق ثم أعد المحاولة.</string>
     <string name="restore_unsupported_version">إصدار قاعدة البيانات في هذه النسخة غير مدعوم.</string>
     <string name="restore_db_corrupt">قاعدة البيانات داخل النسخة تالفة.</string>
-    <string name="restore_failed">تعذرت الاستعادة، وتم الاحتفاظ ببياناتك الحالية.</string>
     <string name="restore_failed_rolled_back">فشلت الاستعادة وتمت إعادة بياناتك السابقة.</string>
     <string name="restore_too_large">حجم الملف كبير جداً بحيث لا يمكن استعادته.</string>
     <string name="restore_not_enough_space">لا توجد مساحة كافية في الجهاز لاستعادة النسخة الاحتياطية.</string>

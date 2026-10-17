@@ -1,6 +1,8 @@
 package com.almajd.accounting.ui.invoice;
 
 import android.os.Bundle;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -422,16 +424,72 @@ public class InvoiceFormActivity extends BaseActivity
         // 7. Save on the background thread. The save button is disabled first so
         // a second tap while the write is in flight cannot insert a duplicate.
         final boolean isEdit = editMode;
-        final double paidNowFinal = paidNow;
         if (isEdit) {
             invoice.setId(editInvoiceId);
         }
 
+        // On create, a "paid now" larger than the invoice total is never applied
+        // silently: ask first, then split the amount (invoice total linked to the
+        // invoice + excess on account) in the same transaction as the insert.
+        if (!isEdit && paidNow > total + 0.0001) {
+            showPaidNowOverpaymentDialog(invoice, total, paidNow);
+            return;
+        }
+
+        saveInvoice(invoice, isEdit, paidNow, 0.0);
+    }
+
+    /**
+     * Confirmation dialog shown when "paid now" on CREATE is greater than the
+     * invoice total. Confirming records the invoice total as a payment linked to
+     * the invoice and the excess as a separate on-account payment (both in the
+     * same transaction as the invoice insert). Cancelling saves nothing and
+     * leaves the form open with Save re-enabled.
+     */
+    private void showPaidNowOverpaymentDialog(final Invoice invoice, final double total,
+                                              final double paidNow) {
+        final double excess = NumberUtils.round2(paidNow - total);
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.paid_now_overpayment_title)
+                .setMessage(getString(R.string.paid_now_overpayment_message,
+                        NumberUtils.formatCurrency(total),
+                        NumberUtils.formatCurrency(excess)))
+                .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        saveInvoice(invoice, false, total, excess);
+                    }
+                })
+                .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // Cancelled: leave the form open and allow another save.
+                        btnSave.setEnabled(true);
+                    }
+                })
+                .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        btnSave.setEnabled(true);
+                    }
+                })
+                .show();
+    }
+
+    /**
+     * Persists the invoice on the background thread, then reports the result on
+     * the main thread. The save button is disabled for the whole write so a
+     * second tap cannot insert a duplicate. {@code linkedPaid} is recorded as a
+     * payment linked to the invoice; {@code onAccountPaid} (the excess of
+     * "paid now" over the total) as a separate on-account payment.
+     */
+    private void saveInvoice(final Invoice invoice, final boolean isEdit,
+                             final double linkedPaid, final double onAccountPaid) {
         btnSave.setEnabled(false);
         AppExecutors.runOnDb(() -> {
             final boolean saved = isEdit
                     ? invoiceDao.update(invoice)
-                    : invoiceDao.insert(invoice, paidNowFinal) > 0;
+                    : invoiceDao.insert(invoice, linkedPaid, onAccountPaid) > 0;
 
             AppExecutors.runOnMain(() -> {
                 if (isFinishing() || isDestroyed()) {

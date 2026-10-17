@@ -1,6 +1,7 @@
 package com.almajd.accounting.backup;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -87,7 +88,7 @@ public final class SimpleJson {
                     break;
                 default:
                     if (c < 0x20) {
-                        sb.append(String.format("\\u%04x", (int) c));
+                        sb.append(String.format(Locale.US, "\\u%04x", (int) c));
                     } else {
                         sb.append(c);
                     }

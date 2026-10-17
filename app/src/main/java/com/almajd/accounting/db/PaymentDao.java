@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 import com.almajd.accounting.model.Payment;
+import com.almajd.accounting.util.DateUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -257,7 +258,9 @@ public class PaymentDao {
     }
 
     /**
-     * Get payments within a date range (inclusive).
+     * Get payments within a date range (inclusive). An empty/null {@code from}
+     * or {@code to} leaves that side of the range open, so the same query serves
+     * "from only", "to only" and "both".
      */
     public List<Payment> getByDateRange(String from, String to) {
         List<Payment> payments = new ArrayList<>();
@@ -267,7 +270,7 @@ public class PaymentDao {
             cursor = db.query(DatabaseHelper.TABLE_PAYMENTS, null,
                     DatabaseHelper.COL_PAYMENT_DATE + " >= ? AND " +
                             DatabaseHelper.COL_PAYMENT_DATE + " <= ?",
-                    new String[]{from, to}, null, null,
+                    new String[]{DateUtils.rangeLower(from), DateUtils.rangeUpper(to)}, null, null,
                     DatabaseHelper.COL_PAYMENT_DATE + " DESC");
             if (cursor != null && cursor.moveToFirst()) {
                 do {
@@ -283,7 +286,8 @@ public class PaymentDao {
     }
 
     /**
-     * Get payments for a specific store within a date range.
+     * Get payments for a specific store within a date range. An empty/null
+     * {@code from} or {@code to} leaves that side of the range open.
      */
     public List<Payment> getByStoreAndDateRange(String store, String from, String to) {
         List<Payment> payments = new ArrayList<>();
@@ -294,7 +298,7 @@ public class PaymentDao {
                     DatabaseHelper.COL_STORE_NAME + " = ? AND " +
                             DatabaseHelper.COL_PAYMENT_DATE + " >= ? AND " +
                             DatabaseHelper.COL_PAYMENT_DATE + " <= ?",
-                    new String[]{store, from, to}, null, null,
+                    new String[]{store, DateUtils.rangeLower(from), DateUtils.rangeUpper(to)}, null, null,
                     DatabaseHelper.COL_PAYMENT_DATE + " DESC");
             if (cursor != null && cursor.moveToFirst()) {
                 do {

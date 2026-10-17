@@ -23,6 +23,7 @@ import com.almajd.accounting.ui.invoice.InvoiceListActivity;
 import com.almajd.accounting.ui.payment.PaymentFormActivity;
 import com.almajd.accounting.ui.report.ReportMenuActivity;
 import com.almajd.accounting.util.AppExecutors;
+import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.NumberUtils;
 
 import java.util.List;
@@ -268,7 +269,7 @@ public class DashboardActivity extends BaseActivity {
             TextView tvRemaining = row.findViewById(R.id.tv_recent_remaining);
 
             tvStore.setText(inv.getStoreName());
-            tvDate.setText(inv.getInvoiceDate());
+            tvDate.setText(DateUtils.formatForDisplay(inv.getInvoiceDate()));
             tvAmount.setText(NumberUtils.formatCurrency(inv.getTotalAmount()));
 
             if (inv.getRemaining() > 0) {
