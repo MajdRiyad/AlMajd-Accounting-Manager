@@ -25,6 +25,13 @@ import java.util.List;
  *  - Manually ordering columns so the visual right-to-left reading is correct
  *    (rightmost column = last added in code for LTR table, or use ColumnText)
  *  - Using ALIGN_RIGHT for Arabic text alignment
+ * <p>
+ * <b>Never add Arabic text as a bare {@link Paragraph}/{@link Phrase} directly to
+ * the {@link Document}.</b> iText only runs the bidi algorithm (letter shaping and
+ * right-to-left reordering) inside a {@link PdfPCell} that has an RTL run
+ * direction; a bare paragraph is laid out left-to-right and Arabic comes out
+ * mirrored ("باسح فشك" instead of "كشف حساب"). Use {@link #rtlTextRow} for
+ * titles/headings and an RTL cell for anything else.
  */
 public class PdfExporter {
 
@@ -101,6 +108,34 @@ public class PdfExporter {
 
     private static PdfPCell ltrCell(Phrase phrase, int hAlign, float padding) {
         return makeCell(phrase, hAlign, null, padding, false, Rectangle.NO_BORDER);
+    }
+
+    /**
+     * Renders one line of (possibly Arabic or mixed) text as a full-width,
+     * borderless block.
+     * <p>
+     * The text goes into a {@link PdfPCell} with
+     * {@code RUN_DIRECTION_RTL} instead of being added to the document as a bare
+     * {@link Paragraph}. A bare paragraph is laid out strictly left-to-right, so
+     * iText never runs the bidi algorithm and Arabic is written with its letters
+     * in visual reverse order ("باسح فشك" instead of "كشف حساب"). Inside an RTL
+     * cell iText shapes and reorders the text, and keeps embedded digits/Latin
+     * runs (store names, phone numbers, amounts) intact.
+     *
+     * @param alignment {@link Element#ALIGN_CENTER}, {@code ALIGN_RIGHT}, ...
+     * @return the single-cell table that is added to the document, so the caller
+     *         can set spacing before/after
+     */
+    private static PdfPTable rtlTextRow(String text, Font font, int alignment) {
+        PdfPTable table = new PdfPTable(1);
+        table.setWidthPercentage(100);
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+        cell.setHorizontalAlignment(alignment);
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setPadding(0);
+        table.addCell(cell);
+        return table;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -250,11 +285,10 @@ public class PdfExporter {
         Font cellFontPdf      = new Font(regular, 10, Font.NORMAL);
         Font footerFontPdf    = new Font(bold, 12, Font.BOLD);
 
-        // Title
-        Paragraph title = new Paragraph(reportTitle, titleFontPdf);
-        title.setAlignment(Element.ALIGN_CENTER);
-        title.setSpacingAfter(12);
-        document.add(title);
+        // Title — RTL-safe (a bare Paragraph would mirror Arabic report titles)
+        PdfPTable titleRow = rtlTextRow(reportTitle, titleFontPdf, Element.ALIGN_CENTER);
+        titleRow.setSpacingAfter(12);
+        document.add(titleRow);
 
         // Reverse headers and row data for RTL visual order
         int cols = headers.length;
@@ -365,10 +399,11 @@ public class PdfExporter {
         addBilingualHeader(document, settings, titleBold, subtitleFont);
 
         // ─── Title ────────────────────────────────────────────────────────
-        Paragraph title = new Paragraph(context.getString(R.string.account_statement), titleFont);
-        title.setAlignment(Element.ALIGN_CENTER);
-        title.setSpacingAfter(10);
-        document.add(title);
+        // RTL-safe: a bare Paragraph would render "كشف حساب" reversed.
+        PdfPTable titleRow = rtlTextRow(context.getString(R.string.account_statement),
+                titleFont, Element.ALIGN_CENTER);
+        titleRow.setSpacingAfter(10);
+        document.add(titleRow);
 
         // ─── Customer / period info — right-aligned block ─────────────────
         PdfPTable infoTable = new PdfPTable(2);
@@ -395,11 +430,12 @@ public class PdfExporter {
 
         // ─── Movements (or the empty hint) ────────────────────────────────
         if (statement.rows.isEmpty()) {
-            Paragraph empty = new Paragraph(context.getString(R.string.statement_no_movements), emptyFont);
-            empty.setAlignment(Element.ALIGN_CENTER);
-            empty.setSpacingBefore(24);
-            empty.setSpacingAfter(24);
-            document.add(empty);
+            // RTL-safe empty hint (see rtlTextRow).
+            PdfPTable emptyRow = rtlTextRow(context.getString(R.string.statement_no_movements),
+                    emptyFont, Element.ALIGN_CENTER);
+            emptyRow.setSpacingBefore(24);
+            emptyRow.setSpacingAfter(24);
+            document.add(emptyRow);
         } else {
             document.add(buildStatementTable(context, statement, tblHdrFont, cellFont));
             document.add(new Paragraph(" "));
@@ -517,8 +553,11 @@ public class PdfExporter {
      * only known once the document closes, so it lives in a {@link PdfTemplate}
      * filled in {@link #onCloseDocument}.
      * <p>
-     * The four cells are added left-to-right as [total][من][N][صفحة] so that the
-     * Arabic reads right-to-left as "صفحة N من M".
+     * The words and the current page number are built into a single {@link Phrase}
+     * in logical order and rendered inside one RTL cell, so iText applies the bidi
+     * algorithm to the whole phrase (correct word order and shaping). The total
+     * template is appended as an inline chunk; under RTL layout it lands to the
+     * left of "من", which is where the last number belongs in "صفحة 1 من 2".
      */
     private static final class PageNumberEvent extends PdfPageEventHelper {
 
@@ -544,29 +583,24 @@ public class PdfExporter {
 
         @Override
         public void onEndPage(PdfWriter writer, Document document) {
-            PdfPTable footer = new PdfPTable(4);
-            footer.setTotalWidth(TABLE_WIDTH);
-            footer.setLockedWidth(true);
-
-            // Left to right: [total template] [من] [N] [صفحة]
-            PdfPCell totalCell;
+            // One RTL run for the whole phrase: "صفحة N من " then the total image.
+            Phrase phrase = new Phrase();
+            phrase.add(new Chunk(labelPage + " " + writer.getPageNumber() + " " + labelOf + " ", font));
             try {
-                footer.setWidths(new float[]{2f, 1.2f, 1f, 2f});
-                totalCell = new PdfPCell(Image.getInstance(totalTemplate));
+                phrase.add(new Chunk(Image.getInstance(totalTemplate), 0, 0));
             } catch (DocumentException e) {
                 return;
             }
-            totalCell.setBorder(Rectangle.NO_BORDER);
-            totalCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            totalCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-            footer.addCell(totalCell);
 
-            footer.addCell(makeCell(new Phrase(labelOf, font),
-                    Element.ALIGN_CENTER, null, 2, true, Rectangle.NO_BORDER));
-            footer.addCell(makeCell(new Phrase(String.valueOf(writer.getPageNumber()), font),
-                    Element.ALIGN_CENTER, null, 2, false, Rectangle.NO_BORDER));
-            footer.addCell(makeCell(new Phrase(labelPage, font),
-                    Element.ALIGN_CENTER, null, 2, true, Rectangle.NO_BORDER));
+            PdfPTable footer = new PdfPTable(1);
+            footer.setTotalWidth(TABLE_WIDTH);
+            footer.setLockedWidth(true);
+            PdfPCell cell = new PdfPCell(phrase);
+            cell.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            cell.setBorder(Rectangle.NO_BORDER);
+            cell.setPadding(0);
+            footer.addCell(cell);
 
             Rectangle page = document.getPageSize();
             float x = (page.getWidth() - TABLE_WIDTH) / 2f;

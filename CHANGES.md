@@ -1121,4 +1121,80 @@ replaced).
   stored as `double`; hardcoded English error toasts in the pre-existing
   invoice-share code.
 
+---
+
+# Fix: Arabic titles / page footer rendered mirrored in PDFs
+
+## Problem
+On a real device the Arabic title of the customer statement PDF (`كشف حساب`) was
+rendered with its letters in visual reverse order (`باسح فشك`), and the same
+happened to the title of **every** generated PDF (sales report, payments report,
+ledger report, statement). The `صفحة N من M` footer looked wrong too.
+
+Root cause: iText 5 only runs the bidi algorithm (Arabic shaping + right-to-left
+reordering) for text laid out inside a `PdfPCell` whose run direction is
+`RUN_DIRECTION_RTL` (or via `ColumnText.setRunDirection`). Text added directly to
+the `Document` as a bare `Paragraph`/`Phrase`/`Chunk` is laid out strictly
+left-to-right, so Arabic is written in logical order and appears mirrored.
+
+## What changed (bug fix only, no schema/logic/threading changes)
+- Added one shared helper `PdfExporter.rtlTextRow(text, font, alignment)`: it
+  wraps a line in a 1-column, full-width, borderless `PdfPTable` whose only
+  `PdfPCell` has `RUN_DIRECTION_RTL`. Returns the table so callers can still set
+  spacing before/after.
+- Report title (`generateReportPdf`) — used by the sales, payments and ledger
+  report PDFs. Was a bare `Paragraph`; now `rtlTextRow`.
+- Statement title (`generateCustomerStatementPdf`) — was a bare `Paragraph`;
+  now `rtlTextRow`.
+- Statement "no movements" empty hint — was a bare `Paragraph`; now
+  `rtlTextRow`.
+- Page footer (`PageNumberEvent.onEndPage`) — rebuilt as a single cell with
+  `RUN_DIRECTION_RTL` containing one logical-order `Phrase`
+  (`"صفحة N من "` + inline template image). The total page count is still filled
+  at `onCloseDocument`, and under RTL layout it lands to the left of `من`, i.e.
+  `صفحة 1 من 2`.
+- Class Javadoc updated with the rule: never add Arabic as a bare
+  `Paragraph`/`Phrase`; use `rtlTextRow` (or an RTL cell).
+- Left unchanged because already correct: the bilingual header Arabic column,
+  info rows, footer rows, and every data-table cell (they all use
+  `RUN_DIRECTION_RTL`). The invoice PDF has no bare Arabic paragraph at all —
+  its Arabic lives in the (already RTL) header and cells.
+
+## Verification (no device)
+Built a small JVM harness against the same `itextpdf` jar and the same bundled
+Cairo fonts, reproducing the exact constructs, then inspected each page's text
+runs and raw content stream:
+- Bare `Paragraph "كشف حساب"` -> content run in **logical** order
+  (`كشف حساب`) laid out left-to-right => visually mirrored (the reported bug).
+- Same text in an RTL cell -> content run in shaped/reversed order
+  (`ﺏﺎﺴﺣ ﻒﺸﻛ`) => renders correctly when read right-to-left.
+- Mixed `"المحل: test majd - 0599123456 - 1,234.56 ₪"` in an RTL cell: the
+  Latin/digits stay in one LTR run (no scrambling); reading RTL gives
+  `المحل: test majd - 0599123456 - 1,234.56 ₪`.
+- Footer, before: runs at the same line in order [total][من][N][صفحة], but the
+  template digit sat on a different baseline offset from the words. After: one
+  RTL run `[total][صفحة N من]` sharing a single baseline, order
+  `صفحة N من M`.
+- Latin-only text is byte-identical before/after (run direction does not touch
+  Latin runs).
+
+## Build
+- `./gradlew testDebugUnitTest assembleDebug --console=plain --offline` ->
+  BUILD SUCCESSFUL. All 97 unit tests pass (unchanged).
+- Built via a `subst` drive letter (the `&` in the project path), mapping removed
+  afterwards.
+- Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,415,683 bytes), built 2026-10-17.
+
+## Noticed but not fixed
+- The footer words/order were in fact already correct (each word was in an RTL
+  cell); the visible defect was that the total-count template was drawn on a
+  separate, offset run. It is now a single bidi run — this is a unification
+  improvement, not a word-order fix.
+- The PDFs were verified by inspecting the generated content streams on the JVM,
+  not by viewing a rendered page (no device/emulator or PDF rasterizer here).
+- Pre-existing and untouched: DB first open/migration on the main thread; money
+  stored as `double`; hardcoded English error toasts in the pre-existing
+  invoice-share code.
+
 
