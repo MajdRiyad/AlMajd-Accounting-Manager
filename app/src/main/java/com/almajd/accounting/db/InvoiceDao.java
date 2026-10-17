@@ -297,6 +297,50 @@ public class InvoiceDao {
     }
 
     /**
+     * All invoices of a store with just the fields the account statement needs
+     * (id, store, date, total, notes), oldest first.
+     * <p>
+     * Deliberately reads the invoices table directly rather than the
+     * {@code invoice_view}: the statement is about raw movements, so the
+     * display-only credit allocation is not needed and no items are loaded. One
+     * query, no N+1.
+     */
+    public List<Invoice> getStatementMovements(String storeName) {
+        List<Invoice> invoices = new ArrayList<>();
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.query(DatabaseHelper.TABLE_INVOICES,
+                    new String[]{
+                            DatabaseHelper.COL_ID,
+                            DatabaseHelper.COL_STORE_NAME,
+                            DatabaseHelper.COL_INVOICE_DATE,
+                            DatabaseHelper.COL_TOTAL_AMOUNT,
+                            DatabaseHelper.COL_NOTES
+                    },
+                    DatabaseHelper.COL_STORE_NAME + " = ?",
+                    new String[]{storeName}, null, null,
+                    DatabaseHelper.COL_INVOICE_DATE + " ASC, " + DatabaseHelper.COL_ID + " ASC");
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    Invoice invoice = new Invoice();
+                    invoice.setId(cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_ID)));
+                    invoice.setStoreName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_STORE_NAME)));
+                    invoice.setInvoiceDate(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_INVOICE_DATE)));
+                    invoice.setTotalAmount(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_TOTAL_AMOUNT)));
+                    invoice.setNotes(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_NOTES)));
+                    invoices.add(invoice);
+                } while (cursor.moveToNext());
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return invoices;
+    }
+
+    /**
      * Get invoices within a date range (inclusive), including their items.
      */
     public List<Invoice> getByDateRange(String from, String to) {

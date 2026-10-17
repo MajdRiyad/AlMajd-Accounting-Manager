@@ -1015,4 +1015,110 @@ throughout, so no rounding-sized mismatch is introduced.
   stored as `double`; `PaymentFormActivity` shows an edited amount via
   `String.valueOf(double)`.
 
+---
+
+# Customer account statement (كشف حساب)
+
+Branch: `feature/customer-statement` (single commit). This is a **derivation /
+export** feature: nothing new is stored and the tracking of invoices, payments,
+balances and the credit allocation is untouched.
+
+## Goal
+Print, share or view a customer's account statement: every invoice and payment in
+chronological order with a running balance, an opening balance for a date range
+and a closing balance that matches the customer balance shown elsewhere.
+
+## Entry point
+- `CustomerDetailActivity` gained a `كشف حساب` toolbar item (now the first menu
+  entry). It opens a small `AlertDialog` (`dialog_customer_statement.xml`) with
+  two optional date fields (reusing `DateUtils.showDatePicker`, stored as
+  `yyyy-MM-dd`) and two actions: **مشاركة PDF** (`ShareHelper.sharePdf`) and
+  **عرض PDF** (`ACTION_VIEW` with a `FileProvider` URI).
+- `from <= to` is validated in the activity; an invalid range shows the existing
+  `invalid_date_range` message and keeps the dialog open.
+
+## Statement content (pure derivation)
+- Header: the shared bilingual company header (extracted from the invoice PDF
+  into `PdfExporter.addBilingualHeader`, used by both), then the title
+  `كشف حساب`, and a right-aligned info block: store, owner, phone, location, the
+  period (`كل الفترات` / `من … إلى …`) and the print date.
+- Opening balance row: shown only when a `from` date is set; it is the net of all
+  movements **strictly before** `from` (`SUM(invoices) − SUM(payments)`), computed
+  in the builder from the full lists.
+- Movements table sorted by date ascending; on the same date invoices come before
+  payments, then by id. Columns (RTL, reversed-column technique like the report
+  PDFs): date | type (فاتورة/دفعة) | reference | debit | credit | running balance.
+  Invoices reference `#id`; a payment references its note (when present) plus
+  `على فاتورة #id` when linked, otherwise `على الحساب`.
+- Running balance = previous + invoice total − payment amount, `NumberUtils.round2`
+  at every step, shown with `BalanceUtils` wording (عليه / له عندنا / مسدد) — never
+  a bare negative number.
+- Footer: total invoices (debit), total payments (credit) and the closing balance
+  (same wording). It includes the opening balance, so with no date filter the
+  closing balance equals the customer detail / ledger balance exactly.
+- The display-only on-account credit allocation is deliberately **not** used here:
+  the statement is about raw movements.
+- Empty period: a single `لا توجد حركات` line instead of a table.
+- Pagination: the table header repeats (`setHeaderRows(1)`) and a
+  `صفحة N من M` footer is drawn on every page. The total page count lives in a
+  `PdfTemplate` filled at `onCloseDocument` (standard iText 5 "page X of Y"), with
+  the four footer cells added `[total][من][N][صفحة]` so the Arabic reads RTL.
+
+## Data access
+- `InvoiceDao.getStatementMovements(store)` and
+  `PaymentDao.getStatementMovements(store)` each run **one** query for the store
+  (oldest first, no items, no credit allocation, no N+1). The opening balance is
+  derived in memory from these full lists, so the same read serves any range.
+- `StatementBuilder` (pure Java, Android-free) merges the movements, filters by
+  `from`/`to` (inclusive, `yyyy-MM-dd` lexicographic), computes the opening and
+  closing balances and the per-row running balances.
+
+## Export
+- `PdfExporter.generateCustomerStatementPdf(context, storeName, customer,
+  statement)` uses the existing Cairo fonts and RTL cells, landscape A4 (room for
+  6 columns). It is generated on the DB thread; the share/view intent is launched
+  on the main thread after an `isFinishing() || isDestroyed()` guard.
+- File: `cacheDir/exports/statement-<sanitized store name>-<yyyy-MM-dd>.pdf`. The
+  store name is sanitized (`StatementBuilder.sanitizeFileName`: `\ / : * ? " < > |`
+  and control chars → `_`, trailing dots/spaces trimmed, length capped, **Arabic
+  letters kept**). The existing FileProvider path already covers `exports/`.
+- `ACTION_VIEW` is wrapped in a `ActivityNotFoundException` catch (a toast when no
+  PDF viewer is installed) so a missing viewer cannot crash.
+
+## Strings
+All new user-facing text is in `strings.xml` (Arabic, ASCII digits): the menu /
+title `account_statement`, the actions, the period variants, the column headers,
+the movement types and references, `statement_no_movements`, the totals, the page
+footer words, `pdf_generation_failed` and `pdf_no_viewer`.
+
+## Tests
+Plain JVM tests in `StatementBuilderTest` (15): no movements; invoices only;
+payments only; payments with no invoices (credit closing); mixed ordering (same
+date invoice before payments, then by id); opening balance with a `from` date;
+`to` cutoff; both bounds inclusive; closing balance equals
+`SUM(invoices) − SUM(payments)` over all time; rounding (`0.1 + 0.2`);
+negative/credit closing; linked vs unlinked payment fields; blank bounds treated
+as open; null entries ignored; file-name sanitizing (Arabic kept, invalid chars
+replaced).
+
+## Build
+- `./gradlew testDebugUnitTest assembleDebug --console=plain --offline` ->
+  BUILD SUCCESSFUL. All 97 unit tests pass (82 prior + 15 new).
+- Built via a `subst` drive letter (the `&` in the project path), mapping removed
+  afterwards.
+- Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,380,415 bytes), built 2026-10-17.
+
+## Noticed but not fixed
+- The statement loads **all** of a store's invoices and payments and filters in
+  memory; fine for a shop, but a date range is not pushed down to SQL.
+- The date fields in the statement dialog display the raw `yyyy-MM-dd` value the
+  picker writes (same behaviour as the sales-report filter), not `dd/MM/yyyy`.
+- `showTextAligned`-style free text is avoided for Arabic; all statement text goes
+  through RTL table cells, so page-number shaping depends on the cell run
+  direction (kept explicit).
+- Pre-existing and untouched: DB first open/migration on the main thread; money
+  stored as `double`; hardcoded English error toasts in the pre-existing
+  invoice-share code.
+
 

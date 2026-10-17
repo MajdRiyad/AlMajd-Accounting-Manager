@@ -258,6 +258,33 @@ public class PaymentDao {
     }
 
     /**
+     * All payments of a store, oldest first (payment date, then id), with the
+     * fields the account statement needs. One query, no N+1.
+     */
+    public List<Payment> getStatementMovements(String storeName) {
+        List<Payment> payments = new ArrayList<>();
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.query(DatabaseHelper.TABLE_PAYMENTS, null,
+                    DatabaseHelper.COL_STORE_NAME + " = ?",
+                    new String[]{storeName}, null, null,
+                    DatabaseHelper.COL_PAYMENT_DATE + " ASC, " +
+                            DatabaseHelper.COL_ID + " ASC");
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    payments.add(cursorToPayment(cursor));
+                } while (cursor.moveToNext());
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return payments;
+    }
+
+    /**
      * Get payments within a date range (inclusive). An empty/null {@code from}
      * or {@code to} leaves that side of the range open, so the same query serves
      * "from only", "to only" and "both".

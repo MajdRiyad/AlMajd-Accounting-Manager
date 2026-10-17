@@ -1,8 +1,10 @@
 package com.almajd.accounting.ui.customer;
 
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -18,6 +20,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -37,7 +40,11 @@ import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.BalanceUtils;
 import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.NumberUtils;
+import com.almajd.accounting.util.PdfExporter;
+import com.almajd.accounting.util.ShareHelper;
+import com.almajd.accounting.util.StatementBuilder;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -263,10 +270,11 @@ public class CustomerDetailActivity extends BaseActivity {
         startActivity(intent);
     }
 
-    // ── Toolbar menu (Edit / Delete) ─────────────────────────────────────
+    // ── Toolbar menu (Statement / Edit / Delete) ─────────────────────────
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
+        menu.add(Menu.NONE, 3, 0, R.string.account_statement);
         menu.add(Menu.NONE, 1, 1, R.string.edit);
         menu.add(Menu.NONE, 2, 2, R.string.delete);
         return true;
@@ -277,6 +285,10 @@ public class CustomerDetailActivity extends BaseActivity {
         switch (item.getItemId()) {
             case android.R.id.home:
                 finish();
+                return true;
+
+            case 3: // Account statement
+                showStatementDialog();
                 return true;
 
             case 1: // Edit
@@ -341,6 +353,127 @@ public class CustomerDetailActivity extends BaseActivity {
      */
     private String safeText(String text) {
         return TextUtils.isEmpty(text) ? "\u2014" : text;
+    }
+
+    // ── Customer account statement ────────────────────────────────────────
+
+    /**
+     * Opens the small period dialog for the customer account statement. Both date
+     * fields are optional; "مشاركة PDF" shares the generated file and "عرض PDF"
+     * opens it in a viewer. The statement itself is derived, never stored.
+     */
+    private void showStatementDialog() {
+        View content = LayoutInflater.from(this)
+                .inflate(R.layout.dialog_customer_statement, null, false);
+        final TextView tvFrom = content.findViewById(R.id.tv_statement_from);
+        final TextView tvTo = content.findViewById(R.id.tv_statement_to);
+
+        tvFrom.setOnClickListener(v -> DateUtils.showDatePicker(this, tvFrom));
+        tvTo.setOnClickListener(v -> DateUtils.showDatePicker(this, tvTo));
+
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.account_statement)
+                .setView(content)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+
+        content.findViewById(R.id.btn_statement_share).setOnClickListener(v -> {
+            if (validatePeriod(tvFrom, tvTo)) {
+                dialog.dismiss();
+                generateStatement(tvFrom.getText().toString(), tvTo.getText().toString(), true);
+            }
+        });
+        content.findViewById(R.id.btn_statement_view).setOnClickListener(v -> {
+            if (validatePeriod(tvFrom, tvTo)) {
+                dialog.dismiss();
+                generateStatement(tvFrom.getText().toString(), tvTo.getText().toString(), false);
+            }
+        });
+
+        dialog.show();
+    }
+
+    /**
+     * @return true when the period is open or {@code from <= to}; otherwise shows
+     *         the shared invalid-range message and keeps the dialog open
+     */
+    private boolean validatePeriod(TextView tvFrom, TextView tvTo) {
+        String from = tvFrom.getText().toString().trim();
+        String to = tvTo.getText().toString().trim();
+        if (!from.isEmpty() && !to.isEmpty() && from.compareTo(to) > 0) {
+            Toast.makeText(this, R.string.invalid_date_range, Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Loads the raw invoices and payments, derives the statement in memory
+     * ({@link StatementBuilder}) and generates the PDF on the DB thread, then
+     * shares or opens it on the main thread.
+     */
+    private void generateStatement(final String from, final String to, final boolean share) {
+        AppExecutors.runOnDb(() -> {
+            try {
+                final Customer customer = customerDao.getByStoreName(storeName);
+                final List<Invoice> invoices = invoiceDao.getStatementMovements(storeName);
+                final List<Payment> payments = paymentDao.getStatementMovements(storeName);
+
+                List<StatementBuilder.InvoiceMovement> invoiceMovements = new ArrayList<>();
+                if (invoices != null) {
+                    for (Invoice invoice : invoices) {
+                        invoiceMovements.add(new StatementBuilder.InvoiceMovement(
+                                invoice.getId(), invoice.getInvoiceDate(), invoice.getTotalAmount()));
+                    }
+                }
+                List<StatementBuilder.PaymentMovement> paymentMovements = new ArrayList<>();
+                if (payments != null) {
+                    for (Payment payment : payments) {
+                        paymentMovements.add(new StatementBuilder.PaymentMovement(
+                                payment.getId(), payment.getPaymentDate(), payment.getAmount(),
+                                payment.getInvoiceId(), payment.getNotes()));
+                    }
+                }
+
+                final StatementBuilder.Statement statement =
+                        StatementBuilder.build(invoiceMovements, paymentMovements, from, to);
+                final File pdfFile = PdfExporter.generateCustomerStatementPdf(
+                        CustomerDetailActivity.this, storeName, customer, statement);
+
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    if (share) {
+                        ShareHelper.sharePdf(CustomerDetailActivity.this, pdfFile);
+                    } else {
+                        openStatementPdf(pdfFile);
+                    }
+                });
+            } catch (final Exception e) {
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    Toast.makeText(CustomerDetailActivity.this,
+                            R.string.pdf_generation_failed, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    /** Opens a generated PDF through ACTION_VIEW, tolerating a missing viewer. */
+    private void openStatementPdf(File pdfFile) {
+        Uri uri = FileProvider.getUriForFile(this,
+                getApplicationContext().getPackageName() + ".fileprovider", pdfFile);
+        Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+        viewIntent.setDataAndType(uri, "application/pdf");
+        viewIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivity(viewIntent);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.pdf_no_viewer, Toast.LENGTH_LONG).show();
+        }
     }
 
     // =====================================================================

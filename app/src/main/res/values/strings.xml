@@ -165,4 +165,35 @@
     <string name="restore_completed_message">تمت استعادة النسخة الاحتياطية بنجاح.</string>
     <string name="share_error">تعذر مشاركة الملف</string>
     <string name="dismiss">إغلاق</string>
+
+    <!-- Customer account statement (كشف حساب) -->
+    <string name="account_statement">كشف حساب</string>
+    <string name="statement_share_pdf">مشاركة PDF</string>
+    <string name="statement_view_pdf">عرض PDF</string>
+    <string name="statement_period_label">الفترة</string>
+    <string name="statement_period_all">كل الفترات</string>
+    <string name="statement_period_from_to">من %1$s إلى %2$s</string>
+    <string name="statement_period_from">من %1$s</string>
+    <string name="statement_period_until">حتى %1$s</string>
+    <string name="statement_print_date">تاريخ الطباعة</string>
+    <string name="statement_opening_balance">رصيد افتتاحي</string>
+    <string name="statement_closing_balance">الرصيد الختامي</string>
+    <string name="statement_total_debit">إجمالي الفواتير (مدين)</string>
+    <string name="statement_total_credit">إجمالي الدفعات (دائن)</string>
+    <string name="statement_col_type">النوع</string>
+    <string name="statement_col_reference">البيان</string>
+    <string name="statement_col_debit">مدين</string>
+    <string name="statement_col_credit">دائن</string>
+    <string name="statement_col_balance">الرصيد</string>
+    <string name="statement_type_invoice">فاتورة</string>
+    <string name="statement_type_payment">دفعة</string>
+    <string name="statement_invoice_ref">#%1$d</string>
+    <string name="statement_payment_on_invoice">على فاتورة #%1$d</string>
+    <string name="statement_payment_on_account">على الحساب</string>
+    <string name="statement_reference_with_note">%1$s — %2$s</string>
+    <string name="statement_no_movements">لا توجد حركات</string>
+    <string name="statement_page_label">صفحة</string>
+    <string name="statement_page_of">من</string>
+    <string name="pdf_generation_failed">تعذر إنشاء الملف، حاول مرة أخرى</string>
+    <string name="pdf_no_viewer">لا يوجد تطبيق لعرض ملفات PDF</string>
 </resources>
