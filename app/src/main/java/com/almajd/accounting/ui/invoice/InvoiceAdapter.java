@@ -88,6 +88,7 @@ public class InvoiceAdapter extends RecyclerView.Adapter<InvoiceAdapter.InvoiceV
         private final TextView tvDate;
         private final TextView tvTotal;
         private final TextView tvRemaining;
+        private final TextView tvCreditNote;
 
         InvoiceViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -96,6 +97,7 @@ public class InvoiceAdapter extends RecyclerView.Adapter<InvoiceAdapter.InvoiceV
             tvDate = itemView.findViewById(R.id.tv_date);
             tvTotal = itemView.findViewById(R.id.tv_total);
             tvRemaining = itemView.findViewById(R.id.tv_remaining);
+            tvCreditNote = itemView.findViewById(R.id.tv_credit_note);
         }
 
         void bind(final Invoice invoice) {
@@ -120,17 +122,26 @@ public class InvoiceAdapter extends RecyclerView.Adapter<InvoiceAdapter.InvoiceV
             tvTotal.setText(NumberUtils.formatCurrency(invoice.getTotalAmount()));
 
             // Remaining: badge style — red if unpaid, orange if partially paid,
-            // green if fully paid. Status is derived by the invoice view.
+            // green if fully paid. The paid/remaining/status values are the
+            // effective ones (direct payments plus any customer-credit allocation),
+            // so an invoice settled from the customer's credit no longer looks
+            // unpaid.
             double remaining = invoice.getRemaining();
+            double allocatedFromCredit = invoice.getAllocatedFromCredit();
             switch (invoice.getStatus()) {
                 case PAID:
-                    tvRemaining.setText(itemView.getContext().getString(R.string.status_paid));
+                    tvRemaining.setText(itemView.getContext().getString(
+                            allocatedFromCredit > 0
+                                    ? R.string.status_paid_from_credit
+                                    : R.string.status_paid));
                     tvRemaining.setTextColor(
                             ContextCompat.getColor(itemView.getContext(), R.color.badgePaidText));
                     tvRemaining.setBackgroundResource(R.drawable.bg_badge_paid);
                     break;
                 case PARTIAL:
-                    tvRemaining.setText(NumberUtils.formatCurrency(remaining));
+                    tvRemaining.setText(allocatedFromCredit > 0
+                            ? itemView.getContext().getString(R.string.status_partial_from_credit)
+                            : NumberUtils.formatCurrency(remaining));
                     tvRemaining.setTextColor(
                             ContextCompat.getColor(itemView.getContext(), R.color.badgePartialText));
                     tvRemaining.setBackgroundResource(R.drawable.bg_badge_partial);
@@ -142,6 +153,24 @@ public class InvoiceAdapter extends RecyclerView.Adapter<InvoiceAdapter.InvoiceV
                             ContextCompat.getColor(itemView.getContext(), R.color.badgeUnpaidText));
                     tvRemaining.setBackgroundResource(R.drawable.bg_badge_unpaid);
                     break;
+            }
+
+            // Separate line showing how much of this invoice came from the
+            // customer's on-account credit (hidden when there is none).
+            if (allocatedFromCredit > 0) {
+                tvCreditNote.setVisibility(View.VISIBLE);
+                if (remaining > 0) {
+                    tvCreditNote.setText(itemView.getContext().getString(
+                            R.string.credit_from_customer_amount_remaining,
+                            NumberUtils.formatCurrency(allocatedFromCredit),
+                            NumberUtils.formatCurrency(remaining)));
+                } else {
+                    tvCreditNote.setText(itemView.getContext().getString(
+                            R.string.credit_from_customer_amount,
+                            NumberUtils.formatCurrency(allocatedFromCredit)));
+                }
+            } else {
+                tvCreditNote.setVisibility(View.GONE);
             }
 
             // Click -> navigate to detail

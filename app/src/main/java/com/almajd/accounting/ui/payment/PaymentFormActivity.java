@@ -527,7 +527,13 @@ public class PaymentFormActivity extends BaseActivity {
         AppExecutors.runOnDb(() -> {
             final double paidExcluding = paymentDao.getPaidForInvoiceExcluding(
                     selectedInvoice.getId(), excludeId);
-            double available = NumberUtils.round2(selectedInvoice.getTotalAmount() - paidExcluding);
+            // Subtract the part of the invoice already settled from the customer's
+            // on-account credit as well: an invoice that is already covered by
+            // credit has no room left for a directly-linked payment, so the excess
+            // goes on account instead of double-counting the same money.
+            double available = NumberUtils.round2(selectedInvoice.getTotalAmount()
+                    - paidExcluding
+                    - selectedInvoice.getAllocatedFromCredit());
             if (available < 0) {
                 available = 0;
             }

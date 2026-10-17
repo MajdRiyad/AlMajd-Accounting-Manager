@@ -214,13 +214,22 @@ public class SalesReportActivity extends BaseActivity {
         double totalSum = 0;
 
         for (Invoice inv : currentInvoices) {
+            // Total, plus (when applicable) how much of the invoice was settled
+            // from the customer's on-account credit.
+            String totalText = NumberUtils.formatCurrency(inv.getTotalAmount());
+            double creditedFromCustomer = inv.getAllocatedFromCredit();
+            if (creditedFromCustomer > 0) {
+                totalText += "\n" + getString(R.string.credit_from_customer_amount,
+                        NumberUtils.formatCurrency(creditedFromCustomer));
+            }
+
             ReportAdapter.ReportRow row = new ReportAdapter.ReportRow(
                     getString(R.string.store_name),
                     inv.getStoreName(),
                     getString(R.string.date),
                     DateUtils.formatForDisplay(inv.getInvoiceDate()),
                     getString(R.string.total),
-                    NumberUtils.formatCurrency(inv.getTotalAmount())
+                    totalText
             );
 
             // Color the value3 (total) red if there is a remaining balance
@@ -250,12 +259,14 @@ public class SalesReportActivity extends BaseActivity {
                 getString(R.string.store_name),
                 getString(R.string.date),
                 getString(R.string.total),
-                getString(R.string.remaining)
+                getString(R.string.remaining),
+                getString(R.string.credit_from_customer_label)
         };
 
         List<List<String>> dataRows = new ArrayList<>();
         double totalSum = 0;
         double totalRemaining = 0;
+        double totalCredit = 0;
 
         for (Invoice inv : invoices) {
             List<String> row = new ArrayList<>();
@@ -263,16 +274,19 @@ public class SalesReportActivity extends BaseActivity {
             row.add(DateUtils.formatForDisplay(inv.getInvoiceDate()));
             row.add(NumberUtils.formatCurrency(inv.getTotalAmount()));
             row.add(NumberUtils.formatCurrency(inv.getRemaining()));
+            row.add(NumberUtils.formatCurrency(inv.getAllocatedFromCredit()));
             dataRows.add(row);
             totalSum += inv.getTotalAmount();
             totalRemaining += inv.getRemaining();
+            totalCredit += inv.getAllocatedFromCredit();
         }
 
         String[] footer = {
                 getString(R.string.grand_total),
                 "",
                 NumberUtils.formatCurrency(totalSum),
-                NumberUtils.formatCurrency(totalRemaining)
+                NumberUtils.formatCurrency(totalRemaining),
+                NumberUtils.formatCurrency(totalCredit)
         };
 
         return new Object[]{headers, dataRows, footer};

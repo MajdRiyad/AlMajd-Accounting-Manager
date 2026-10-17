@@ -895,4 +895,124 @@ accounting logic, backup/restore or threading changes.
   there is no maximum item count; and in edit mode the item list is reloaded from
   the DB on rotation rather than from saved state.
 
+---
+
+# Customer credit allocation: invoices settled from on-account money
+
+Display/derivation-only layer on `feature/credit-allocation`. No DB schema or
+`SCHEMA_VERSION` change, no stored payment row is ever modified, and backup /
+restore / threading are untouched.
+
+## Problem
+A customer's payments with `invoice_id IS NULL` ("on account") lower the
+customer's balance, but each invoice still showed its raw remaining (total minus
+only its *linked* payments), so credit-covered invoices looked unpaid.
+
+## What changed
+
+### A. New pure-Java allocator — `util/CreditAllocator.java`
+- Android-free (JVM-tested). Inputs: a customer's invoices
+  (`Debt`: id, date, total, paidDirect) plus the customer's on-account pool.
+- Spreads the pool **oldest first** (`invoice_date` ASC, then `id` ASC), giving
+  each invoice `min(remaining, poolLeft)`; invoices already paid directly get 0.
+- Returns per invoice: `paidDirect`, `allocatedFromCredit`,
+  `effectivePaid = paidDirect + allocatedFromCredit`,
+  `effectiveRemaining = max(total - effectivePaid, 0)`, and an `InvoiceStatus`.
+- All money math goes through `NumberUtils.round2`, so `0.1 + 0.2` cases land
+  exactly and the pool is consumed without float leftover.
+- `allocateByCustomer(...)` is a small batch helper so each customer's pool only
+  ever covers that customer's own invoices.
+
+### B. Derivation lives in `db/InvoiceDao.java`
+- `invoice_view` is **unchanged**. After every invoice read that feeds a screen
+  (`queryInvoices`, `getRecent`, `getById`), `applyCreditAllocation(...)`:
+  1. reloads the whole invoice set for the distinct stores in the result with
+     one query per chunk of stores (a single invoice's share depends on its
+     siblings, because allocation is oldest-first);
+  2. reads the on-account pool for those stores with **one grouped query**
+     (`SUM(amount) WHERE invoice_id IS NULL GROUP BY store_name`);
+  3. runs `CreditAllocator` in memory and overwrites the invoices'
+     `paidAmount` / `remaining` / `status` with the effective values.
+- No N+1 in the number of invoices: a constant number of queries per list,
+  chunked by store count.
+- `getOpenInvoicesByStore` now filters on the **effective** remaining in Java
+  (the SQL `remaining > 0` filter only knew about direct payments), so a
+  credit-covered invoice is no longer offered as unpaid in the payment form.
+
+### C. Model — `model/Invoice.java`
+- Added `paidDirect` and `allocatedFromCredit` (both derived, never persisted).
+  `paidAmount` / `remaining` / `status` keep their names but now hold the
+  effective values, so every existing screen became correct automatically.
+
+### D. Screens
+- **Invoice list** (`InvoiceAdapter` + `item_invoice.xml`): credit-covered
+  invoices show the badge `مسددة من رصيد الزبون` (full) or
+  `مسددة جزئياً من رصيد الزبون` (partial), plus a separate
+  `من رصيد الزبون: X` line under the badge (with the effective remaining when
+  the invoice is still partly open).
+- **Invoice detail**: the paid/remaining footer uses the effective values, the
+  payments card still lists only directly-linked payments and adds a
+  `من رصيد الزبون` line, and the "no payments" hint is not shown when a credit
+  line exists.
+- **Dashboard** recent invoices show the credit line instead of hiding the
+  remaining row; **customer detail** mini-invoice rows append the credit line.
+- **Sales report**: rows/totals use the effective remaining; rows with credit
+  append `من رصيد الزبون: X` to the total, and the PDF/Excel/CSV exports gained a
+  dedicated `من رصيد الزبون` column (with a grand total).
+- **Invoice PDF**: the footer shows the effective paid/remaining and adds a
+  `من رصيد الزبون: X` row when credit was used.
+- **Customer balance, dashboard "debts" and the ledger are unchanged** — they
+  still come from `ledger_view` (sales − all payments). Only invoice-level
+  display changed.
+
+### E. Payment form overpayment check
+- `available` for a selected invoice is now
+  `round2(total - paidDirectExcluding - allocatedFromCredit)`: a payment can be
+  linked only up to what is **effectively** still owed. Anything above that
+  (including a payment aimed at an invoice already covered by credit) is offered
+  as an on-account payment, so the same money is never counted twice. Editing a
+  payment already linked to a credit-covered invoice still keeps its link,
+  because its own amount is added back when computing `available`.
+
+### F. Strings
+- `strings.xml` (Arabic, ASCII digits via `NumberUtils`): `status_paid_from_credit`,
+  `status_partial_from_credit`, `credit_from_customer_label`,
+  `credit_from_customer_amount`, `credit_from_customer_amount_remaining`.
+
+## Invariant (documented, and where it can differ)
+For a customer, when **no invoice is overpaid directly**, the sum of
+`effectiveRemaining` over all their invoices equals
+`max(customerBalance, 0)`, where `customerBalance = SUM(invoice.total) − SUM(all
+payments)`. That is why the invoice-level view and the customer-level balance
+agree.
+
+It can differ when an invoice's **directly-linked** payments exceed its own
+total: that excess stays parked on that invoice and is deliberately not
+redistributed (redistributing would mean rewriting stored payments, which this
+layer never does). In that case `SUM(effectiveRemaining)` exceeds
+`max(customerBalance, 0)` by the total direct excess. Rounding uses `round2`
+throughout, so no rounding-sized mismatch is introduced.
+
+## Build
+- `./gradlew testDebugUnitTest assembleDebug --console=plain --offline` ->
+  BUILD SUCCESSFUL. All 82 unit tests pass (13 new in `CreditAllocatorTest`:
+  no pool; pool smaller than the oldest; pool covering several partially; pool
+  larger than all debts; already-paid skipped; date-then-id ordering; rounding
+  `0.1/0.2`; negative pool; independent customers; empty inputs; result order).
+- Built via a `subst` drive letter (the `&` in the project path breaks the batch
+  wrapper when called directly), mapping removed afterwards.
+- Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,372,181 bytes / 7.03 MB), built 2026-10-17 21:35.
+
+## Noticed but not fixed
+- A directly-overpaid invoice's excess is not redistributed (see the invariant
+  above); it is treated as if parked on that invoice.
+- The per-list allocation reloads a customer's full invoice set even when the
+  caller already selected all of that customer's invoices (e.g. the all-stores
+  sales report), so those lists run the view query twice. Correct, but it doubles
+  the row read for that case.
+- Untouched (pre-existing): DB first open/migration on the main thread; money
+  stored as `double`; `PaymentFormActivity` shows an edited amount via
+  `String.valueOf(double)`.
+
 

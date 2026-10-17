@@ -292,6 +292,14 @@ public class PdfExporter {
         addFooterRow(footerTable, "\u0627\u0644\u0645\u062A\u0628\u0642\u064A:",
                 NumberUtils.formatCurrency(invoice.getRemaining()), remainFont);
 
+        // The invoice was (partly) settled from the customer's on-account credit:
+        // show how much, so the printed paid/remaining figures are explainable.
+        if (invoice.getAllocatedFromCredit() > 0) {
+            addFooterRow(footerTable,
+                    "\u0645\u0646 \u0631\u0635\u064A\u062F \u0627\u0644\u0632\u0628\u0648\u0646:",
+                    NumberUtils.formatCurrency(invoice.getAllocatedFromCredit()), totalFont);
+        }
+
         document.add(footerTable);
 
         document.close();

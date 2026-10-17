@@ -382,6 +382,13 @@ public class CustomerDetailActivity extends BaseActivity {
                     + "  |  "
                     + getString(R.string.remaining) + ": "
                     + NumberUtils.formatCurrency(inv.getRemaining());
+
+            // Line 3 (when applicable): how much came from the customer's credit
+            double creditedFromCustomer = inv.getAllocatedFromCredit();
+            if (creditedFromCustomer > 0) {
+                summary += "\n" + getString(R.string.credit_from_customer_amount,
+                        NumberUtils.formatCurrency(creditedFromCustomer));
+            }
             holder.text2.setText(summary);
         }
 

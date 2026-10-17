@@ -84,6 +84,13 @@
     <string name="invoice_number_format">فاتورة #%d</string>
     <string name="status_paid">مدفوعة</string>
 
+    <!-- Customer-credit allocation (on-account payments covering invoices) -->
+    <string name="status_paid_from_credit">مسددة من رصيد الزبون</string>
+    <string name="status_partial_from_credit">مسددة جزئياً من رصيد الزبون</string>
+    <string name="credit_from_customer_label">من رصيد الزبون</string>
+    <string name="credit_from_customer_amount">من رصيد الزبون: %1$s</string>
+    <string name="credit_from_customer_amount_remaining">من رصيد الزبون: %1$s • المتبقي: %2$s</string>
+
     <!-- Payment <-> invoice linking -->
     <string name="on_account">دفعة على الحساب</string>
     <string name="select_invoice">الفاتورة</string>

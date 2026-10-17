@@ -11,18 +11,36 @@ public class Invoice {
     private double totalAmount;
 
     /**
-     * Derived value -- NOT persisted on the invoices table. It is computed by
-     * the {@code invoice_view} as SUM(payments.amount WHERE invoice_id = id).
+     * Derived value -- NOT persisted. It is the <b>effective</b> paid amount:
+     * the payments linked to this invoice (see {@link #paidDirect}) plus the part
+     * of the customer's on-account credit that was allocated to it (see
+     * {@link #allocatedFromCredit}).
      */
     private double paidAmount;
 
     /**
-     * Derived value -- NOT persisted. Computed as max(totalAmount - paidAmount, 0).
+     * Derived value -- NOT persisted. Effective remaining =
+     * max(totalAmount - paidAmount, 0) using the <b>effective</b> paid amount.
      */
     private double remaining;
 
-    /** Derived status computed from paidAmount vs totalAmount. */
+    /** Derived status computed from the effective paid amount vs the total. */
     private InvoiceStatus status = InvoiceStatus.UNPAID;
+
+    /**
+     * Derived value -- NOT persisted. The raw sum of payments directly linked to
+     * this invoice ({@code invoice_view.paid_amount}), before any on-account
+     * credit is allocated.
+     */
+    private double paidDirect;
+
+    /**
+     * Derived value -- NOT persisted. Portion of this invoice covered by the
+     * customer's on-account payments (payments with {@code invoice_id IS NULL}).
+     * Always 0 unless the customer had a surplus and this invoice was one of the
+     * oldest still-unpaid ones. See {@code CreditAllocator}.
+     */
+    private double allocatedFromCredit;
 
     private String notes;
     private String createdAt;
@@ -97,6 +115,30 @@ public class Invoice {
 
     public void setStatus(InvoiceStatus status) {
         this.status = status != null ? status : InvoiceStatus.UNPAID;
+    }
+
+    /**
+     * @return the raw sum of payments linked to this invoice, ignoring any
+     *         on-account credit allocated to it
+     */
+    public double getPaidDirect() {
+        return paidDirect;
+    }
+
+    public void setPaidDirect(double paidDirect) {
+        this.paidDirect = paidDirect;
+    }
+
+    /**
+     * @return the amount of this invoice covered by the customer's on-account
+     *         credit (0 when none was allocated); never negative
+     */
+    public double getAllocatedFromCredit() {
+        return allocatedFromCredit;
+    }
+
+    public void setAllocatedFromCredit(double allocatedFromCredit) {
+        this.allocatedFromCredit = allocatedFromCredit;
     }
 
     public String getNotes() {

@@ -10,17 +10,30 @@ import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.InvoiceItem;
 import com.almajd.accounting.model.InvoiceStatus;
 import com.almajd.accounting.util.ChunkUtils;
+import com.almajd.accounting.util.CreditAllocator;
 import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.NumberUtils;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class InvoiceDao {
 
     private final Context context;
     private final DatabaseHelper dbHelper;
+
+    /**
+     * Maximum number of store names per {@code IN (...)} clause when loading a
+     * customer's invoice set or on-account pool. Keeps the host-parameter count
+     * well below SQLite's limit.
+     */
+    private static final int STORE_CHUNK_SIZE = 500;
 
     public InvoiceDao(Context context) {
         this.context = context.getApplicationContext();
@@ -191,9 +204,38 @@ public class InvoiceDao {
     }
 
     /**
-     * Get a single invoice by id, including its items.
+     * Get a single invoice by id, including its items. The derived paid /
+     * remaining / status values are the <b>effective</b> ones (direct payments
+     * plus any on-account credit allocated to this invoice), so the detail screen
+     * matches the lists.
      */
     public Invoice getById(long id) {
+        Invoice invoice = queryRawInvoiceById(id);
+        if (invoice == null) {
+            return null;
+        }
+
+        // Credit is spread oldest-first across a customer's invoices, so an
+        // invoice's share depends on its siblings. Re-use the store query (which
+        // applies the allocation) and pick our row out of it.
+        List<Invoice> siblings = queryInvoices(
+                DatabaseHelper.COL_STORE_NAME + " = ?",
+                new String[]{invoice.getStoreName()},
+                DatabaseHelper.COL_CREATED_AT + " DESC",
+                false);
+        for (Invoice sibling : siblings) {
+            if (sibling.getId() == id) {
+                invoice = sibling;
+                break;
+            }
+        }
+
+        invoice.setItems(getItemsForInvoice(id));
+        return invoice;
+    }
+
+    /** Reads one invoice row from the view, with no items and no credit allocation. */
+    private Invoice queryRawInvoiceById(long id) {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor cursor = null;
         try {
@@ -201,9 +243,7 @@ public class InvoiceDao {
                     DatabaseHelper.COL_ID + " = ?",
                     new String[]{String.valueOf(id)}, null, null, null);
             if (cursor != null && cursor.moveToFirst()) {
-                Invoice invoice = cursorToInvoice(cursor);
-                invoice.setItems(getItemsForInvoice(invoice.getId()));
-                return invoice;
+                return cursorToInvoice(cursor);
             }
             return null;
         } finally {
@@ -298,21 +338,37 @@ public class InvoiceDao {
     }
 
     /**
-     * Get a store's invoices that still have a remaining amount greater than 0.
-     * Used by the payment form's invoice selector. Items are not loaded.
+     * Get a store's invoices that still have an <b>effective</b> remaining amount
+     * greater than 0 (i.e. after their direct payments and any on-account credit
+     * were applied). Used by the payment form's invoice selector so an invoice
+     * already settled from the customer's credit is not offered as unpaid.
+     * Items are not loaded.
      */
     public List<Invoice> getOpenInvoicesByStore(String storeName) {
-        return queryInvoices(
-                DatabaseHelper.COL_STORE_NAME + " = ? AND " + DatabaseHelper.COL_REMAINING + " > 0",
+        // Load the store's invoices (the allocation is applied by queryInvoices),
+        // then keep only those with a remaining balance. Filtering in Java -- not
+        // in SQL -- is deliberate: invoice_view.remaining only counts direct
+        // payments, while the effective remaining also subtracts allocated credit.
+        List<Invoice> invoices = queryInvoices(
+                DatabaseHelper.COL_STORE_NAME + " = ?",
                 new String[]{storeName},
                 DatabaseHelper.COL_CREATED_AT + " DESC",
                 false);
+        List<Invoice> open = new ArrayList<>();
+        for (Invoice invoice : invoices) {
+            if (invoice.getRemaining() > 0) {
+                open.add(invoice);
+            }
+        }
+        return open;
     }
 
     /**
      * Shared query helper: runs a single aggregated query against invoice_view
-     * (paid/remaining/status are computed by the view, never N+1) and, when
-     * requested, attaches all line items with a constant number of extra queries.
+     * (paid/remaining/status are computed by the view, never N+1), then applies
+     * the customer-credit allocation so every caller sees the <b>effective</b>
+     * paid/remaining/status, and finally (when requested) attaches all line items
+     * with a constant number of extra queries.
      */
     private List<Invoice> queryInvoices(String selection, String[] args, String orderBy, boolean loadItems) {
         List<Invoice> invoices = new ArrayList<>();
@@ -330,10 +386,168 @@ public class InvoiceDao {
                 cursor.close();
             }
         }
+        applyCreditAllocation(invoices);
         if (loadItems) {
             attachItems(db, invoices);
         }
         return invoices;
+    }
+
+    // ── Customer-credit allocation (display-only derivation) ─────────────
+
+    /**
+     * Overrides each invoice's paid/remaining/status with the values produced by
+     * {@link CreditAllocator}: the customer's on-account money is spread, oldest
+     * invoice first, over their still-unpaid invoices. Stored payments are never
+     * modified -- this is a read-time derivation only.
+     * <p>
+     * Correctness needs the customer's <em>whole</em> invoice set (a specific
+     * invoice's share depends on its siblings), so the set is reloaded for every
+     * distinct customer in {@code invoices} with one query per chunk of stores.
+     * The on-account pool comes from a single grouped query. Nothing here is N+1
+     * in the number of invoices.
+     */
+    private void applyCreditAllocation(List<Invoice> invoices) {
+        if (invoices == null || invoices.isEmpty()) {
+            return;
+        }
+
+        Set<String> stores = new LinkedHashSet<>();
+        for (Invoice invoice : invoices) {
+            if (invoice != null && invoice.getStoreName() != null) {
+                stores.add(invoice.getStoreName());
+            }
+        }
+        if (stores.isEmpty()) {
+            return;
+        }
+
+        List<Invoice> customerInvoices = queryRawInvoicesForStores(stores);
+
+        Map<String, List<CreditAllocator.Debt>> debtsByCustomer = new LinkedHashMap<>();
+        for (Invoice invoice : customerInvoices) {
+            String store = invoice.getStoreName();
+            if (store == null) {
+                continue;
+            }
+            List<CreditAllocator.Debt> debts = debtsByCustomer.get(store);
+            if (debts == null) {
+                debts = new ArrayList<>();
+                debtsByCustomer.put(store, debts);
+            }
+            // paidAmount is still the raw value from the view here (direct payments).
+            debts.add(new CreditAllocator.Debt(invoice.getId(), invoice.getInvoiceDate(),
+                    invoice.getTotalAmount(), invoice.getPaidAmount()));
+        }
+
+        Map<String, Double> pools = queryOnAccountPool(stores);
+        Map<String, List<CreditAllocator.Allocation>> allocations =
+                CreditAllocator.allocateByCustomer(debtsByCustomer, pools);
+
+        Map<Long, CreditAllocator.Allocation> byId = new HashMap<>();
+        for (List<CreditAllocator.Allocation> customerAllocations : allocations.values()) {
+            for (CreditAllocator.Allocation allocation : customerAllocations) {
+                byId.put(allocation.invoiceId, allocation);
+            }
+        }
+
+        for (Invoice invoice : invoices) {
+            if (invoice == null) {
+                continue;
+            }
+            CreditAllocator.Allocation allocation = byId.get(invoice.getId());
+            if (allocation == null) {
+                continue;
+            }
+            invoice.setPaidDirect(allocation.paidDirect);
+            invoice.setAllocatedFromCredit(allocation.allocatedFromCredit);
+            invoice.setPaidAmount(allocation.effectivePaid);
+            invoice.setRemaining(allocation.effectiveRemaining);
+            invoice.setStatus(allocation.status);
+        }
+    }
+
+    /**
+     * Loads every invoice (no items, no allocation) for the given stores, one
+     * query per chunk of stores.
+     */
+    private List<Invoice> queryRawInvoicesForStores(Collection<String> stores) {
+        List<Invoice> invoices = new ArrayList<>();
+        if (stores == null || stores.isEmpty()) {
+            return invoices;
+        }
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        for (List<String> chunk : ChunkUtils.chunk(new ArrayList<>(stores), STORE_CHUNK_SIZE)) {
+            StringBuilder placeholders = new StringBuilder();
+            String[] args = new String[chunk.size()];
+            for (int i = 0; i < chunk.size(); i++) {
+                if (i > 0) {
+                    placeholders.append(',');
+                }
+                placeholders.append('?');
+                args[i] = chunk.get(i);
+            }
+            Cursor cursor = null;
+            try {
+                cursor = db.query(DatabaseHelper.VIEW_INVOICE, null,
+                        DatabaseHelper.COL_STORE_NAME + " IN (" + placeholders + ")",
+                        args, null, null, null);
+                if (cursor != null && cursor.moveToFirst()) {
+                    do {
+                        invoices.add(cursorToInvoice(cursor));
+                    } while (cursor.moveToNext());
+                }
+            } finally {
+                if (cursor != null) {
+                    cursor.close();
+                }
+            }
+        }
+        return invoices;
+    }
+
+    /**
+     * Sum of on-account payments ({@code invoice_id IS NULL}) per store, with one
+     * grouped query per chunk of stores. Stores with no on-account money are
+     * simply absent from the returned map (treated as 0).
+     */
+    private Map<String, Double> queryOnAccountPool(Collection<String> stores) {
+        Map<String, Double> pools = new HashMap<>();
+        if (stores == null || stores.isEmpty()) {
+            return pools;
+        }
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        for (List<String> chunk : ChunkUtils.chunk(new ArrayList<>(stores), STORE_CHUNK_SIZE)) {
+            StringBuilder placeholders = new StringBuilder();
+            String[] args = new String[chunk.size()];
+            for (int i = 0; i < chunk.size(); i++) {
+                if (i > 0) {
+                    placeholders.append(',');
+                }
+                placeholders.append('?');
+                args[i] = chunk.get(i);
+            }
+            Cursor cursor = null;
+            try {
+                cursor = db.rawQuery(
+                        "SELECT " + DatabaseHelper.COL_STORE_NAME + ", SUM(" + DatabaseHelper.COL_AMOUNT + ")"
+                                + " FROM " + DatabaseHelper.TABLE_PAYMENTS
+                                + " WHERE " + DatabaseHelper.COL_INVOICE_ID + " IS NULL"
+                                + " AND " + DatabaseHelper.COL_STORE_NAME + " IN (" + placeholders + ")"
+                                + " GROUP BY " + DatabaseHelper.COL_STORE_NAME,
+                        args);
+                if (cursor != null && cursor.moveToFirst()) {
+                    do {
+                        pools.put(cursor.getString(0), cursor.getDouble(1));
+                    } while (cursor.moveToNext());
+                }
+            } finally {
+                if (cursor != null) {
+                    cursor.close();
+                }
+            }
+        }
+        return pools;
     }
 
     /**
@@ -494,6 +708,7 @@ public class InvoiceDao {
                 cursor.close();
             }
         }
+        applyCreditAllocation(invoices);
         if (loadItems) {
             attachItems(db, invoices);
         }
@@ -502,6 +717,11 @@ public class InvoiceDao {
 
     /**
      * Convert a cursor row (from invoice_view) to an Invoice object.
+     * <p>
+     * {@code paidAmount} starts as the raw value from the view (direct payments)
+     * and is later replaced with the effective value once
+     * {@link #applyCreditAllocation(List)} runs; {@code paidDirect} always keeps
+     * the raw value.
      */
     private Invoice cursorToInvoice(Cursor cursor) {
         Invoice invoice = new Invoice();
@@ -509,7 +729,9 @@ public class InvoiceDao {
         invoice.setStoreName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_STORE_NAME)));
         invoice.setInvoiceDate(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_INVOICE_DATE)));
         invoice.setTotalAmount(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_TOTAL_AMOUNT)));
-        invoice.setPaidAmount(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_PAID_AMOUNT)));
+        double paidDirect = cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_PAID_AMOUNT));
+        invoice.setPaidAmount(paidDirect);
+        invoice.setPaidDirect(paidDirect);
         invoice.setRemaining(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_REMAINING)));
         invoice.setStatus(InvoiceStatus.fromDb(
                 cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_STATUS))));

@@ -272,9 +272,16 @@ public class DashboardActivity extends BaseActivity {
             tvDate.setText(DateUtils.formatForDisplay(inv.getInvoiceDate()));
             tvAmount.setText(NumberUtils.formatCurrency(inv.getTotalAmount()));
 
+            double creditedFromCustomer = inv.getAllocatedFromCredit();
             if (inv.getRemaining() > 0) {
                 tvRemaining.setText(getString(R.string.remaining) + ": " +
                         NumberUtils.formatCurrency(inv.getRemaining()));
+                tvRemaining.setVisibility(View.VISIBLE);
+            } else if (creditedFromCustomer > 0) {
+                // Settled from the customer's on-account credit: say so instead of
+                // hiding the line (the remaining is now 0, not "no balance").
+                tvRemaining.setText(getString(R.string.credit_from_customer_amount,
+                        NumberUtils.formatCurrency(creditedFromCustomer)));
                 tvRemaining.setVisibility(View.VISIBLE);
             } else {
                 tvRemaining.setVisibility(View.GONE);

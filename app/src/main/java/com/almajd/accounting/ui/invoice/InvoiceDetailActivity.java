@@ -176,17 +176,27 @@ public class InvoiceDetailActivity extends BaseActivity {
     }
 
     /**
-     * Displays the payments linked to this invoice (date, amount, notes).
-     * Must be called on the main thread.
+     * Displays the payments linked to this invoice (date, amount, notes) plus a
+     * separate line for any part of the invoice that was settled from the
+     * customer's on-account credit. Must be called on the main thread.
      */
     private void displayPayments(List<Payment> payments) {
         llInvoicePayments.removeAllViews();
 
-        if (payments == null || payments.isEmpty()) {
+        double allocatedFromCredit = invoice != null ? invoice.getAllocatedFromCredit() : 0;
+        boolean hasPayments = payments != null && !payments.isEmpty();
+
+        // The credit line alone is enough to fill this card, so only show the
+        // "no payments" hint when there is genuinely nothing to list.
+        if (!hasPayments && allocatedFromCredit <= 0) {
             tvNoInvoicePayments.setVisibility(View.VISIBLE);
             return;
         }
         tvNoInvoicePayments.setVisibility(View.GONE);
+
+        if (payments == null) {
+            payments = java.util.Collections.emptyList();
+        }
 
         float smallSize = getResources().getDimension(R.dimen.text_size_small);
         float bodySize = getResources().getDimension(R.dimen.text_size_body);
@@ -234,6 +244,32 @@ public class InvoiceDetailActivity extends BaseActivity {
                     LinearLayout.LayoutParams.MATCH_PARENT, 1));
             divider.setBackgroundColor(ContextCompat.getColor(this, R.color.dividerLight));
             llInvoicePayments.addView(divider);
+        }
+
+        // This invoice was (partly) settled from the customer's on-account credit.
+        // Only directly-linked payment rows are listed above; the credit itself is
+        // shown here as a separate informational line.
+        if (allocatedFromCredit > 0) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setPadding(0, dpToPx(8), 0, dpToPx(8));
+
+            TextView tvRowLabel = new TextView(this);
+            tvRowLabel.setText(getString(R.string.credit_from_customer_label));
+            tvRowLabel.setTextColor(ContextCompat.getColor(this, R.color.textPrimary));
+            tvRowLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, smallSize);
+            tvRowLabel.setLayoutParams(new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            row.addView(tvRowLabel);
+
+            TextView tvRowAmount = new TextView(this);
+            tvRowAmount.setText(NumberUtils.formatCurrency(allocatedFromCredit));
+            tvRowAmount.setTextColor(ContextCompat.getColor(this, R.color.green));
+            tvRowAmount.setTypeface(null, Typeface.BOLD);
+            tvRowAmount.setTextSize(TypedValue.COMPLEX_UNIT_PX, bodySize);
+            row.addView(tvRowAmount);
+
+            llInvoicePayments.addView(row);
         }
     }
 
