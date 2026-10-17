@@ -24,6 +24,10 @@ public class BackupException extends Exception {
         DB_CORRUPT,
         /** The database entry is missing from the archive. */
         MISSING_DB,
+        /** The backup file or one of its entries exceeds the allowed size. */
+        TOO_LARGE,
+        /** There is not enough free space to validate/replace the database. */
+        NOT_ENOUGH_SPACE,
         /** Restoring failed; the previous data was kept. */
         RESTORE_FAILED,
         /** Creating the backup failed. */

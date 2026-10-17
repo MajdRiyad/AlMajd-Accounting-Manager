@@ -14,17 +14,11 @@ public class DateUtils {
 
     public static final String DB_DATE_FORMAT = "yyyy-MM-dd";
     public static final String DISPLAY_DATE_FORMAT = "dd/MM/yyyy";
-    /** Timestamp used for backup file names (safe for all file systems). */
-    public static final String FILE_TIMESTAMP_FORMAT = "yyyy-MM-dd_HH-mm";
     /** Human-readable timestamp used for "last backup" and the restore dialog. */
     public static final String HUMAN_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm";
 
     public static String todayAsDbFormat() {
         return new SimpleDateFormat(DB_DATE_FORMAT, Locale.US).format(new Date());
-    }
-
-    public static String fileTimestamp() {
-        return new SimpleDateFormat(FILE_TIMESTAMP_FORMAT, Locale.US).format(new Date());
     }
 
     public static String humanTimestamp() {

@@ -173,5 +173,12 @@
     <string name="restore_db_corrupt">قاعدة البيانات داخل النسخة تالفة.</string>
     <string name="restore_failed">تعذرت الاستعادة، وتم الاحتفاظ ببياناتك الحالية.</string>
     <string name="restore_failed_rolled_back">فشلت الاستعادة وتمت إعادة بياناتك السابقة.</string>
+    <string name="restore_too_large">حجم الملف كبير جداً بحيث لا يمكن استعادته.</string>
+    <string name="restore_not_enough_space">لا توجد مساحة كافية في الجهاز لاستعادة النسخة الاحتياطية.</string>
+    <string name="restore_recovered_title">تمت استعادة بياناتك</string>
+    <string name="restore_recovered_message">تمت مقاطعة عملية الاستعادة، وتمت استرجاع بياناتك السابقة.</string>
+    <string name="restore_completed_title">اكتملت الاستعادة</string>
+    <string name="restore_completed_message">تمت استعادة النسخة الاحتياطية بنجاح.</string>
+    <string name="share_error">تعذر مشاركة الملف</string>
     <string name="dismiss">إغلاق</string>
 </resources>

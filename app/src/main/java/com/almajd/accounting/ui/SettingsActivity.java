@@ -267,6 +267,12 @@ public class SettingsActivity extends BaseActivity {
             case DB_CORRUPT:
                 messageRes = R.string.restore_db_corrupt;
                 break;
+            case TOO_LARGE:
+                messageRes = R.string.restore_too_large;
+                break;
+            case NOT_ENOUGH_SPACE:
+                messageRes = R.string.restore_not_enough_space;
+                break;
             case RESTORE_FAILED:
                 messageRes = R.string.restore_failed_rolled_back;
                 break;

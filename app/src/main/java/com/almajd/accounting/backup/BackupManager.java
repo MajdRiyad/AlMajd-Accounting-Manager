@@ -5,6 +5,8 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
+import android.provider.OpenableColumns;
+import android.util.Log;
 
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.db.DatabaseHelper;
@@ -15,9 +17,11 @@ import com.almajd.accounting.util.DateUtils;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -37,18 +41,31 @@ import java.util.zip.ZipOutputStream;
  */
 public class BackupManager {
 
+    private static final String TAG = "BackupManager";
+
     private static final String PREFS_NAME = "almajd_backup";
     private static final String KEY_LAST_BACKUP_TIME = "last_backup_time";
+    private static final String KEY_PENDING_RECOVERY = "pending_recovery";
 
     private static final String EXPORTS_DIR = "exports";
     private static final String VALIDATION_DIR = "restore_validation";
     private static final String PRE_RESTORE_DIR = "pre_restore";
+
+    /** Dropped inside {@code pre_restore/} while a restore is in progress. */
+    private static final String RESTORE_MARKER_NAME = "RESTORE_IN_PROGRESS";
 
     private static final String ENTRY_DB = DatabaseHelper.DATABASE_NAME;
     private static final String ENTRY_MANIFEST = "manifest.json";
     private static final String ENTRY_SETTINGS = "settings.json";
 
     private static final String ZIP_MIME = "application/zip";
+
+    /** No recovery message is pending. */
+    public static final int RECOVERY_NONE = 0;
+    /** A restore was interrupted before the new data was installed; the previous data was recovered. */
+    public static final int RECOVERY_RECOVERED_PREVIOUS = 1;
+    /** A restore was interrupted after the new data was installed; the restored data was kept. */
+    public static final int RECOVERY_KEPT_RESTORED = 2;
 
     private BackupManager() {
     }
@@ -117,7 +134,7 @@ public class BackupManager {
         settings.phone = appSettings.getPhone();
 
         File zipFile = new File(exportsDir,
-                "almajd-backup-" + DateUtils.fileTimestamp() + ".zip");
+                BackupNaming.fileName(System.currentTimeMillis()));
 
         try (ZipOutputStream zos = new ZipOutputStream(
                 new BufferedOutputStream(new FileOutputStream(zipFile)))) {
@@ -182,6 +199,20 @@ public class BackupManager {
                     "Cannot open the selected file");
         }
 
+        // SIZE GUARD: reject an obviously oversized backup before reading it.
+        // The declared size can be absent or wrong, so this is only a fast
+        // pre-filter; the real enforcement counts real bytes while reading below.
+        long declaredSourceSize = sourceSizeBytes(context, uri);
+        if (declaredSourceSize > 0 && !BackupLimits.isCompressedSizeAllowed(declaredSourceSize)) {
+            throw new BackupException(BackupException.Kind.TOO_LARGE,
+                    "The backup file is larger than the allowed limit");
+        }
+        if (declaredSourceSize > 0
+                && !BackupLimits.hasEnoughFreeSpace(declaredSourceSize, usableSpace(context))) {
+            throw new BackupException(BackupException.Kind.NOT_ENOUGH_SPACE,
+                    "Not enough free space to validate the backup");
+        }
+
         File validationDir = new File(context.getCacheDir(), VALIDATION_DIR);
         deleteRecursively(validationDir);
         if (!validationDir.exists() && !validationDir.mkdirs()) {
@@ -195,7 +226,11 @@ public class BackupManager {
         String settingsJson = null;
         boolean databaseFound = false;
 
-        try (ZipInputStream zis = new ZipInputStream(new BufferedInputStream(raw))) {
+        // Counts the compressed bytes actually read from the source, so the size
+        // limit cannot be bypassed by a lying zip header.
+        CountingInputStream counting = new CountingInputStream(new BufferedInputStream(raw));
+        boolean extractionComplete = false;
+        try (ZipInputStream zis = new ZipInputStream(counting)) {
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
                 String name = entry.getName();
@@ -203,18 +238,31 @@ public class BackupManager {
                 // to fixed paths, so crafted entry names cannot escape the
                 // sandbox via path traversal.
                 if (ENTRY_MANIFEST.equals(name)) {
-                    manifestJson = readAllText(zis);
+                    manifestJson = readAllText(zis, BackupLimits.Entry.JSON, ENTRY_MANIFEST);
                 } else if (ENTRY_SETTINGS.equals(name)) {
-                    settingsJson = readAllText(zis);
+                    settingsJson = readAllText(zis, BackupLimits.Entry.JSON, ENTRY_SETTINGS);
                 } else if (ENTRY_DB.equals(name)) {
-                    copyStream(zis, tempDb);
+                    copyStream(zis, tempDb, BackupLimits.Entry.DATABASE, ENTRY_DB);
                     databaseFound = true;
                 }
                 zis.closeEntry();
+                // The whole compressed archive must stay within bounds.
+                if (!BackupLimits.isCompressedSizeAllowed(counting.count)) {
+                    throw new BackupException(BackupException.Kind.TOO_LARGE,
+                            "The backup file is larger than the allowed limit");
+                }
             }
+            extractionComplete = true;
+        } catch (BackupException e) {
+            throw e;
         } catch (IOException e) {
             throw new BackupException(BackupException.Kind.INVALID_FILE,
                     "The file is not a valid zip archive", e);
+        } finally {
+            if (!extractionComplete) {
+                // Never leave a partial (possibly huge) extraction behind.
+                deleteIfExists(tempDb);
+            }
         }
 
         if (manifestJson == null) {
@@ -323,18 +371,30 @@ public class BackupManager {
     // ------------------------------------------------------------------
 
     /**
-     * Replaces the current database (and settings) with the validated backup.
+     * Replaces the current database (and settings) with the validated backup in a
+     * recoverable way.
      * <p>
-     * A safety copy of the current database is taken first; if anything fails
-     * afterwards the safety copy is put back, so the app is never left without a
-     * database. The caller must restart the app afterwards so the singleton is
-     * rebuilt.
+     * A safety copy of the current database is taken first and a
+     * {@code RESTORE_IN_PROGRESS} marker is dropped. The marker is only removed
+     * once the new database is in place, the settings are restored and the new
+     * database opens. If the app dies in between, {@link #recoverIfInterrupted}
+     * finishes the job on the next launch. Failures roll back to the safety copy.
+     * The caller must restart the app afterwards so the singleton is rebuilt.
      */
     public static void restoreBackup(Context context, ValidatedBackup backup) throws BackupException {
         File dbFile = context.getDatabasePath(DatabaseHelper.DATABASE_NAME);
         File dbDir = dbFile.getParentFile();
         File walFile = new File(dbFile.getPath() + "-wal");
         File shmFile = new File(dbFile.getPath() + "-shm");
+
+        // FREE SPACE GUARD: the safety copy plus the staging copy each take about
+        // a database's worth of space, so require roughly twice the incoming size
+        // before touching anything.
+        long incomingSize = backup.databaseFile.length();
+        if (!BackupLimits.hasEnoughFreeSpace(incomingSize, usableSpace(context))) {
+            throw new BackupException(BackupException.Kind.NOT_ENOUGH_SPACE,
+                    "Not enough free space to restore the backup");
+        }
 
         // Close the singleton / any open handle before touching the files.
         DatabaseHelper.closeInstance();
@@ -346,10 +406,14 @@ public class BackupManager {
                     "Cannot create the safety backup directory");
         }
         File safetyDb = new File(preRestoreDir, DatabaseHelper.DATABASE_NAME);
+        File marker = new File(preRestoreDir, RESTORE_MARKER_NAME);
+
         boolean hadDatabase = dbFile.exists();
+        long safetySize = 0L;
         if (hadDatabase) {
             try {
                 copyFile(dbFile, safetyDb);
+                safetySize = safetyDb.length();
             } catch (IOException e) {
                 throw new BackupException(BackupException.Kind.RESTORE_FAILED,
                         "Failed to back up the current data", e);
@@ -358,11 +422,19 @@ public class BackupManager {
 
         File staging = new File(dbDir, DatabaseHelper.DATABASE_NAME + ".restore_tmp");
         try {
+            // CRASH SAFETY #1: from here on an interrupted restore can be rolled
+            // back. The marker records the safety copy's size so recovery can
+            // confirm the copy is intact before trusting it.
+            writeMarker(marker, new RestoreMarker(
+                    RestoreMarker.PHASE_SAFETY_TAKEN, hadDatabase, safetySize));
+
             // Stage the validated database next to the target so the final move
             // is a single atomic rename.
             copyFile(backup.databaseFile, staging);
 
             deleteIfExists(dbFile);
+            // The -wal/-shm side files belong to the old database; they must not
+            // survive the swap.
             deleteIfExists(walFile);
             deleteIfExists(shmFile);
 
@@ -371,14 +443,33 @@ public class BackupManager {
                 deleteIfExists(staging);
             }
 
+            // CRASH SAFETY #2: the new database is now in place. Moving the marker
+            // to this phase makes recovery keep the restored data instead of
+            // rolling it back.
+            writeMarker(marker, new RestoreMarker(
+                    RestoreMarker.PHASE_DB_INSTALLED, hadDatabase, safetySize));
+
             if (backup.settings != null) {
                 AppSettings appSettings = new AppSettings(context);
                 appSettings.saveAll(backup.settings.companyNameAr, backup.settings.companyNameEn,
                         backup.settings.ownerNameAr, backup.settings.ownerNameEn,
                         backup.settings.phone);
             }
+
+            // The marker may only go once the new database actually opens.
+            verifyRestoredDatabase(context);
+
+            deleteIfExists(marker);
         } catch (Exception e) {
-            rollback(dbFile, walFile, shmFile, safetyDb, hadDatabase);
+            boolean rolledBack = rollback(dbFile, walFile, shmFile, safetyDb, hadDatabase);
+            if (rolledBack) {
+                // The old data is in place again; the marker must not trigger a
+                // spurious recovery on the next launch.
+                deleteIfExists(marker);
+            } else {
+                Log.e(TAG, "Restore failed and the rollback did not complete; "
+                        + "recovery will run on the next launch");
+            }
             if (e instanceof BackupException) {
                 throw (BackupException) e;
             }
@@ -389,17 +480,161 @@ public class BackupManager {
         }
     }
 
-    private static void rollback(File dbFile, File walFile, File shmFile,
-                                 File safetyDb, boolean hadDatabase) {
+    /**
+     * Opens the just-installed database through the normal helper (so any pending
+     * migration runs) and performs a cheap read, to prove the new file is usable.
+     */
+    private static void verifyRestoredDatabase(Context context) throws BackupException {
         try {
+            SQLiteDatabase db = DatabaseHelper.getInstance(context).getWritableDatabase();
+            Cursor cursor = db.rawQuery(
+                    "SELECT count(*) FROM " + DatabaseHelper.TABLE_CUSTOMERS, null);
+            if (cursor != null) {
+                cursor.moveToFirst();
+                cursor.close();
+            }
+        } catch (Exception e) {
+            throw new BackupException(BackupException.Kind.RESTORE_FAILED,
+                    "The restored database could not be opened", e);
+        }
+    }
+
+    /**
+     * Repairs an interrupted restore. Called at application startup, before any
+     * database handle is opened.
+     * <p>
+     * Depending on the marker phase either the previous data is put back (the
+     * swap had not happened) or the already-restored data is kept (the swap had
+     * happened). A one-time message is queued for the next dashboard launch. If
+     * the safety copy is missing or incomplete nothing is touched and the failure
+     * is logged.
+     */
+    public static void recoverIfInterrupted(Context context) {
+        File preRestoreDir = new File(context.getFilesDir(), PRE_RESTORE_DIR);
+        File markerFile = new File(preRestoreDir, RESTORE_MARKER_NAME);
+        if (!markerFile.exists()) {
+            return;
+        }
+
+        RestoreMarker marker = RestoreMarker.parse(readTextFile(markerFile));
+        if (marker == null) {
+            Log.e(TAG, "The restore marker exists but could not be read; "
+                    + "leaving the current database untouched");
+            return;
+        }
+
+        File safetyDb = new File(preRestoreDir, DatabaseHelper.DATABASE_NAME);
+        boolean safetyExists = safetyDb.exists();
+        long safetySize = safetyExists ? safetyDb.length() : 0L;
+        RestoreRecovery.Action action = RestoreRecovery.decide(marker, safetyExists, safetySize);
+
+        File dbFile = context.getDatabasePath(DatabaseHelper.DATABASE_NAME);
+        File walFile = new File(dbFile.getPath() + "-wal");
+        File shmFile = new File(dbFile.getPath() + "-shm");
+
+        try {
+            switch (action) {
+                case RECOVER_PREVIOUS: {
+                    DatabaseHelper.closeInstance();
+                    File dbDir = dbFile.getParentFile();
+                    if (dbDir != null && !dbDir.exists() && !dbDir.mkdirs()) {
+                        throw new IOException("Cannot create the database directory");
+                    }
+                    deleteIfExists(walFile);
+                    deleteIfExists(shmFile);
+                    copyFile(safetyDb, dbFile);
+                    deleteIfExists(markerFile);
+                    setPendingRecovery(context, RECOVERY_RECOVERED_PREVIOUS);
+                    Log.i(TAG, "Interrupted restore recovered: the previous data was restored");
+                    break;
+                }
+                case KEEP_RESTORED: {
+                    deleteIfExists(markerFile);
+                    setPendingRecovery(context, RECOVERY_KEPT_RESTORED);
+                    Log.i(TAG, "Interrupted restore completed: the restored data was kept");
+                    break;
+                }
+                case CLEAR_ONLY: {
+                    deleteIfExists(markerFile);
+                    Log.i(TAG, "Interrupted restore cleared; there was no previous data to restore");
+                    break;
+                }
+                case ABORT: {
+                    Log.e(TAG, "The interrupted restore could not be repaired: the safety copy "
+                            + "is missing or incomplete; the current database was left untouched");
+                    break;
+                }
+                case NOTHING:
+                default:
+                    break;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to recover an interrupted restore; "
+                    + "the current database was left untouched", e);
+        }
+    }
+
+    /**
+     * Returns and clears the one-time message queued by recovery, so it is shown
+     * exactly once (on the next dashboard launch).
+     *
+     * @return one of {@link #RECOVERY_NONE}, {@link #RECOVERY_RECOVERED_PREVIOUS}
+     *         or {@link #RECOVERY_KEPT_RESTORED}.
+     */
+    public static int consumePendingRecoveryMessage(Context context) {
+        int value = prefs(context).getInt(KEY_PENDING_RECOVERY, RECOVERY_NONE);
+        if (value != RECOVERY_NONE) {
+            prefs(context).edit().remove(KEY_PENDING_RECOVERY).apply();
+        }
+        return value;
+    }
+
+    private static void setPendingRecovery(Context context, int value) {
+        prefs(context).edit().putInt(KEY_PENDING_RECOVERY, value).apply();
+    }
+
+    private static void writeMarker(File markerFile, RestoreMarker marker) throws IOException {
+        try (FileOutputStream out = new FileOutputStream(markerFile)) {
+            out.write(marker.toText().getBytes(StandardCharsets.UTF_8));
+            out.flush();
+            // Make the marker survive an abrupt process kill.
+            out.getFD().sync();
+        }
+    }
+
+    private static String readTextFile(File file) {
+        try (InputStream in = new BufferedInputStream(new FileInputStream(file))) {
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            copyStream(in, buffer);
+            return new String(buffer.toByteArray(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Puts the safety copy back over the current database.
+     *
+     * @return true when the previous data was restored successfully
+     */
+    private static boolean rollback(File dbFile, File walFile, File shmFile,
+                                    File safetyDb, boolean hadDatabase) {
+        try {
+            // Any handle opened by verification must be closed first.
+            DatabaseHelper.closeInstance();
             deleteIfExists(dbFile);
             deleteIfExists(walFile);
             deleteIfExists(shmFile);
-            if (hadDatabase && safetyDb.exists()) {
+            if (hadDatabase) {
+                if (!safetyDb.exists() || safetyDb.length() == 0L) {
+                    return false;
+                }
                 copyFile(safetyDb, dbFile);
             }
-        } catch (Exception ignored) {
-            // Nothing more can be done here; the original error is reported.
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Rollback failed; the marker is kept so recovery runs next launch", e);
+            return false;
         }
     }
 
@@ -421,9 +656,10 @@ public class BackupManager {
         zos.closeEntry();
     }
 
-    private static String readAllText(InputStream in) throws IOException {
-        java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
-        copyStream(in, buffer);
+    private static String readAllText(InputStream in, BackupLimits.Entry entry, String entryName)
+            throws IOException, BackupException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        copyStreamLimited(in, buffer, BackupLimits.maxUncompressedBytes(entry), entryName);
         return new String(buffer.toByteArray(), StandardCharsets.UTF_8);
     }
 
@@ -435,15 +671,106 @@ public class BackupManager {
         }
     }
 
-    private static void copyStream(InputStream in, File target) throws IOException {
+    /**
+     * Copies until EOF, aborting with {@link BackupException.Kind#TOO_LARGE} as
+     * soon as more than {@code maxBytes} have been produced. Real bytes are
+     * counted, so a zip header cannot understate the true size.
+     */
+    private static void copyStreamLimited(InputStream in, OutputStream out, long maxBytes,
+                                          String entryName) throws IOException, BackupException {
+        byte[] buffer = new byte[8192];
+        long total = 0;
+        int read;
+        while ((read = in.read(buffer)) != -1) {
+            total += read;
+            if (total > maxBytes) {
+                throw new BackupException(BackupException.Kind.TOO_LARGE,
+                        "The backup entry is too large: " + entryName);
+            }
+            out.write(buffer, 0, read);
+        }
+    }
+
+    private static void copyStream(InputStream in, File target, BackupLimits.Entry entry,
+                                   String entryName) throws IOException, BackupException {
         try (OutputStream out = new BufferedOutputStream(new FileOutputStream(target))) {
-            copyStream(in, out);
+            copyStreamLimited(in, out, BackupLimits.maxUncompressedBytes(entry), entryName);
         }
     }
 
     private static void copyFile(File source, File target) throws IOException {
-        try (InputStream in = new BufferedInputStream(new FileInputStream(source))) {
-            copyStream(in, target);
+        try (InputStream in = new BufferedInputStream(new FileInputStream(source));
+             OutputStream out = new BufferedOutputStream(new FileOutputStream(target))) {
+            copyStream(in, out);
+        }
+    }
+
+    /** @return the declared size of the picked file, or -1 when it cannot be read. */
+    private static long sourceSizeBytes(Context context, Uri uri) {
+        Cursor cursor = null;
+        try {
+            cursor = context.getContentResolver().query(
+                    uri, new String[]{OpenableColumns.SIZE}, null, null, null);
+            if (cursor != null && cursor.moveToFirst() && !cursor.isNull(0)) {
+                return cursor.getLong(0);
+            }
+        } catch (Exception ignored) {
+            // Unknown size; the streaming size checks still apply.
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return -1L;
+    }
+
+    /**
+     * @return free space (bytes) usable for databases and caches, or
+     *         {@link Long#MAX_VALUE} when it cannot be determined.
+     */
+    private static long usableSpace(Context context) {
+        File dir = context.getFilesDir();
+        if (dir == null) {
+            return Long.MAX_VALUE;
+        }
+        return dir.getUsableSpace();
+    }
+
+    /** Counts the bytes actually read from the underlying stream. */
+    private static final class CountingInputStream extends FilterInputStream {
+
+        long count;
+
+        CountingInputStream(InputStream in) {
+            super(in);
+        }
+
+        @Override
+        public int read() throws IOException {
+            int result = super.read();
+            if (result != -1) {
+                count++;
+            }
+            return result;
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            int result = super.read(b, off, len);
+            if (result > 0) {
+                count += result;
+            }
+            return result;
+        }
+
+        @Override
+        public long skip(long n) throws IOException {
+            // Bypass FilterInputStream.skip so the skipped bytes are still counted.
+            long skipped = in.skip(n);
+            if (skipped > 0) {
+                count += skipped;
+            }
+            return skipped;
         }
     }
 

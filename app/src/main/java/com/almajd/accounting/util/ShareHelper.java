@@ -5,6 +5,9 @@ import android.content.Intent;
 import android.net.Uri;
 import android.widget.Toast;
 import androidx.core.content.FileProvider;
+
+import com.almajd.accounting.R;
+
 import java.io.File;
 
 public class ShareHelper {
@@ -29,7 +32,7 @@ public class ShareHelper {
                     file.getName()));
             return true;
         } catch (Exception e) {
-            Toast.makeText(context, "Error sharing: " + e.getMessage(),
+            Toast.makeText(context, R.string.share_error,
                     Toast.LENGTH_LONG).show();
             return false;
         }

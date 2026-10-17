@@ -515,3 +515,173 @@ Modified:
   wrapper when called directly), mapping removed afterwards.
 - Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
   (7,363,305 bytes / 7.02 MB), built 2026-10-17 17:54.
+
+---
+
+# Backup & restore hardening
+
+## Goal
+
+Make the in-app backup/restore feature safe against interruption and hostile
+files: a restore must be recoverable after a crash, oversized/zip-bomb files must
+be rejected, two backups in the same minute must not collide, and the remaining
+hardcoded English string in `ShareHelper` must be localized. Accounting logic, the
+DB schema and `SCHEMA_VERSION` are unchanged.
+
+## What changed
+
+### A. Crash-safe restore
+
+- New marker file `filesDir/pre_restore/RESTORE_IN_PROGRESS`
+  (`BackupManager.RESTORE_MARKER_NAME`), written once the safety copy of the
+  current DB is complete and removed only when the new DB is in place, the
+  settings are restored **and** the new DB opens.
+- The marker is two-phase (`RestoreMarker`): `PHASE_SAFETY_TAKEN` (1) then
+  `PHASE_DB_INSTALLED` (2). It also records whether a DB existed before and the
+  exact byte size of the safety copy, so recovery can verify the copy is intact.
+  The marker is written with an `fsync` so it survives a process kill.
+- `restoreBackup` order: close the singleton → free-space check → safety copy →
+  write marker phase 1 → stage the new DB next to the target → delete the old
+  `db`/`-wal`/`-shm` → atomic `rename` the staged file into place → write marker
+  phase 2 → restore settings → open the new DB (`getWritableDatabase`) and run a
+  cheap `SELECT count(*) FROM customers` → delete the marker.
+- `App.onCreate` calls `BackupManager.recoverIfInterrupted(this)` **before**
+  `DatabaseHelper.getInstance(this)` opens any handle. On recovery:
+  - phase 1 + intact safety copy → copy the safety DB back over the current DB
+    (deleting stale `-wal`/`-shm` first), delete the marker, and queue a one-time
+    message;
+  - phase 2 (DB already installed) → keep the restored DB, delete the marker, and
+    queue a "restore completed" message instead of rolling the new data back;
+  - phase 1 with no previous DB → just clear the marker;
+  - safety copy missing or its size not matching the recorded one → change
+    nothing, only log (per the requirement).
+- `-wal`/`-shm` are deleted whenever the DB file is swapped or recovered, so stale
+  side files can never be reused with a different database file.
+- If the in-restore rollback itself fails, the marker is **kept** so the next
+  launch retries recovery (the old code deleted it unconditionally).
+- The queued message is stored in SharedPreferences and shown once as an
+  `AlertDialog` on the next `DashboardActivity` creation
+  (`consumePendingRecoveryMessage` clears it).
+
+### B. Size limits (zip-bomb / huge-file protection)
+
+- New pure class `BackupLimits` with named constants:
+  `MAX_COMPRESSED_BYTES = 200 MB`, `MAX_DB_UNCOMPRESSED_BYTES = 500 MB`,
+  `MAX_JSON_UNCOMPRESSED_BYTES = 1 MB`, `FREE_SPACE_MULTIPLIER = 2`.
+- Real bytes are counted, not the zip header: a `CountingInputStream` counts the
+  compressed bytes actually read from the source (checked after every entry), and
+  `copyStreamLimited` / `readAllText` count the uncompressed bytes while
+  copying/reading each entry and abort with `TOO_LARGE` past the cap.
+- A partial/huge extraction is deleted on rejection; the current data is never
+  touched during validation.
+- Free space is checked twice: in `validateBackup` against the declared source
+  size (fast pre-filter) and in `restoreBackup` against the validated DB size
+  before the swap. Both require ~2× the size.
+- Two new `BackupException.Kind`s: `TOO_LARGE` and `NOT_ENOUGH_SPACE`, mapped in
+  `SettingsActivity` to `restore_too_large` / `restore_not_enough_space`.
+
+### C. Unique backup file names
+
+- New pure class `BackupNaming` builds
+  `almajd-backup-YYYY-MM-DD_HH-mm-ss.zip` (seconds included; fixed `Locale.US` so
+  digits stay ASCII under the forced Arabic locale). The timestamp remains
+  lexicographically sortable because every field is fixed-width.
+- `DateUtils.fileTimestamp()` / `FILE_TIMESTAMP_FORMAT` (minute resolution) were
+  removed; they existed only for backup names and are superseded by
+  `BackupNaming`.
+
+### D. ShareHelper
+
+- The hardcoded English `"Error sharing: " + e.getMessage()` toast is now
+  `R.string.share_error` (Arabic default). No other user-facing English string
+  remains in `ShareHelper` (the chooser title is the file name, i.e. data).
+
+### E. Tests
+
+- New plain JVM tests, no Android dependencies:
+  - `BackupLimitsTest` (8): compressed/DB/JSON caps at the boundary, negative
+    rejection, 2× free-space rule, overflow guard.
+  - `BackupNamingTest` (5): exact file-name format, fixed sortable width, two
+    backups in the same minute get different names, later sorts after earlier,
+    null timestamp handling.
+  - `RestoreRecoveryTest` (8): marker text round-trip, malformed marker, and the
+    full decision matrix (nothing / recur previous / abort on missing or
+    wrong-size copy / keep restored / clear-only).
+
+## Recovery flow (interrupted restore)
+
+1. Kill **after the safety copy, before the swap** → marker phase 1, safety copy
+   complete → next launch: safety DB restored over the current one, marker
+   deleted, dialog "the restore was interrupted and the previous data was
+   recovered".
+2. Kill **after the swap, before the marker is deleted** → marker phase 2 →
+   next launch: the freshly restored DB is **kept**, marker deleted, dialog
+   "restore completed" (data is never silently rolled back).
+3. Kill **between the safety copy and the phase-1 marker write**, or a corrupt
+   safety copy → recovery changes nothing and logs it.
+4. Kill between `rename` and the phase-2 marker write → still phase 1, so the
+   previous data is restored (see residual window below).
+
+## Limits chosen
+
+| Limit | Value | Rationale |
+|---|---|---|
+| Backup file (compressed) | 200 MB | generously above any realistic shop DB |
+| DB entry (uncompressed) | 500 MB | headroom over the compressed cap for a low-ratio DB |
+| JSON entry (uncompressed) | 1 MB | manifest/settings are a few hundred bytes |
+| Required free space | 2× DB size | one safety copy + one staging copy |
+
+## Files touched (this task)
+
+Added:
+- `app/src/main/java/com/almajd/accounting/backup/BackupLimits.java`
+- `app/src/main/java/com/almajd/accounting/backup/BackupNaming.java`
+- `app/src/main/java/com/almajd/accounting/backup/RestoreMarker.java`
+- `app/src/main/java/com/almajd/accounting/backup/RestoreRecovery.java`
+- `app/src/test/java/com/almajd/accounting/backup/BackupLimitsTest.java`
+- `app/src/test/java/com/almajd/accounting/backup/BackupNamingTest.java`
+- `app/src/test/java/com/almajd/accounting/backup/RestoreRecoveryTest.java`
+
+Modified:
+- `app/src/main/java/com/almajd/accounting/App.java`
+- `app/src/main/java/com/almajd/accounting/backup/BackupException.java`
+- `app/src/main/java/com/almajd/accounting/backup/BackupManager.java`
+- `app/src/main/java/com/almajd/accounting/ui/DashboardActivity.java`
+- `app/src/main/java/com/almajd/accounting/ui/SettingsActivity.java`
+- `app/src/main/java/com/almajd/accounting/util/DateUtils.java`
+- `app/src/main/java/com/almajd/accounting/util/ShareHelper.java`
+- `app/src/main/res/values/strings.xml`
+
+## Deliberately not done / remaining risks
+
+- The `exports/` cache is still cleared before every backup, so only the newest
+  zip is kept in the cache. The seconds in the name fix collisions for the copies
+  the user saves *outside* the app; two backups in the same cache slot is
+  unchanged by design (bounded cache).
+- There is a tiny window between the `rename` and the phase-2 marker write during
+  which a kill is treated as phase 1 and the previous data is restored (the new
+  data is still available in the backup file the user picked). Closing it fully
+  would need a checksum compare, which is out of scope.
+- Safety-copy integrity is checked by size only, not a checksum.
+- If the app is killed between the DB swap and the settings save, recovery keeps
+  the restored DB (correct, no data loss) but the settings from the backup may not
+  have been applied; the "restore completed" dialog is still shown.
+- Recovery runs synchronously in `App.onCreate` and copies the safety DB on the
+  main thread (it is a rare, one-time path; the DB is small in practice).
+- A corrupt marker file is left in place and only logged on each launch.
+- `usableSpace()` uses `filesDir.getUsableSpace()`, which assumes the databases
+  directory is on the same volume (true for standard internal storage).
+- Unchanged from before: DB first open/migration still happens on the main thread
+  via `App.onCreate`; money is still `double`; Excel export is still an HTML
+  `.xls`.
+
+## Build
+
+- `./gradlew testDebugUnitTest assembleDebug --console=plain --offline` →
+  BUILD SUCCESSFUL (AGP 7.4.2 / Gradle 7.5).
+- All 51 unit tests pass (21 new: `BackupLimitsTest` 8, `BackupNamingTest` 5,
+  `RestoreRecoveryTest` 8; 30 existing).
+- Built via a `subst` drive letter (the `&` in the project path breaks the batch
+  wrapper when called directly), mapping removed afterwards.
+- Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,416,788 bytes / 7.07 MB), built 2026-10-17 20:30.

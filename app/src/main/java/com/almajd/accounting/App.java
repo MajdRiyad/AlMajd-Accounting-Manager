@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.os.LocaleList;
 
+import com.almajd.accounting.backup.BackupManager;
 import com.almajd.accounting.db.DatabaseHelper;
 
 import java.util.Locale;
@@ -15,6 +16,8 @@ public class App extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        // Repair an interrupted restore before any database handle is opened.
+        BackupManager.recoverIfInterrupted(this);
         DatabaseHelper.getInstance(this);
     }
 

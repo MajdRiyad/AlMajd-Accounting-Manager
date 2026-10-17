@@ -1,5 +1,6 @@
 package com.almajd.accounting.ui;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -167,6 +168,29 @@ public class DashboardActivity extends BaseActivity {
                     startActivity(new Intent(DashboardActivity.this, InvoiceListActivity.class));
                 }
             });
+        }
+
+        showPendingRecoveryMessage();
+    }
+
+    /**
+     * Shows the one-time message queued by {@link BackupManager#recoverIfInterrupted}
+     * when a restore was interrupted, then clears it so it is never shown twice.
+     */
+    private void showPendingRecoveryMessage() {
+        int pending = BackupManager.consumePendingRecoveryMessage(this);
+        if (pending == BackupManager.RECOVERY_RECOVERED_PREVIOUS) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.restore_recovered_title)
+                    .setMessage(R.string.restore_recovered_message)
+                    .setPositiveButton(R.string.dismiss, null)
+                    .show();
+        } else if (pending == BackupManager.RECOVERY_KEPT_RESTORED) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.restore_completed_title)
+                    .setMessage(R.string.restore_completed_message)
+                    .setPositiveButton(R.string.dismiss, null)
+                    .show();
         }
     }
 
