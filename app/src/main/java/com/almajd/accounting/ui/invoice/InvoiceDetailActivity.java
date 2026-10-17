@@ -6,10 +6,13 @@ import android.content.Intent;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
@@ -23,11 +26,16 @@ import androidx.core.content.FileProvider;
 import com.almajd.accounting.R;
 import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.InvoiceDao;
+import com.almajd.accounting.db.PaymentDao;
 import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.InvoiceItem;
+import com.almajd.accounting.model.Payment;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.model.Customer;
+import com.almajd.accounting.ui.payment.PaymentFormActivity;
+import com.almajd.accounting.ui.payment.PaymentListActivity;
 import com.almajd.accounting.util.DateUtils;
+import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.NumberUtils;
 import com.almajd.accounting.util.AppSettings;
 import com.almajd.accounting.util.PdfExporter;
@@ -47,12 +55,17 @@ public class InvoiceDetailActivity extends BaseActivity {
     public static final String EXTRA_INVOICE_ID = "extra_invoice_id";
 
     private static final int REQUEST_EDIT_INVOICE = 200;
+    private static final int REQUEST_ADD_PAYMENT = 201;
 
     private InvoiceDao invoiceDao;
+    private PaymentDao paymentDao;
     private CustomerDao customerDao;
     private AppSettings appSettings;
     private Invoice invoice;
     private long invoiceId;
+
+    /** Incremented on every load so stale background results are discarded. */
+    private int loadToken = 0;
 
     // Views
     private TextView tvArHeader;
@@ -63,6 +76,9 @@ public class InvoiceDetailActivity extends BaseActivity {
     private TextView tvTotal;
     private TextView tvPaid;
     private TextView tvRemaining;
+    private LinearLayout llInvoicePayments;
+    private TextView tvNoInvoicePayments;
+    private Button btnAddPayment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,6 +95,7 @@ public class InvoiceDetailActivity extends BaseActivity {
 
         // --- DAO ---
         invoiceDao = new InvoiceDao(this);
+        paymentDao = new PaymentDao(this);
         customerDao = new CustomerDao(this);
         appSettings = new AppSettings(this);
 
@@ -104,26 +121,120 @@ public class InvoiceDetailActivity extends BaseActivity {
         tvTotal = findViewById(R.id.tv_total);
         tvPaid = findViewById(R.id.tv_paid);
         tvRemaining = findViewById(R.id.tv_remaining);
+        llInvoicePayments = findViewById(R.id.ll_invoice_payments);
+        tvNoInvoicePayments = findViewById(R.id.tv_no_invoice_payments);
+        btnAddPayment = findViewById(R.id.btn_add_payment);
+
+        btnAddPayment.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (invoice == null) return;
+                Intent intent = new Intent(InvoiceDetailActivity.this, PaymentFormActivity.class);
+                intent.putExtra(PaymentListActivity.EXTRA_STORE_NAME, invoice.getStoreName());
+                intent.putExtra(PaymentFormActivity.EXTRA_INVOICE_ID, invoice.getId());
+                startActivityForResult(intent, REQUEST_ADD_PAYMENT);
+            }
+        });
 
         // --- Load and display ---
         loadInvoice();
     }
 
     /**
-     * Loads the invoice (with items) from the database and populates all views.
+     * Loads the invoice (with items) and its linked payments on the background
+     * thread, then populates all views on the main thread.
      */
     private void loadInvoice() {
-        invoice = invoiceDao.getById(invoiceId);
-        if (invoice == null) {
-            Toast.makeText(this, R.string.no_data, Toast.LENGTH_SHORT).show();
-            finish();
+        final int token = ++loadToken;
+        AppExecutors.runOnDb(() -> {
+            final Invoice loaded = invoiceDao.getById(invoiceId);
+            final List<Payment> payments = loaded != null
+                    ? paymentDao.getByInvoiceId(loaded.getId())
+                    : null;
+
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (token != loadToken) {
+                    return;
+                }
+                if (loaded == null) {
+                    Toast.makeText(InvoiceDetailActivity.this,
+                            R.string.no_data, Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
+                invoice = loaded;
+                displayHeader();
+                displayInvoiceInfo();
+                displayItemsTable();
+                displayFooter();
+                displayPayments(payments);
+            });
+        });
+    }
+
+    /**
+     * Displays the payments linked to this invoice (date, amount, notes).
+     * Must be called on the main thread.
+     */
+    private void displayPayments(List<Payment> payments) {
+        llInvoicePayments.removeAllViews();
+
+        if (payments == null || payments.isEmpty()) {
+            tvNoInvoicePayments.setVisibility(View.VISIBLE);
             return;
         }
+        tvNoInvoicePayments.setVisibility(View.GONE);
 
-        displayHeader();
-        displayInvoiceInfo();
-        displayItemsTable();
-        displayFooter();
+        float smallSize = getResources().getDimension(R.dimen.text_size_small);
+        float bodySize = getResources().getDimension(R.dimen.text_size_body);
+
+        for (Payment payment : payments) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setPadding(0, dpToPx(8), 0, dpToPx(8));
+
+            // Left column: date + optional notes
+            LinearLayout left = new LinearLayout(this);
+            left.setOrientation(LinearLayout.VERTICAL);
+            left.setLayoutParams(new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+            TextView tvRowDate = new TextView(this);
+            tvRowDate.setText(DateUtils.formatForDisplay(payment.getPaymentDate()));
+            tvRowDate.setTextColor(ContextCompat.getColor(this, R.color.textPrimary));
+            tvRowDate.setTextSize(TypedValue.COMPLEX_UNIT_PX, smallSize);
+            left.addView(tvRowDate);
+
+            if (payment.getNotes() != null && !payment.getNotes().trim().isEmpty()) {
+                TextView tvRowNotes = new TextView(this);
+                tvRowNotes.setText(payment.getNotes());
+                tvRowNotes.setTextColor(ContextCompat.getColor(this, R.color.textSecondary));
+                tvRowNotes.setTextSize(TypedValue.COMPLEX_UNIT_PX, smallSize);
+                left.addView(tvRowNotes);
+            }
+
+            row.addView(left);
+
+            // Right column: amount
+            TextView tvRowAmount = new TextView(this);
+            tvRowAmount.setText(NumberUtils.formatCurrency(payment.getAmount()));
+            tvRowAmount.setTextColor(ContextCompat.getColor(this, R.color.green));
+            tvRowAmount.setTypeface(null, Typeface.BOLD);
+            tvRowAmount.setTextSize(TypedValue.COMPLEX_UNIT_PX, bodySize);
+            row.addView(tvRowAmount);
+
+            llInvoicePayments.addView(row);
+
+            // Thin divider between rows
+            View divider = new View(this);
+            divider.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, 1));
+            divider.setBackgroundColor(ContextCompat.getColor(this, R.color.dividerLight));
+            llInvoicePayments.addView(divider);
+        }
     }
 
     /**
@@ -334,13 +445,25 @@ public class InvoiceDetailActivity extends BaseActivity {
                 .setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        boolean deleted = invoiceDao.delete(invoiceId);
-                        if (deleted) {
-                            Toast.makeText(InvoiceDetailActivity.this,
-                                    R.string.deleted_successfully, Toast.LENGTH_SHORT).show();
-                            setResult(RESULT_OK);
-                            finish();
-                        }
+                        AppExecutors.runOnDb(() -> {
+                            final boolean deleted = invoiceDao.delete(invoiceId);
+                            AppExecutors.runOnMain(() -> {
+                                if (isFinishing() || isDestroyed()) {
+                                    return;
+                                }
+                                if (deleted) {
+                                    Toast.makeText(InvoiceDetailActivity.this,
+                                            R.string.deleted_successfully,
+                                            Toast.LENGTH_SHORT).show();
+                                    setResult(RESULT_OK);
+                                    finish();
+                                } else {
+                                    Toast.makeText(InvoiceDetailActivity.this,
+                                            R.string.delete_failed,
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        });
                     }
                 })
                 .setNegativeButton(R.string.cancel, null)
@@ -348,43 +471,74 @@ public class InvoiceDetailActivity extends BaseActivity {
     }
 
     /**
-     * Generates a PDF of the invoice and shares it via an implicit intent.
+     * Generates a PDF of the invoice (background thread) and shares it via an
+     * implicit intent (main thread).
      */
     private void shareInvoicePdf() {
-        if (invoice == null) return;
+        final Invoice current = invoice;
+        if (current == null) return;
 
-        try {
-            Customer customer = customerDao.getByStoreName(invoice.getStoreName());
-            File pdfFile = PdfExporter.generateInvoicePdf(this, invoice, customer);
-            ShareHelper.sharePdf(this, pdfFile);
-        } catch (Exception e) {
-            Toast.makeText(this,
-                    "Error generating PDF: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
+        AppExecutors.runOnDb(() -> {
+            try {
+                final Customer customer = customerDao.getByStoreName(current.getStoreName());
+                final File pdfFile = PdfExporter.generateInvoicePdf(
+                        InvoiceDetailActivity.this, current, customer);
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    ShareHelper.sharePdf(InvoiceDetailActivity.this, pdfFile);
+                });
+            } catch (final Exception e) {
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    Toast.makeText(InvoiceDetailActivity.this,
+                            "Error generating PDF: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 
     /**
-     * Generates and exports a PDF of the invoice to external storage.
+     * Generates a PDF of the invoice (background thread) and exports it to
+     * external storage by opening a viewer (main thread).
      */
     private void exportInvoicePdf() {
-        if (invoice == null) return;
+        final Invoice current = invoice;
+        if (current == null) return;
 
-        try {
-            Customer customer = customerDao.getByStoreName(invoice.getStoreName());
-            File pdfFile = PdfExporter.generateInvoicePdf(this, invoice, customer);
+        AppExecutors.runOnDb(() -> {
+            try {
+                final Customer customer = customerDao.getByStoreName(current.getStoreName());
+                final File pdfFile = PdfExporter.generateInvoicePdf(
+                        InvoiceDetailActivity.this, current, customer);
+                final Uri uri = FileProvider.getUriForFile(InvoiceDetailActivity.this,
+                        getApplicationContext().getPackageName() + ".fileprovider",
+                        pdfFile);
 
-            Uri uri = FileProvider.getUriForFile(this,
-                    getApplicationContext().getPackageName() + ".fileprovider",
-                    pdfFile);
-
-            Intent viewIntent = new Intent(Intent.ACTION_VIEW);
-            viewIntent.setDataAndType(uri, "application/pdf");
-            viewIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(viewIntent);
-        } catch (Exception e) {
-            Toast.makeText(this,
-                    "Error exporting PDF: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+                    viewIntent.setDataAndType(uri, "application/pdf");
+                    viewIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(viewIntent);
+                });
+            } catch (final Exception e) {
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    Toast.makeText(InvoiceDetailActivity.this,
+                            "Error exporting PDF: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 
     @Override
@@ -392,6 +546,10 @@ public class InvoiceDetailActivity extends BaseActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_EDIT_INVOICE && resultCode == RESULT_OK) {
             // Reload the invoice to reflect edits
+            loadInvoice();
+            setResult(RESULT_OK);
+        } else if (requestCode == REQUEST_ADD_PAYMENT && resultCode == RESULT_OK) {
+            // Reload to reflect the new linked payment
             loadInvoice();
             setResult(RESULT_OK);
         }

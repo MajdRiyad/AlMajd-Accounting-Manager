@@ -11,8 +11,11 @@ public class ShareHelper {
 
     /**
      * Share a file using the native Android share sheet.
+     *
+     * @return true if the share sheet was launched, false if no app could handle
+     *         the request (in which case an error toast is shown).
      */
-    public static void shareFile(Context context, File file, String mimeType) {
+    public static boolean shareFile(Context context, File file, String mimeType) {
         try {
             Uri uri = FileProvider.getUriForFile(context,
                     context.getPackageName() + ".fileprovider", file);
@@ -24,9 +27,11 @@ public class ShareHelper {
 
             context.startActivity(Intent.createChooser(shareIntent,
                     file.getName()));
+            return true;
         } catch (Exception e) {
             Toast.makeText(context, "Error sharing: " + e.getMessage(),
                     Toast.LENGTH_LONG).show();
+            return false;
         }
     }
 

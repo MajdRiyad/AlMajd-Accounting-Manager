@@ -9,8 +9,21 @@ public class Invoice {
     private String storeName;
     private String invoiceDate;
     private double totalAmount;
+
+    /**
+     * Derived value -- NOT persisted on the invoices table. It is computed by
+     * the {@code invoice_view} as SUM(payments.amount WHERE invoice_id = id).
+     */
     private double paidAmount;
+
+    /**
+     * Derived value -- NOT persisted. Computed as max(totalAmount - paidAmount, 0).
+     */
     private double remaining;
+
+    /** Derived status computed from paidAmount vs totalAmount. */
+    private InvoiceStatus status = InvoiceStatus.UNPAID;
+
     private String notes;
     private String createdAt;
     private transient List<InvoiceItem> items;
@@ -20,13 +33,11 @@ public class Invoice {
     }
 
     public Invoice(long id, String storeName, String invoiceDate, double totalAmount,
-                   double paidAmount, double remaining, String notes, String createdAt) {
+                   String notes, String createdAt) {
         this.id = id;
         this.storeName = storeName;
         this.invoiceDate = invoiceDate;
         this.totalAmount = totalAmount;
-        this.paidAmount = paidAmount;
-        this.remaining = remaining;
         this.notes = notes;
         this.createdAt = createdAt;
         this.items = new ArrayList<>();
@@ -78,6 +89,14 @@ public class Invoice {
 
     public void setRemaining(double remaining) {
         this.remaining = remaining;
+    }
+
+    public InvoiceStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(InvoiceStatus status) {
+        this.status = status != null ? status : InvoiceStatus.UNPAID;
     }
 
     public String getNotes() {

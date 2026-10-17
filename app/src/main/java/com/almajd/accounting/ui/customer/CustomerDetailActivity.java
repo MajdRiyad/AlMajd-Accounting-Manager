@@ -31,6 +31,8 @@ import com.almajd.accounting.model.Customer;
 import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.LedgerEntry;
 import com.almajd.accounting.model.Payment;
+import com.almajd.accounting.util.AppExecutors;
+import com.almajd.accounting.util.BalanceUtils;
 import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.NumberUtils;
 
@@ -78,6 +80,9 @@ public class CustomerDetailActivity extends BaseActivity {
     private Button btnViewAllPayments;
 
     private String storeName;
+
+    /** Incremented on every load so stale background results are discarded. */
+    private int loadToken = 0;
 
     // ── Lifecycle ────────────────────────────────────────────────────────
 
@@ -141,8 +146,7 @@ public class CustomerDetailActivity extends BaseActivity {
             }
         });
 
-        // Load data
-        loadData();
+        // Initial data is loaded by onResume (which always follows onCreate).
     }
 
     @Override
@@ -155,32 +159,45 @@ public class CustomerDetailActivity extends BaseActivity {
 
     /**
      * Loads the customer, ledger entry, recent invoices, and recent payments
-     * from the database and populates all UI sections.
+     * from the database on the background thread, then populates all UI
+     * sections on the main thread.
      */
     private void loadData() {
-        loadCustomerInfo();
-        loadBalanceSummary();
-        loadRecentInvoices();
-        loadRecentPayments();
+        final int token = ++loadToken;
+        AppExecutors.runOnDb(() -> {
+            final Customer customer = customerDao.getByStoreName(storeName);
+            final LedgerEntry ledger = ledgerDao.getByStoreName(storeName);
+            final List<Invoice> allInvoices = invoiceDao.getByStoreName(storeName, false);
+            final List<Payment> allPayments = paymentDao.getByStoreName(storeName);
+
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (token != loadToken) {
+                    return;
+                }
+                if (customer == null) {
+                    // Customer was deleted externally
+                    finish();
+                    return;
+                }
+                renderCustomerInfo(customer);
+                renderBalanceSummary(ledger);
+                renderRecentInvoices(allInvoices);
+                renderRecentPayments(allPayments);
+            });
+        });
     }
 
-    private void loadCustomerInfo() {
-        Customer customer = customerDao.getByStoreName(storeName);
-        if (customer == null) {
-            // Customer was deleted externally
-            finish();
-            return;
-        }
-
+    private void renderCustomerInfo(Customer customer) {
         tvStoreName.setText(safeText(customer.getStoreName()));
         tvOwnerName.setText(safeText(customer.getOwnerName()));
         tvLocation.setText(safeText(customer.getLocation()));
         tvPhone.setText(safeText(customer.getPhone()));
     }
 
-    private void loadBalanceSummary() {
-        LedgerEntry ledger = ledgerDao.getByStoreName(storeName);
-
+    private void renderBalanceSummary(LedgerEntry ledger) {
         double totalSales = 0;
         double totalPaid = 0;
         double balance = 0;
@@ -193,9 +210,10 @@ public class CustomerDetailActivity extends BaseActivity {
 
         tvTotalSales.setText(NumberUtils.formatCurrency(totalSales));
         tvTotalPaid.setText(NumberUtils.formatCurrency(totalPaid));
-        tvBalance.setText(NumberUtils.formatCurrency(balance));
+        // Never show a bare negative number: label owed vs. credit vs. settled.
+        tvBalance.setText(BalanceUtils.format(this, balance));
 
-        // Color the balance: red if customer owes money (> 0), green otherwise
+        // Color the balance: red when the customer owes us, green otherwise
         if (balance > 0) {
             tvBalance.setTextColor(ContextCompat.getColor(this, R.color.red));
         } else {
@@ -203,36 +221,30 @@ public class CustomerDetailActivity extends BaseActivity {
         }
     }
 
-    private void loadRecentInvoices() {
-        List<Invoice> allInvoices = invoiceDao.getByStoreName(storeName);
-        if (allInvoices == null) {
-            allInvoices = new ArrayList<>();
-        }
+    private void renderRecentInvoices(List<Invoice> allInvoices) {
+        List<Invoice> invoices = allInvoices != null ? allInvoices : new ArrayList<Invoice>();
 
         // Take last N items (most recent first -- the DAO may already sort)
-        List<Invoice> recent = allInvoices.size() > MAX_RECENT_ITEMS
-                ? allInvoices.subList(0, MAX_RECENT_ITEMS)
-                : allInvoices;
+        List<Invoice> recent = invoices.size() > MAX_RECENT_ITEMS
+                ? new ArrayList<>(invoices.subList(0, MAX_RECENT_ITEMS))
+                : invoices;
 
         rvInvoices.setAdapter(new MiniInvoiceAdapter(recent));
 
         // Hide the "view all" button when there are no invoices at all
-        btnViewAllInvoices.setVisibility(allInvoices.isEmpty() ? View.GONE : View.VISIBLE);
+        btnViewAllInvoices.setVisibility(invoices.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
-    private void loadRecentPayments() {
-        List<Payment> allPayments = paymentDao.getByStoreName(storeName);
-        if (allPayments == null) {
-            allPayments = new ArrayList<>();
-        }
+    private void renderRecentPayments(List<Payment> allPayments) {
+        List<Payment> payments = allPayments != null ? allPayments : new ArrayList<Payment>();
 
-        List<Payment> recent = allPayments.size() > MAX_RECENT_ITEMS
-                ? allPayments.subList(0, MAX_RECENT_ITEMS)
-                : allPayments;
+        List<Payment> recent = payments.size() > MAX_RECENT_ITEMS
+                ? new ArrayList<>(payments.subList(0, MAX_RECENT_ITEMS))
+                : payments;
 
         rvPayments.setAdapter(new MiniPaymentAdapter(recent));
 
-        btnViewAllPayments.setVisibility(allPayments.isEmpty() ? View.GONE : View.VISIBLE);
+        btnViewAllPayments.setVisibility(payments.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
     // ── Navigation helpers ───────────────────────────────────────────────
@@ -306,11 +318,25 @@ public class CustomerDetailActivity extends BaseActivity {
                 .setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        customerDao.delete(storeName);
-                        Toast.makeText(CustomerDetailActivity.this,
-                                R.string.deleted_successfully, Toast.LENGTH_SHORT).show();
-                        setResult(RESULT_OK);
-                        finish();
+                        AppExecutors.runOnDb(() -> {
+                            final boolean deleted = customerDao.delete(storeName);
+                            AppExecutors.runOnMain(() -> {
+                                if (isFinishing() || isDestroyed()) {
+                                    return;
+                                }
+                                if (deleted) {
+                                    Toast.makeText(CustomerDetailActivity.this,
+                                            R.string.deleted_successfully,
+                                            Toast.LENGTH_SHORT).show();
+                                    setResult(RESULT_OK);
+                                    finish();
+                                } else {
+                                    Toast.makeText(CustomerDetailActivity.this,
+                                            R.string.delete_failed,
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        });
                     }
                 })
                 .setNegativeButton(R.string.cancel, null)

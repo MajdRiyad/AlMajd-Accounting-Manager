@@ -20,6 +20,7 @@ import com.almajd.accounting.R;
 import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.PaymentDao;
 import com.almajd.accounting.model.Payment;
+import com.almajd.accounting.util.AppExecutors;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
@@ -50,6 +51,9 @@ public class PaymentListActivity extends BaseActivity
 
     /** Optional store-name filter; null means show all payments. */
     private String filterStoreName;
+
+    /** Incremented on every load so stale background results are discarded. */
+    private int loadToken = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,8 +103,7 @@ public class PaymentListActivity extends BaseActivity
             }
         });
 
-        // Load initial data
-        loadPayments();
+        // Initial data is loaded by onResume (which always follows onCreate).
     }
 
     @Override
@@ -110,22 +113,30 @@ public class PaymentListActivity extends BaseActivity
     }
 
     /**
-     * Loads payments from the database and updates the adapter.
-     * If a store filter is set, only that store's payments are loaded.
-     * Toggles the empty-state view accordingly.
+     * Loads payments from the database (on the background thread) and updates
+     * the adapter. If a store filter is set, only that store's payments are
+     * loaded. Toggles the empty-state view accordingly.
      */
     private void loadPayments() {
-        List<Payment> payments;
-        if (filterStoreName != null && !filterStoreName.isEmpty()) {
-            payments = paymentDao.getByStoreName(filterStoreName);
-        } else {
-            payments = paymentDao.getAll();
-        }
-        if (payments == null) {
-            payments = new ArrayList<>();
-        }
-        adapter.updateList(payments);
-        updateEmptyState(payments.size());
+        final String store = filterStoreName;
+        final boolean filtered = store != null && !store.isEmpty();
+        final int token = ++loadToken;
+        AppExecutors.runOnDb(() -> {
+            final List<Payment> loaded = filtered
+                    ? paymentDao.getByStoreName(store)
+                    : paymentDao.getAll();
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (token != loadToken) {
+                    return;
+                }
+                List<Payment> payments = loaded != null ? loaded : new ArrayList<Payment>();
+                adapter.updateList(payments);
+                updateEmptyState(payments.size());
+            });
+        });
     }
 
     /**
@@ -197,10 +208,24 @@ public class PaymentListActivity extends BaseActivity
                 .setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        paymentDao.delete(payment.getId());
-                        Toast.makeText(PaymentListActivity.this,
-                                R.string.deleted_successfully, Toast.LENGTH_SHORT).show();
-                        loadPayments();
+                        AppExecutors.runOnDb(() -> {
+                            final boolean deleted = paymentDao.delete(payment.getId());
+                            AppExecutors.runOnMain(() -> {
+                                if (isFinishing() || isDestroyed()) {
+                                    return;
+                                }
+                                if (deleted) {
+                                    Toast.makeText(PaymentListActivity.this,
+                                            R.string.deleted_successfully,
+                                            Toast.LENGTH_SHORT).show();
+                                    loadPayments();
+                                } else {
+                                    Toast.makeText(PaymentListActivity.this,
+                                            R.string.delete_failed,
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        });
                     }
                 })
                 .setNegativeButton(R.string.cancel, null)

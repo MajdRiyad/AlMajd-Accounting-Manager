@@ -147,8 +147,9 @@
 
                     </LinearLayout>
 
-                    <!-- Paid Row -->
+                    <!-- Paid Row (paid now; create mode only) -->
                     <LinearLayout
+                        android:id="@+id/row_paid_now"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"

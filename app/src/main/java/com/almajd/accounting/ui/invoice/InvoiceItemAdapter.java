@@ -226,7 +226,7 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
             }
         } catch (NumberFormatException ignored) { }
 
-        double subtotal = qty * price;
+        double subtotal = NumberUtils.round2(qty * price);
 
         InvoiceItem item = items.get(position);
         item.setQuantity(qty);
@@ -246,6 +246,7 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
         for (InvoiceItem item : items) {
             total += item.getSubtotal();
         }
+        total = NumberUtils.round2(total);
         if (listener != null) {
             listener.onTotalsChanged(total);
         }

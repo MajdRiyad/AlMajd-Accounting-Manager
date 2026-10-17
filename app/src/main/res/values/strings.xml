@@ -68,6 +68,7 @@
     <string name="invoice_saved">تم حفظ الفاتورة</string>
     <string name="payment_saved">تم حفظ الدفعة</string>
     <string name="deleted_successfully">تم الحذف بنجاح</string>
+    <string name="delete_failed">تعذر الحذف، حاول مرة أخرى</string>
     <string name="required_field">هذا الحقل مطلوب</string>
     <string name="store_exists">اسم المحل موجود مسبقاً</string>
     <string name="no_customers">لا يوجد عملاء. أضف عميلاً جديداً!</string>
@@ -96,10 +97,34 @@
     <string name="invoice_number_format">فاتورة #%d</string>
     <string name="status_paid">مدفوعة</string>
 
+    <!-- Invoice status badges (derived) -->
+    <string name="status_partial">جزئية</string>
+    <string name="status_unpaid">غير مدفوعة</string>
+
+    <!-- Payment <-> invoice linking -->
+    <string name="on_account">دفعة على الحساب</string>
+    <string name="select_invoice">الفاتورة</string>
+    <string name="invoice_option_format">فاتورة #%1$d - %2$s - متبقي %3$s</string>
+    <string name="payment_linked_note">دفعة مرتبطة بالفاتورة رقم %1$d</string>
+    <string name="payment_excess_note">فائض عن الفاتورة رقم %1$d</string>
+    <string name="overpayment_title">مبلغ أكبر من المتبقي</string>
+    <string name="overpayment_message">المبلغ المدخل أكبر من المتبقي على الفاتورة. سيتم تسجيل %1$s على الفاتورة و%2$s كدفعة على الحساب.</string>
+    <string name="confirm">تأكيد</string>
+    <string name="save_failed">تعذر الحفظ، حاول مرة أخرى</string>
+    <string name="add_payment">إضافة دفعة</string>
+    <string name="invoice_payments_title">الدفعات على هذه الفاتورة</string>
+    <string name="no_invoice_payments">لا توجد دفعات على هذه الفاتورة</string>
+
+    <!-- Customer balance wording (never show a bare negative number) -->
+    <string name="balance_owed">عليه %s</string>
+    <string name="balance_credit">له عندنا %s</string>
+    <string name="balance_settled">مسدد</string>
+
     <!-- Dashboard stat card labels (React design) -->
     <string name="stat_total_sales">إجمالي المبيعات</string>
     <string name="stat_total_received">المبالغ المستلمة</string>
     <string name="stat_total_debts">الديون المستحقة</string>
+    <string name="stat_total_credit">رصيد دائن للعملاء</string>
     <string name="stat_customer_count">عدد العملاء</string>
     <string name="stat_invoice_count">عدد الفواتير</string>
     <string name="stat_payment_count">عدد الدفعات</string>
@@ -118,4 +143,35 @@
     <string name="tab_accounts">الحسابات</string>
     <string name="tab_sales">المبيعات</string>
     <string name="tab_payments">الدفعات</string>
+
+    <!-- Backup & restore -->
+    <string name="backup_section_title">النسخ الاحتياطي</string>
+    <string name="backup_section_description">احفظ بياناتك في ملف واحد يمكنك الاحتفاظ به خارج التطبيق (Google Drive أو واتساب أو البريد).</string>
+    <string name="backup_create">إنشاء نسخة احتياطية</string>
+    <string name="backup_restore">استعادة من نسخة احتياطية</string>
+    <string name="backup_last_never">لا توجد نسخة احتياطية بعد</string>
+    <string name="backup_last_at">آخر نسخة احتياطية: %s</string>
+    <string name="backup_created_share">تم إنشاء النسخة. اختر مكان الحفظ من القائمة.</string>
+    <string name="backup_failed">تعذر إنشاء النسخة الاحتياطية</string>
+    <string name="backup_in_progress">جارٍ إنشاء النسخة الاحتياطية…</string>
+
+    <!-- Backup reminder banner -->
+    <string name="backup_reminder_never">لم تقم بإنشاء نسخة احتياطية بعد. احمِ بياناتك الآن.</string>
+    <string name="backup_reminder_days_ago">آخر نسخة احتياطية كانت قبل %d يوماً. يُنصح بإنشاء نسخة جديدة.</string>
+    <string name="backup_now">نسخ الآن</string>
+
+    <!-- Restore -->
+    <string name="restore_validating">جارٍ التحقق من الملف…</string>
+    <string name="restore_confirm_title">تأكيد الاستعادة</string>
+    <string name="restore_confirm_message">سيتم استبدال بياناتك الحالية بالكامل ببيانات النسخة الاحتياطية.\n\nتاريخ النسخة: %1$s\nالعملاء: %2$d\nالفواتير: %3$d\nالدفعات: %4$d</string>
+    <string name="restore_success">تمت الاستعادة بنجاح. سيتم إعادة تشغيل التطبيق.</string>
+    <string name="restore_invalid_file">الملف غير صالح أو تالف. تأكد من اختيار ملف نسخة احتياطية صحيح.</string>
+    <string name="restore_missing_db">النسخة الاحتياطية لا تحتوي على قاعدة البيانات.</string>
+    <string name="restore_wrong_app">هذه النسخة الاحتياطية تخص تطبيقاً آخر.</string>
+    <string name="restore_newer_version">هذه النسخة من إصدار أحدث من التطبيق. حدّث التطبيق ثم أعد المحاولة.</string>
+    <string name="restore_unsupported_version">إصدار قاعدة البيانات في هذه النسخة غير مدعوم.</string>
+    <string name="restore_db_corrupt">قاعدة البيانات داخل النسخة تالفة.</string>
+    <string name="restore_failed">تعذرت الاستعادة، وتم الاحتفاظ ببياناتك الحالية.</string>
+    <string name="restore_failed_rolled_back">فشلت الاستعادة وتمت إعادة بياناتك السابقة.</string>
+    <string name="dismiss">إغلاق</string>
 </resources>

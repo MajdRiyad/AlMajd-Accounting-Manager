@@ -19,6 +19,7 @@ import com.almajd.accounting.R;
 import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.InvoiceDao;
 import com.almajd.accounting.model.Invoice;
+import com.almajd.accounting.util.AppExecutors;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.List;
@@ -44,6 +45,9 @@ public class InvoiceListActivity extends BaseActivity
 
     /** Optional store name filter passed via intent. */
     private String filterStoreName;
+
+    /** Incremented on every load so stale background results are discarded. */
+    private int loadToken = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,8 +95,7 @@ public class InvoiceListActivity extends BaseActivity
             }
         });
 
-        // Load data
-        loadInvoices();
+        // Initial data is loaded by onResume (which always follows onCreate).
     }
 
     @Override
@@ -102,27 +105,37 @@ public class InvoiceListActivity extends BaseActivity
     }
 
     /**
-     * Loads invoices from the database, optionally filtered by store name,
-     * and updates the adapter and empty-state visibility.
+     * Loads invoices from the database (on the background thread), optionally
+     * filtered by store name, then updates the adapter and empty-state on the
+     * main thread. Items are never loaded here: the list does not show them.
      */
     private void loadInvoices() {
-        List<Invoice> invoices;
-        if (filterStoreName != null && !filterStoreName.isEmpty()) {
-            invoices = invoiceDao.getByStoreName(filterStoreName);
-        } else {
-            invoices = invoiceDao.getAll();
-        }
+        final String store = filterStoreName;
+        final boolean filtered = store != null && !store.isEmpty();
+        final int token = ++loadToken;
+        AppExecutors.runOnDb(() -> {
+            final List<Invoice> invoices = filtered
+                    ? invoiceDao.getByStoreName(store, false)
+                    : invoiceDao.getAll(false);
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (token != loadToken) {
+                    return;
+                }
+                adapter.updateList(invoices);
 
-        adapter.updateList(invoices);
-
-        if (invoices == null || invoices.isEmpty()) {
-            rvInvoices.setVisibility(View.GONE);
-            tvEmpty.setVisibility(View.VISIBLE);
-            tvEmpty.setText(R.string.no_invoices);
-        } else {
-            rvInvoices.setVisibility(View.VISIBLE);
-            tvEmpty.setVisibility(View.GONE);
-        }
+                if (invoices == null || invoices.isEmpty()) {
+                    rvInvoices.setVisibility(View.GONE);
+                    tvEmpty.setVisibility(View.VISIBLE);
+                    tvEmpty.setText(R.string.no_invoices);
+                } else {
+                    rvInvoices.setVisibility(View.VISIBLE);
+                    tvEmpty.setVisibility(View.GONE);
+                }
+            });
+        });
     }
 
     // --- InvoiceAdapter.OnInvoiceClickListener ---
@@ -174,12 +187,24 @@ public class InvoiceListActivity extends BaseActivity
                 .setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        boolean deleted = invoiceDao.delete(invoice.getId());
-                        if (deleted) {
-                            Toast.makeText(InvoiceListActivity.this,
-                                    R.string.deleted_successfully, Toast.LENGTH_SHORT).show();
-                            loadInvoices();
-                        }
+                        AppExecutors.runOnDb(() -> {
+                            final boolean deleted = invoiceDao.delete(invoice.getId());
+                            AppExecutors.runOnMain(() -> {
+                                if (isFinishing() || isDestroyed()) {
+                                    return;
+                                }
+                                if (deleted) {
+                                    Toast.makeText(InvoiceListActivity.this,
+                                            R.string.deleted_successfully,
+                                            Toast.LENGTH_SHORT).show();
+                                    loadInvoices();
+                                } else {
+                                    Toast.makeText(InvoiceListActivity.this,
+                                            R.string.delete_failed,
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        });
                     }
                 })
                 .setNegativeButton(R.string.cancel, null)

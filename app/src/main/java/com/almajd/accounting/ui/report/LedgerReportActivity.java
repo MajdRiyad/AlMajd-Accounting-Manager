@@ -15,6 +15,8 @@ import com.almajd.accounting.R;
 import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.LedgerDao;
 import com.almajd.accounting.model.LedgerEntry;
+import com.almajd.accounting.util.AppExecutors;
+import com.almajd.accounting.util.BalanceUtils;
 import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.ExcelExporter;
 import com.almajd.accounting.util.NumberUtils;
@@ -49,6 +51,9 @@ public class LedgerReportActivity extends BaseActivity {
     private ReportAdapter adapter;
     private List<LedgerEntry> currentEntries = new ArrayList<>();
 
+    /** Incremented on every load so stale background results are discarded. */
+    private int loadToken = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -76,8 +81,7 @@ public class LedgerReportActivity extends BaseActivity {
         adapter = new ReportAdapter(new ArrayList<ReportAdapter.ReportRow>());
         rvReport.setAdapter(adapter);
 
-        // Load data
-        loadLedger();
+        // Initial data is loaded by onResume (which always follows onCreate).
     }
 
     @Override
@@ -87,15 +91,31 @@ public class LedgerReportActivity extends BaseActivity {
     }
 
     /**
-     * Loads all ledger entries from the database and populates the RecyclerView
-     * and the footer totals card.
+     * Loads all ledger entries from the database on the background thread, then
+     * populates the RecyclerView and footer totals on the main thread.
      */
     private void loadLedger() {
-        currentEntries = ledgerDao.getAll();
-        if (currentEntries == null) {
-            currentEntries = new ArrayList<>();
-        }
+        final int token = ++loadToken;
+        AppExecutors.runOnDb(() -> {
+            final List<LedgerEntry> loaded = ledgerDao.getAll();
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (token != loadToken) {
+                    return;
+                }
+                currentEntries = loaded != null ? loaded : new ArrayList<LedgerEntry>();
+                renderEntries();
+            });
+        });
+    }
 
+    /**
+     * Rebuilds the report rows and footer totals from {@link #currentEntries}.
+     * Must be called on the main thread.
+     */
+    private void renderEntries() {
         List<ReportAdapter.ReportRow> rows = new ArrayList<>();
         double sumSales = 0;
         double sumPaid = 0;
@@ -108,7 +128,7 @@ public class LedgerReportActivity extends BaseActivity {
                     getString(R.string.total_sales),
                     NumberUtils.formatCurrency(entry.getGrandTotalSales()),
                     getString(R.string.balance),
-                    NumberUtils.formatCurrency(entry.getBalance())
+                    BalanceUtils.format(this, entry.getBalance())
             );
 
             // Color the balance: red if positive (money owed), green if zero or negative
@@ -133,7 +153,7 @@ public class LedgerReportActivity extends BaseActivity {
         tvTotalPaid.setText(getString(R.string.total_paid) + ": "
                 + NumberUtils.formatCurrency(sumPaid));
         tvTotalBalance.setText(getString(R.string.current_balance) + ": "
-                + NumberUtils.formatCurrency(sumBalance));
+                + BalanceUtils.format(this, sumBalance));
 
         // Color the balance footer text
         if (sumBalance > 0) {
@@ -148,10 +168,11 @@ public class LedgerReportActivity extends BaseActivity {
     /**
      * Builds the header array and data rows list used by all three export formats.
      *
+     * @param entries snapshot of the ledger entries to export
      * @return a three-element Object array: [0] = String[] headers,
      *         [1] = List of List of String rows, [2] = String[] footer
      */
-    private Object[] buildExportData() {
+    private Object[] buildExportData(List<LedgerEntry> entries) {
         String[] headers = {
                 getString(R.string.store_name),
                 getString(R.string.total_sales),
@@ -165,12 +186,12 @@ public class LedgerReportActivity extends BaseActivity {
         double sumPaid = 0;
         double sumBalance = 0;
 
-        for (LedgerEntry entry : currentEntries) {
+        for (LedgerEntry entry : entries) {
             List<String> row = new ArrayList<>();
             row.add(entry.getStoreName());
             row.add(NumberUtils.formatCurrency(entry.getGrandTotalSales()));
             row.add(NumberUtils.formatCurrency(entry.getTotalPaid()));
-            row.add(NumberUtils.formatCurrency(entry.getBalance()));
+            row.add(BalanceUtils.format(this, entry.getBalance()));
 
             String lastDate = entry.getLastPaymentDate();
             row.add(lastDate != null && !lastDate.isEmpty()
@@ -187,7 +208,7 @@ public class LedgerReportActivity extends BaseActivity {
                 getString(R.string.grand_total),
                 NumberUtils.formatCurrency(sumSales),
                 NumberUtils.formatCurrency(sumPaid),
-                NumberUtils.formatCurrency(sumBalance),
+                BalanceUtils.format(this, sumBalance),
                 ""
         };
 
@@ -195,48 +216,87 @@ public class LedgerReportActivity extends BaseActivity {
     }
 
     private void exportPdf() {
-        try {
-            Object[] data = buildExportData();
-            String[] headers = (String[]) data[0];
-            @SuppressWarnings("unchecked")
-            List<List<String>> rows = (List<List<String>>) data[1];
-            String[] footer = (String[]) data[2];
+        final List<LedgerEntry> snapshot = new ArrayList<>(currentEntries);
+        AppExecutors.runOnDb(() -> {
+            try {
+                Object[] data = buildExportData(snapshot);
+                String[] headers = (String[]) data[0];
+                @SuppressWarnings("unchecked")
+                List<List<String>> rows = (List<List<String>>) data[1];
+                String[] footer = (String[]) data[2];
 
-            File file = PdfExporter.generateReportPdf(this,
-                    getString(R.string.accounts_ledger), headers, rows, footer);
-            ShareHelper.shareFile(this, file, "application/pdf");
-        } catch (Exception e) {
-            Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+                final File file = PdfExporter.generateReportPdf(LedgerReportActivity.this,
+                        getString(R.string.accounts_ledger), headers, rows, footer);
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    ShareHelper.shareFile(LedgerReportActivity.this, file, "application/pdf");
+                });
+            } catch (final Exception e) {
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    Toast.makeText(LedgerReportActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     private void exportExcel() {
-        try {
-            Object[] data = buildExportData();
-            String[] headers = (String[]) data[0];
-            @SuppressWarnings("unchecked")
-            List<List<String>> rows = (List<List<String>>) data[1];
+        final List<LedgerEntry> snapshot = new ArrayList<>(currentEntries);
+        AppExecutors.runOnDb(() -> {
+            try {
+                Object[] data = buildExportData(snapshot);
+                String[] headers = (String[]) data[0];
+                @SuppressWarnings("unchecked")
+                List<List<String>> rows = (List<List<String>>) data[1];
 
-            File file = ExcelExporter.generateExcel(this, "Ledger", headers, rows);
-            ShareHelper.shareFile(this, file,
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        } catch (Exception e) {
-            Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+                final File file = ExcelExporter.generateExcel(LedgerReportActivity.this, "Ledger", headers, rows);
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    ShareHelper.shareFile(LedgerReportActivity.this, file,
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                });
+            } catch (final Exception e) {
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    Toast.makeText(LedgerReportActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     private void exportCsv() {
-        try {
-            Object[] data = buildExportData();
-            String[] headers = (String[]) data[0];
-            @SuppressWarnings("unchecked")
-            List<List<String>> rows = (List<List<String>>) data[1];
+        final List<LedgerEntry> snapshot = new ArrayList<>(currentEntries);
+        AppExecutors.runOnDb(() -> {
+            try {
+                Object[] data = buildExportData(snapshot);
+                String[] headers = (String[]) data[0];
+                @SuppressWarnings("unchecked")
+                List<List<String>> rows = (List<List<String>>) data[1];
 
-            File file = ExcelExporter.generateCsv(this, "ledger_report", headers, rows);
-            ShareHelper.shareFile(this, file, "text/csv");
-        } catch (Exception e) {
-            Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+                final File file = ExcelExporter.generateCsv(LedgerReportActivity.this, "ledger_report", headers, rows);
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    ShareHelper.shareFile(LedgerReportActivity.this, file, "text/csv");
+                });
+            } catch (final Exception e) {
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    Toast.makeText(LedgerReportActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     // ── Options menu ─────────────────────────────────────────────────────

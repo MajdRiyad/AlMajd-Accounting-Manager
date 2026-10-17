@@ -9,6 +9,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.backup.BackupManager;
+import com.almajd.accounting.backup.BackupReminder;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.db.InvoiceDao;
 import com.almajd.accounting.db.LedgerDao;
@@ -19,6 +21,7 @@ import com.almajd.accounting.ui.invoice.InvoiceFormActivity;
 import com.almajd.accounting.ui.invoice.InvoiceListActivity;
 import com.almajd.accounting.ui.payment.PaymentFormActivity;
 import com.almajd.accounting.ui.report.ReportMenuActivity;
+import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.NumberUtils;
 
 import java.util.List;
@@ -38,6 +41,7 @@ public class DashboardActivity extends BaseActivity {
     private TextView tvStatTotalSales;
     private TextView tvStatTotalReceived;
     private TextView tvStatTotalDebts;
+    private TextView tvStatTotalCredit;
     private TextView tvStatCustomerCount;
     private TextView tvStatInvoiceCount;
     private TextView tvStatPaymentCount;
@@ -46,11 +50,19 @@ public class DashboardActivity extends BaseActivity {
     private LinearLayout llRecentInvoices;
     private TextView tvNoRecentInvoices;
 
+    // Backup reminder banner
+    private View cardBackupReminder;
+    private TextView tvBackupReminder;
+    private boolean backupReminderDismissed;
+
     // DAOs
     private CustomerDao customerDao;
     private InvoiceDao invoiceDao;
     private PaymentDao paymentDao;
     private LedgerDao ledgerDao;
+
+    /** Incremented on every refresh so stale background results are discarded. */
+    private int loadToken = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +79,7 @@ public class DashboardActivity extends BaseActivity {
         tvStatTotalSales = findViewById(R.id.tv_stat_total_sales);
         tvStatTotalReceived = findViewById(R.id.tv_stat_total_received);
         tvStatTotalDebts = findViewById(R.id.tv_stat_total_debts);
+        tvStatTotalCredit = findViewById(R.id.tv_stat_total_credit);
         tvStatCustomerCount = findViewById(R.id.tv_stat_customer_count);
         tvStatInvoiceCount = findViewById(R.id.tv_stat_invoice_count);
         tvStatPaymentCount = findViewById(R.id.tv_stat_payment_count);
@@ -74,6 +87,31 @@ public class DashboardActivity extends BaseActivity {
         // Recent invoices
         llRecentInvoices = findViewById(R.id.ll_recent_invoices);
         tvNoRecentInvoices = findViewById(R.id.tv_no_recent_invoices);
+
+        // Backup reminder banner
+        cardBackupReminder = findViewById(R.id.card_backup_reminder);
+        tvBackupReminder = findViewById(R.id.tv_backup_reminder);
+        View btnBackupNow = findViewById(R.id.btn_backup_now);
+        View btnBackupReminderDismiss = findViewById(R.id.btn_backup_reminder_dismiss);
+        if (btnBackupNow != null) {
+            btnBackupNow.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    startActivity(new Intent(DashboardActivity.this, SettingsActivity.class));
+                }
+            });
+        }
+        if (btnBackupReminderDismiss != null) {
+            btnBackupReminderDismiss.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    backupReminderDismissed = true;
+                    if (cardBackupReminder != null) {
+                        cardBackupReminder.setVisibility(View.GONE);
+                    }
+                }
+            });
+        }
 
         // Navigation cards (MaterialCardView, not Button)
         View btnAddCustomer = findViewById(R.id.btn_add_customer);
@@ -139,69 +177,122 @@ public class DashboardActivity extends BaseActivity {
     }
 
     /**
-     * Queries the database for all dashboard statistics and recent invoices,
-     * then updates the UI.
+     * Queries the database for all dashboard statistics and recent invoices on
+     * the background database thread, then updates the UI on the main thread.
+     * A request token makes sure only the newest refresh can update the views.
      */
     private void refreshDashboard() {
-        // Stat values
-        double totalSales = invoiceDao.getTotalSales();
-        double totalPaid = paymentDao.getTotalPayments();
-        double totalDebts = ledgerDao.getTotalOutstandingBalance();
-        int customerCount = customerDao.getCount();
-        int invoiceCount = invoiceDao.getCount();
-        int paymentCount = paymentDao.getCount();
+        final int token = ++loadToken;
+        AppExecutors.runOnDb(() -> {
+            final double totalSales = invoiceDao.getTotalSales();
+            final double totalPaid = paymentDao.getTotalPayments();
+            // Debts = sum of only the POSITIVE customer balances (money owed to us).
+            final double totalDebts = ledgerDao.getTotalDebt();
+            // Credit = sum of only the NEGATIVE balances (money customers have with us).
+            final double totalCredit = ledgerDao.getTotalCredit();
+            final int customerCount = customerDao.getCount();
+            final int invoiceCount = invoiceDao.getCount();
+            final int paymentCount = paymentDao.getCount();
+            final List<Invoice> recentInvoices = invoiceDao.getRecent(5, false);
 
-        tvStatTotalSales.setText(NumberUtils.formatCurrency(totalSales));
-        tvStatTotalReceived.setText(NumberUtils.formatCurrency(totalPaid));
-        tvStatTotalDebts.setText(NumberUtils.formatCurrency(totalDebts));
-        tvStatCustomerCount.setText(String.valueOf(customerCount));
-        tvStatInvoiceCount.setText(String.valueOf(invoiceCount));
-        tvStatPaymentCount.setText(String.valueOf(paymentCount));
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (token != loadToken) {
+                    return;
+                }
 
-        // Recent invoices (last 5)
-        List<Invoice> recentInvoices = invoiceDao.getRecent(5);
+                tvStatTotalSales.setText(NumberUtils.formatCurrency(totalSales));
+                tvStatTotalReceived.setText(NumberUtils.formatCurrency(totalPaid));
+                tvStatTotalDebts.setText(NumberUtils.formatCurrency(totalDebts));
+                tvStatTotalCredit.setText(NumberUtils.formatCurrency(totalCredit));
+                tvStatCustomerCount.setText(String.valueOf(customerCount));
+                tvStatInvoiceCount.setText(String.valueOf(invoiceCount));
+                tvStatPaymentCount.setText(String.valueOf(paymentCount));
+
+                updateBackupReminder(customerCount + invoiceCount + paymentCount > 0);
+
+                renderRecentInvoices(recentInvoices);
+            });
+        });
+    }
+
+    /**
+     * Renders the "recent invoices" list. Must be called on the main thread.
+     */
+    private void renderRecentInvoices(List<Invoice> recentInvoices) {
         llRecentInvoices.removeAllViews();
 
-        if (recentInvoices.isEmpty()) {
+        if (recentInvoices == null || recentInvoices.isEmpty()) {
             tvNoRecentInvoices.setVisibility(View.VISIBLE);
             llRecentInvoices.setVisibility(View.GONE);
-        } else {
-            tvNoRecentInvoices.setVisibility(View.GONE);
-            llRecentInvoices.setVisibility(View.VISIBLE);
+            return;
+        }
 
-            LayoutInflater inflater = LayoutInflater.from(this);
-            for (int i = 0; i < recentInvoices.size(); i++) {
-                Invoice inv = recentInvoices.get(i);
-                View row = inflater.inflate(R.layout.item_recent_invoice, llRecentInvoices, false);
+        tvNoRecentInvoices.setVisibility(View.GONE);
+        llRecentInvoices.setVisibility(View.VISIBLE);
 
-                TextView tvStore = row.findViewById(R.id.tv_recent_store);
-                TextView tvDate = row.findViewById(R.id.tv_recent_date);
-                TextView tvAmount = row.findViewById(R.id.tv_recent_amount);
-                TextView tvRemaining = row.findViewById(R.id.tv_recent_remaining);
+        LayoutInflater inflater = LayoutInflater.from(this);
+        for (int i = 0; i < recentInvoices.size(); i++) {
+            Invoice inv = recentInvoices.get(i);
+            View row = inflater.inflate(R.layout.item_recent_invoice, llRecentInvoices, false);
 
-                tvStore.setText(inv.getStoreName());
-                tvDate.setText(inv.getInvoiceDate());
-                tvAmount.setText(NumberUtils.formatCurrency(inv.getTotalAmount()));
+            TextView tvStore = row.findViewById(R.id.tv_recent_store);
+            TextView tvDate = row.findViewById(R.id.tv_recent_date);
+            TextView tvAmount = row.findViewById(R.id.tv_recent_amount);
+            TextView tvRemaining = row.findViewById(R.id.tv_recent_remaining);
 
-                if (inv.getRemaining() > 0) {
-                    tvRemaining.setText(getString(R.string.remaining) + ": " +
-                            NumberUtils.formatCurrency(inv.getRemaining()));
-                    tvRemaining.setVisibility(View.VISIBLE);
-                } else {
-                    tvRemaining.setVisibility(View.GONE);
-                }
+            tvStore.setText(inv.getStoreName());
+            tvDate.setText(inv.getInvoiceDate());
+            tvAmount.setText(NumberUtils.formatCurrency(inv.getTotalAmount()));
 
-                llRecentInvoices.addView(row);
+            if (inv.getRemaining() > 0) {
+                tvRemaining.setText(getString(R.string.remaining) + ": " +
+                        NumberUtils.formatCurrency(inv.getRemaining()));
+                tvRemaining.setVisibility(View.VISIBLE);
+            } else {
+                tvRemaining.setVisibility(View.GONE);
+            }
 
-                // Add divider between items (not after last)
-                if (i < recentInvoices.size() - 1) {
-                    View divider = new View(this);
-                    divider.setLayoutParams(new LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT, 1));
-                    divider.setBackgroundColor(getResources().getColor(R.color.divider));
-                    llRecentInvoices.addView(divider);
-                }
+            llRecentInvoices.addView(row);
+
+            // Add divider between items (not after last)
+            if (i < recentInvoices.size() - 1) {
+                View divider = new View(this);
+                divider.setLayoutParams(new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, 1));
+                divider.setBackgroundColor(getResources().getColor(R.color.divider));
+                llRecentInvoices.addView(divider);
             }
         }
+    }
+
+    /**
+     * Shows the weekly backup reminder banner when there is data and either no
+     * backup has ever been made or the last one is older than
+     * {@link BackupReminder#REMINDER_INTERVAL_MILLIS}. Dismissing hides it until
+     * the next app launch.
+     */
+    private void updateBackupReminder(boolean hasData) {
+        if (cardBackupReminder == null) {
+            return;
+        }
+        long lastBackup = BackupManager.getLastBackupTimeMillis(this);
+        boolean hasBackup = lastBackup > 0;
+        boolean shouldShow = !backupReminderDismissed
+                && BackupReminder.shouldRemind(hasData, hasBackup, lastBackup,
+                System.currentTimeMillis());
+        if (!shouldShow) {
+            cardBackupReminder.setVisibility(View.GONE);
+            return;
+        }
+        if (hasBackup) {
+            long days = BackupReminder.daysSince(lastBackup, System.currentTimeMillis());
+            tvBackupReminder.setText(getString(R.string.backup_reminder_days_ago, (int) days));
+        } else {
+            tvBackupReminder.setText(R.string.backup_reminder_never);
+        }
+        cardBackupReminder.setVisibility(View.VISIBLE);
     }
 }

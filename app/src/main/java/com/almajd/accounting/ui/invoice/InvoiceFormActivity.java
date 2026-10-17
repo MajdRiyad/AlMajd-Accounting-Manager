@@ -22,6 +22,7 @@ import com.almajd.accounting.db.InvoiceDao;
 import com.almajd.accounting.model.Customer;
 import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.InvoiceItem;
+import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.NumberUtils;
 
@@ -55,6 +56,7 @@ public class InvoiceFormActivity extends BaseActivity
     private Spinner spinnerStore;
     private EditText etDate;
     private EditText etPaid;
+    private View rowPaidNow;
     private TextView tvTotal;
     private TextView tvRemaining;
     private RecyclerView rvInvoiceItems;
@@ -70,6 +72,9 @@ public class InvoiceFormActivity extends BaseActivity
 
     /** Current grand total calculated from line items. */
     private double currentTotal = 0.0;
+
+    /** Derived paid amount of the invoice being edited (edit mode only). */
+    private double existingPaid = 0.0;
 
     /** True when editing an existing invoice; false when creating a new one. */
     private boolean editMode = false;
@@ -97,6 +102,7 @@ public class InvoiceFormActivity extends BaseActivity
         spinnerStore = findViewById(R.id.spinner_store);
         etDate = findViewById(R.id.et_date);
         etPaid = findViewById(R.id.et_paid);
+        rowPaidNow = findViewById(R.id.row_paid_now);
         tvTotal = findViewById(R.id.tv_total);
         tvRemaining = findViewById(R.id.tv_remaining);
         rvInvoiceItems = findViewById(R.id.rv_invoice_items);
@@ -114,9 +120,6 @@ public class InvoiceFormActivity extends BaseActivity
         if (getSupportActionBar() != null) {
             getSupportActionBar().setTitle(editMode ? R.string.edit_invoice : R.string.new_invoice);
         }
-
-        // --- Populate store spinner ---
-        setupStoreSpinner();
 
         // --- Date field ---
         etDate.setText(DateUtils.todayAsDbFormat());
@@ -160,6 +163,9 @@ public class InvoiceFormActivity extends BaseActivity
         });
 
         // --- Save button ---
+        // Disabled until the initial data (store list / existing invoice) has
+        // loaded, so a half-initialised form can never be saved.
+        btnSave.setEnabled(false);
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -167,47 +173,72 @@ public class InvoiceFormActivity extends BaseActivity
             }
         });
 
-        // --- Load existing invoice if in edit mode ---
-        if (editMode) {
-            loadExistingInvoice();
-        } else {
-            // In add mode, if store name was passed, pre-select it
-            String preSelectStore = getIntent() != null
-                    ? getIntent().getStringExtra(EXTRA_STORE_NAME) : null;
-            if (preSelectStore != null && !preSelectStore.isEmpty()) {
-                selectStoreInSpinner(preSelectStore);
-            }
-
-            // Start with one empty line item
-            itemAdapter.addItem();
-        }
-
         // Initialize totals display
         tvTotal.setText(NumberUtils.formatCurrency(0));
         tvRemaining.setText(NumberUtils.formatCurrency(0));
+
+        // --- Populate store spinner ---
+        // Runs on the background thread; when it finishes it either loads the
+        // invoice (edit mode) or pre-selects the store and adds a first blank
+        // line item (add mode).
+        setupStoreSpinner();
     }
 
     /**
      * Populates the store spinner with store names from the customer database.
-     * The first entry is a prompt string ("Select store").
+     * The customers are read on the background thread; the adapter is built on
+     * the main thread. The first entry is a prompt string ("Select store").
      */
     private void setupStoreSpinner() {
-        storeNames = new ArrayList<>();
-        storeNames.add(getString(R.string.select_store)); // index 0 = prompt
-
-        List<Customer> customers = customerDao.getAll();
-        if (customers != null) {
-            for (Customer c : customers) {
-                if (c.getStoreName() != null && !c.getStoreName().isEmpty()) {
-                    storeNames.add(c.getStoreName());
+        AppExecutors.runOnDb(() -> {
+            final List<Customer> customers = customerDao.getAll();
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
                 }
-            }
+                storeNames = new ArrayList<>();
+                storeNames.add(getString(R.string.select_store)); // index 0 = prompt
+
+                if (customers != null) {
+                    for (Customer c : customers) {
+                        if (c.getStoreName() != null && !c.getStoreName().isEmpty()) {
+                            storeNames.add(c.getStoreName());
+                        }
+                    }
+                }
+
+                ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
+                        InvoiceFormActivity.this, android.R.layout.simple_spinner_item, storeNames);
+                spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinnerStore.setAdapter(spinnerAdapter);
+
+                onStoreSpinnerReady();
+            });
+        });
+    }
+
+    /**
+     * Continues the initialisation once the store list is available: in edit
+     * mode the existing invoice is loaded, in add mode the store is pre-selected
+     * (when passed via intent) and one blank line item is added.
+     */
+    private void onStoreSpinnerReady() {
+        if (editMode) {
+            loadExistingInvoice();
+            return;
         }
 
-        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_item, storeNames);
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerStore.setAdapter(spinnerAdapter);
+        // In add mode, if store name was passed, pre-select it
+        String preSelectStore = getIntent() != null
+                ? getIntent().getStringExtra(EXTRA_STORE_NAME) : null;
+        if (preSelectStore != null && !preSelectStore.isEmpty()) {
+            selectStoreInSpinner(preSelectStore);
+        }
+
+        // Start with one empty line item
+        itemAdapter.addItem();
+
+        btnSave.setEnabled(true);
     }
 
     /**
@@ -226,16 +257,33 @@ public class InvoiceFormActivity extends BaseActivity
     }
 
     /**
-     * Loads an existing invoice by its ID and populates all form fields.
+     * Loads an existing invoice by its ID on the background thread and
+     * populates all form fields on the main thread.
      */
     private void loadExistingInvoice() {
-        Invoice invoice = invoiceDao.getById(editInvoiceId);
-        if (invoice == null) {
-            Toast.makeText(this, R.string.no_data, Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
+        final long id = editInvoiceId;
+        AppExecutors.runOnDb(() -> {
+            final Invoice invoice = invoiceDao.getById(id);
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (invoice == null) {
+                    Toast.makeText(InvoiceFormActivity.this,
+                            R.string.no_data, Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
+                bindExistingInvoice(invoice);
+                btnSave.setEnabled(true);
+            });
+        });
+    }
 
+    /**
+     * Binds a loaded invoice to the form. Must be called on the main thread.
+     */
+    private void bindExistingInvoice(Invoice invoice) {
         // Store selection
         selectStoreInSpinner(invoice.getStoreName());
 
@@ -244,9 +292,13 @@ public class InvoiceFormActivity extends BaseActivity
             etDate.setText(invoice.getInvoiceDate());
         }
 
-        // Paid amount
-        if (invoice.getPaidAmount() > 0) {
-            etPaid.setText(String.valueOf(invoice.getPaidAmount()));
+        // Paid amount is DERIVED from linked payments and is managed from the
+        // invoice detail screen / payment form. The invoice form must never
+        // recreate or duplicate payments, so the "paid now" row is hidden and
+        // not saved in edit mode.
+        existingPaid = invoice.getPaidAmount();
+        if (rowPaidNow != null) {
+            rowPaidNow.setVisibility(View.GONE);
         }
 
         // Line items
@@ -277,17 +329,24 @@ public class InvoiceFormActivity extends BaseActivity
 
     /**
      * Recalculates the remaining balance as total minus paid and updates the display.
+     * In edit mode the paid amount is the derived value read from the invoice view
+     * (the "paid now" row is hidden and never saved).
      */
     private void recalculateRemaining() {
-        double paid = 0.0;
-        try {
-            String paidStr = etPaid.getText().toString().trim();
-            if (!paidStr.isEmpty()) {
-                paid = NumberUtils.parseAmount(paidStr);
-            }
-        } catch (Exception ignored) { }
+        double paid;
+        if (editMode) {
+            paid = existingPaid;
+        } else {
+            paid = 0.0;
+            try {
+                String paidStr = etPaid.getText().toString().trim();
+                if (!paidStr.isEmpty()) {
+                    paid = NumberUtils.parseAmount(paidStr);
+                }
+            } catch (Exception ignored) { }
+        }
 
-        double remaining = currentTotal - paid;
+        double remaining = NumberUtils.round2(currentTotal - paid);
         if (remaining < 0) {
             remaining = 0;
         }
@@ -329,53 +388,67 @@ public class InvoiceFormActivity extends BaseActivity
             return;
         }
 
-        // 4. Calculate totals
+        // 4. Calculate totals (rounded to 2 decimals)
         double total = 0.0;
         for (InvoiceItem item : validItems) {
-            double sub = item.getQuantity() * item.getUnitPrice();
+            double sub = NumberUtils.round2(item.getQuantity() * item.getUnitPrice());
             item.setSubtotal(sub);
             total += sub;
         }
+        total = NumberUtils.round2(total);
 
-        double paid = 0.0;
-        try {
-            String paidStr = etPaid.getText().toString().trim();
-            if (!paidStr.isEmpty()) {
-                paid = NumberUtils.parseAmount(paidStr);
+        // 5. "Paid now" applies on create only. On edit the form must not touch
+        // existing payments, and paid/remaining are derived from them.
+        double paidNow = 0.0;
+        if (!editMode) {
+            try {
+                String paidStr = etPaid.getText().toString().trim();
+                if (!paidStr.isEmpty()) {
+                    paidNow = NumberUtils.round2(NumberUtils.parseAmount(paidStr));
+                }
+            } catch (Exception ignored) { }
+            if (paidNow < 0) {
+                paidNow = 0;
             }
-        } catch (Exception ignored) { }
-
-        double remaining = total - paid;
-        if (remaining < 0) {
-            remaining = 0;
         }
 
-        // 5. Build the Invoice object
+        // 6. Build the Invoice object (paid/remaining are derived, not persisted)
         Invoice invoice = new Invoice();
         invoice.setStoreName(storeName);
         invoice.setInvoiceDate(date);
         invoice.setTotalAmount(total);
-        invoice.setPaidAmount(paid);
-        invoice.setRemaining(remaining);
         invoice.setItems(validItems);
 
-        // 6. Save
-        if (editMode) {
+        // 7. Save on the background thread. The save button is disabled first so
+        // a second tap while the write is in flight cannot insert a duplicate.
+        final boolean isEdit = editMode;
+        final double paidNowFinal = paidNow;
+        if (isEdit) {
             invoice.setId(editInvoiceId);
-            boolean updated = invoiceDao.update(invoice);
-            if (updated) {
-                Toast.makeText(this, R.string.invoice_saved, Toast.LENGTH_SHORT).show();
-                setResult(RESULT_OK);
-                finish();
-            }
-        } else {
-            long newId = invoiceDao.insert(invoice);
-            if (newId > 0) {
-                Toast.makeText(this, R.string.invoice_saved, Toast.LENGTH_SHORT).show();
-                setResult(RESULT_OK);
-                finish();
-            }
         }
+
+        btnSave.setEnabled(false);
+        AppExecutors.runOnDb(() -> {
+            final boolean saved = isEdit
+                    ? invoiceDao.update(invoice)
+                    : invoiceDao.insert(invoice, paidNowFinal) > 0;
+
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (saved) {
+                    Toast.makeText(InvoiceFormActivity.this,
+                            R.string.invoice_saved, Toast.LENGTH_SHORT).show();
+                    setResult(RESULT_OK);
+                    finish();
+                } else {
+                    Toast.makeText(InvoiceFormActivity.this,
+                            R.string.save_failed, Toast.LENGTH_SHORT).show();
+                    btnSave.setEnabled(true);
+                }
+            });
+        });
     }
 
     @Override

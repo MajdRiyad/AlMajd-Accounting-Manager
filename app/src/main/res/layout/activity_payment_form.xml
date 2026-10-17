@@ -53,6 +53,21 @@
                         android:layout_marginTop="4dp"
                         android:layout_marginBottom="16dp" />
 
+                    <!-- Invoice Selector (optional link; first option = on account) -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/select_invoice"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="@dimen/text_size_small" />
+
+                    <Spinner
+                        android:id="@+id/spinner_invoice"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="16dp" />
+
                     <!-- Amount -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/til_amount"

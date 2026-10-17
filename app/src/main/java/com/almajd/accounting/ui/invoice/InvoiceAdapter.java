@@ -119,27 +119,29 @@ public class InvoiceAdapter extends RecyclerView.Adapter<InvoiceAdapter.InvoiceV
             // Total amount
             tvTotal.setText(NumberUtils.formatCurrency(invoice.getTotalAmount()));
 
-            // Remaining: badge style — red if outstanding, green if fully paid,
-            // orange if partially paid
+            // Remaining: badge style — red if unpaid, orange if partially paid,
+            // green if fully paid. Status is derived by the invoice view.
             double remaining = invoice.getRemaining();
-            if (remaining <= 0) {
-                // Fully paid
-                tvRemaining.setText(itemView.getContext().getString(R.string.status_paid));
-                tvRemaining.setTextColor(
-                        ContextCompat.getColor(itemView.getContext(), R.color.badgePaidText));
-                tvRemaining.setBackgroundResource(R.drawable.bg_badge_paid);
-            } else if (invoice.getPaidAmount() > 0) {
-                // Partially paid
-                tvRemaining.setText(NumberUtils.formatCurrency(remaining));
-                tvRemaining.setTextColor(
-                        ContextCompat.getColor(itemView.getContext(), R.color.badgePartialText));
-                tvRemaining.setBackgroundResource(R.drawable.bg_badge_partial);
-            } else {
-                // Unpaid
-                tvRemaining.setText(NumberUtils.formatCurrency(remaining));
-                tvRemaining.setTextColor(
-                        ContextCompat.getColor(itemView.getContext(), R.color.badgeUnpaidText));
-                tvRemaining.setBackgroundResource(R.drawable.bg_badge_unpaid);
+            switch (invoice.getStatus()) {
+                case PAID:
+                    tvRemaining.setText(itemView.getContext().getString(R.string.status_paid));
+                    tvRemaining.setTextColor(
+                            ContextCompat.getColor(itemView.getContext(), R.color.badgePaidText));
+                    tvRemaining.setBackgroundResource(R.drawable.bg_badge_paid);
+                    break;
+                case PARTIAL:
+                    tvRemaining.setText(NumberUtils.formatCurrency(remaining));
+                    tvRemaining.setTextColor(
+                            ContextCompat.getColor(itemView.getContext(), R.color.badgePartialText));
+                    tvRemaining.setBackgroundResource(R.drawable.bg_badge_partial);
+                    break;
+                case UNPAID:
+                default:
+                    tvRemaining.setText(NumberUtils.formatCurrency(remaining));
+                    tvRemaining.setTextColor(
+                            ContextCompat.getColor(itemView.getContext(), R.color.badgeUnpaidText));
+                    tvRemaining.setBackgroundResource(R.drawable.bg_badge_unpaid);
+                    break;
             }
 
             // Click -> navigate to detail

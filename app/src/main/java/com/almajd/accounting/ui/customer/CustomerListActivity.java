@@ -21,6 +21,7 @@ import com.almajd.accounting.R;
 import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.model.Customer;
+import com.almajd.accounting.util.AppExecutors;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
@@ -44,6 +45,9 @@ public class CustomerListActivity extends BaseActivity
     private TextView tvEmpty;
     private CustomerAdapter adapter;
     private CustomerDao customerDao;
+
+    /** Incremented on every load/search so only the latest result is shown. */
+    private int loadToken = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,8 +84,7 @@ public class CustomerListActivity extends BaseActivity
             }
         });
 
-        // Load initial data
-        loadCustomers();
+        // Initial data is loaded by onResume (which always follows onCreate).
     }
 
     @Override
@@ -91,20 +94,31 @@ public class CustomerListActivity extends BaseActivity
     }
 
     /**
-     * Loads all customers from the database and updates the adapter.
-     * Toggles the empty-state view accordingly.
+     * Loads all customers from the database (on the background thread) and
+     * updates the adapter. Toggles the empty-state view accordingly.
      */
     private void loadCustomers() {
-        List<Customer> customers = customerDao.getAll();
-        if (customers == null) {
-            customers = new ArrayList<>();
-        }
-        adapter.updateList(customers);
-        updateEmptyState(customers.size());
+        final int token = ++loadToken;
+        AppExecutors.runOnDb(() -> {
+            final List<Customer> customers = customerDao.getAll();
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (token != loadToken) {
+                    return;
+                }
+                List<Customer> list = customers != null ? customers : new ArrayList<Customer>();
+                adapter.updateList(list);
+                updateEmptyState(list.size());
+            });
+        });
     }
 
     /**
      * Loads customers whose store name or owner name matches the query.
+     * Runs on the background thread; the token guarantees that only the result
+     * of the most recent keystroke is applied.
      *
      * @param query the search text
      */
@@ -113,12 +127,22 @@ public class CustomerListActivity extends BaseActivity
             loadCustomers();
             return;
         }
-        List<Customer> results = customerDao.search(query.trim());
-        if (results == null) {
-            results = new ArrayList<>();
-        }
-        adapter.updateList(results);
-        updateEmptyState(results.size());
+        final String trimmed = query.trim();
+        final int token = ++loadToken;
+        AppExecutors.runOnDb(() -> {
+            final List<Customer> results = customerDao.search(trimmed);
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (token != loadToken) {
+                    return;
+                }
+                List<Customer> list = results != null ? results : new ArrayList<Customer>();
+                adapter.updateList(list);
+                updateEmptyState(list.size());
+            });
+        });
     }
 
     /**
@@ -190,10 +214,21 @@ public class CustomerListActivity extends BaseActivity
                 .setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        customerDao.delete(customer.getStoreName());
-                        Toast.makeText(CustomerListActivity.this,
-                                R.string.deleted_successfully, Toast.LENGTH_SHORT).show();
-                        loadCustomers();
+                        AppExecutors.runOnDb(() -> {
+                            final boolean deleted = customerDao.delete(customer.getStoreName());
+                            AppExecutors.runOnMain(() -> {
+                                if (isFinishing() || isDestroyed()) {
+                                    return;
+                                }
+                                Toast.makeText(CustomerListActivity.this,
+                                        deleted ? R.string.deleted_successfully
+                                                : R.string.delete_failed,
+                                        Toast.LENGTH_SHORT).show();
+                                if (deleted) {
+                                    loadCustomers();
+                                }
+                            });
+                        });
                     }
                 })
                 .setNegativeButton(R.string.cancel, null)

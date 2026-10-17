@@ -81,6 +81,50 @@ public class LedgerDao {
     }
 
     /**
+     * Total money owed to us = sum of only the POSITIVE customer balances.
+     * Negative (credit) balances are excluded.
+     */
+    public double getTotalDebt() {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery("SELECT COALESCE(SUM(CASE WHEN " + DatabaseHelper.COL_BALANCE +
+                    " > 0 THEN " + DatabaseHelper.COL_BALANCE + " ELSE 0 END), 0) FROM " +
+                    DatabaseHelper.VIEW_LEDGER, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                return cursor.getDouble(0);
+            }
+            return 0.0;
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+    }
+
+    /**
+     * Total customer credit = sum of the absolute value of only the NEGATIVE
+     * customer balances (money customers have with us).
+     */
+    public double getTotalCredit() {
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery("SELECT COALESCE(SUM(CASE WHEN " + DatabaseHelper.COL_BALANCE +
+                    " < 0 THEN -" + DatabaseHelper.COL_BALANCE + " ELSE 0 END), 0) FROM " +
+                    DatabaseHelper.VIEW_LEDGER, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                return cursor.getDouble(0);
+            }
+            return 0.0;
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+    }
+
+    /**
      * Convert a cursor row to a LedgerEntry object.
      */
     private LedgerEntry cursorToLedgerEntry(Cursor cursor) {

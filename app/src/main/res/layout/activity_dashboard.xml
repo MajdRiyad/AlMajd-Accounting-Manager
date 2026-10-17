@@ -128,6 +128,70 @@
 
             </FrameLayout>
 
+            <!-- ===== BACKUP REMINDER BANNER ===== -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_backup_reminder"
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:layout_marginTop="12dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginEnd="8dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_warning"
+                            app:tint="@color/red" />
+
+                        <TextView
+                            android:id="@+id/tv_backup_reminder"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textColor="@color/textPrimary"
+                            android:textSize="@dimen/text_size_small" />
+
+                        <ImageButton
+                            android:id="@+id/btn_backup_reminder_dismiss"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/dismiss"
+                            android:src="@drawable/ic_close" />
+
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_backup_now"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="start"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/backup_now"
+                        android:textSize="@dimen/text_size_small"
+                        app:backgroundTint="@color/primaryColor"
+                        app:cornerRadius="@dimen/button_corner_radius" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- ===== STAT CARDS: Row 1 (Sales / Received / Debts) ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -377,6 +441,45 @@
                 </com.google.android.material.card.MaterialCardView>
 
             </LinearLayout>
+
+            <!-- ===== CUSTOMER CREDIT (money customers have with us, "له عندنا") ===== -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:layout_marginTop="4dp"
+                app:cardCornerRadius="@dimen/card_corner_radius"
+                app:cardElevation="@dimen/card_elevation"
+                app:cardBackgroundColor="@color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/stat_total_credit"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="@dimen/text_size_stat_label" />
+
+                    <TextView
+                        android:id="@+id/tv_stat_total_credit"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/green"
+                        android:textSize="@dimen/text_size_stat_value"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- ===== NAV GRID (2x2) with colored icon circles ===== -->
             <GridLayout
