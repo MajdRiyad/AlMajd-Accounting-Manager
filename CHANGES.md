@@ -1268,3 +1268,68 @@ generation also refreshes the list without reporting a failure.
   invoice-share code.
 
 
+
+## UI polish, part 1 — design system + dashboard (2026-10-19)
+
+### Design system (`values/colors.xml`, `dimens.xml`, `styles.xml`)
+- One brand color: the existing navy (`#1A3A6E`) for toolbars, primary buttons,
+  FABs, accent bars and icon circles. The purple was removed everywhere
+  (customer accent bar, all three FABs, invoice-detail accent bar/icons, ledger
+  report menu item, dashboard customer tile/number); its colors and drawables
+  were deleted. The green/teal icon circles were removed too — every dashboard
+  navigation icon is now navy on one light circle.
+- Semantic colors, named and reused: green (positive/paid/received/credit), red
+  (debt/unpaid), amber (partial/warning/backup) and navy (neutral emphasis).
+  Surface: white cards on `#F1F4F9`.
+- Shapes: cards radius 16dp / elevation 1–2dp; buttons radius 14dp / 52dp;
+  chips and badges fully rounded; no coloured card borders.
+- One input style: outlined, 1dp `#CBD5E1`, radius 12dp, white, 52dp tall,
+  16dp horizontal padding, grey hint, dark navy-grey text. Applied to the
+  invoice form (store/date/paid/line items), payment form, customer form,
+  settings and the sales/payment report filters; spinners and report date
+  fields use the same drawable.
+- Typography styles in `styles.xml`: `Title` 20sp bold, `SectionHeader` 16sp
+  bold, `Body` 14sp, `Caption` 12sp grey, `NumberLarge` 22sp bold,
+  `ToolbarTitle` 18sp bold. Nothing is below 12sp (`text_size_tiny` was 10sp).
+- One toolbar style (`AppTheme.Toolbar`) applied to all 13 toolbars.
+
+### Screens touched (styling only)
+Dashboard, invoice form + line-item row, payment form, customer form, customer
+list, invoice list, payment list, customer detail, invoice detail, settings,
+report menu, sales report, payment report, ledger report, recent-invoice row.
+All view ids and Java behaviour are unchanged; `DashboardActivity.java` was not
+touched.
+
+### Dashboard
+- Header reduced to ~145dp: settings icon, Arabic company name (20sp bold),
+  English name, greeting; navy gradient with 24dp bottom corners; decorative
+  circles and the emoji placeholder removed.
+- 2x3 equal stat cards (96dp), RTL order: sales, received / debts, customers /
+  payments, invoices. Values are single-line 20sp bold with auto-size down to
+  12sp so the inline ₪ never wraps; navy/green/red as specified.
+- Full-width customer-credit card: label on the right, green value on the left.
+- 2x2 navigation tiles, 88dp, white and borderless, navy icon in a 40dp light
+  circle, 14sp bold labels.
+- Recent-invoices card restyled (12dp rows, thin dividers, bold amounts); the
+  backup reminder is kept and restyled with an amber background.
+
+### Deliberate deviations / not done
+- Invoice line-item fields use the same border, radius, white background and
+  height but **4dp** horizontal padding instead of 16dp: at 360dp the quantity
+  column is only ~29dp wide, so 16dp padding would leave no room for a digit.
+  Name/quantity/price share the compact `InputTextBox.LineItem` variant.
+- The report filter and grand-total bars received the 16dp radius and 12dp side
+  margins as part of the card rule (no structural change).
+- No new features or content, no DB/accounting/backup/threading changes, no
+  Java changes, no new strings (all existing user-facing text unchanged).
+- Not fixed (pre-existing): the spinner arrow is positioned physically on the
+  right in RTL; money remains `double`; DB first open/migration on the main
+  thread; hardcoded English error toasts in invoice sharing.
+
+### Build
+- `./gradlew testDebugUnitTest assembleDebug --console=plain --offline` →
+  BUILD SUCCESSFUL; **97/97 unit tests pass**.
+- Built through a temporary `subst` drive letter (the `&` in the project path);
+  the mapping was removed afterwards.
+- APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,395,865 bytes).

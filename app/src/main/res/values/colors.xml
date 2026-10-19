@@ -66,12 +66,4 @@
     <!-- ===== Misc ===== -->
     <color name="ghostBackground">#F1F5F9</color>
     <color name="rippleColor">#1A1A3A6E</color>
-
-    <!-- ===== Legacy accents, still referenced by the dashboard =====
-         They are removed together with the dashboard restyle. -->
-    <color name="heroCircle">#1AFFFFFF</color>
-    <color name="purple">#7C3AED</color>
-    <color name="purpleLight">#F5F3FF</color>
-    <color name="teal">#0891B2</color>
-    <color name="tealLight">#ECFEFF</color>
 </resources>

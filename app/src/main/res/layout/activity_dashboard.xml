@@ -6,12 +6,11 @@
     android:background="@color/lightGray"
     android:orientation="vertical">
 
-    <!-- Scrollable full page -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true"
         android:clipToPadding="false"
+        android:fillViewport="true"
         android:scrollbars="none">
 
         <LinearLayout
@@ -20,124 +19,79 @@
             android:orientation="vertical"
             android:paddingBottom="24dp">
 
-            <!-- ===== HERO SECTION ===== -->
-            <FrameLayout
+            <!-- ===== HEADER (~150dp) ===== -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
-                android:layout_marginTop="12dp">
+                android:background="@drawable/bg_dashboard_header"
+                android:orientation="vertical"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="16dp">
 
-                <LinearLayout
+                <FrameLayout
                     android:layout_width="match_parent"
+                    android:layout_height="40dp">
+
+                    <ImageButton
+                        android:id="@+id/btn_settings"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_gravity="end|top"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/settings_title"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_settings"
+                        app:tint="@color/white" />
+
+                </FrameLayout>
+
+                <!-- Company name (Arabic) -->
+                <TextView
+                    android:id="@+id/tv_header_title"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/bg_dashboard_header"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal"
-                    android:paddingStart="24dp"
-                    android:paddingEnd="24dp"
-                    android:paddingTop="28dp"
-                    android:paddingBottom="32dp"
-                    android:clipChildren="false"
-                    android:clipToPadding="false">
+                    android:layout_marginTop="2dp"
+                    android:text="@string/header_title"
+                    android:textAppearance="@style/TextAppearance.AlMajd.Title"
+                    android:textColor="@color/white" />
 
-                    <!-- Settings gear (top-right) -->
-                    <FrameLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
+                <!-- Company name (English) -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/header_title_en"
+                    android:textColor="@color/textOnPrimaryMuted"
+                    android:textSize="@dimen/text_size_company_en" />
 
-                        <ImageButton
-                            android:id="@+id/btn_settings"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:layout_gravity="end"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:contentDescription="@string/settings_title"
-                            android:src="@drawable/ic_settings"
-                            android:padding="8dp"
-                            app:tint="@color/white" />
+                <!-- Greeting -->
+                <TextView
+                    android:id="@+id/tv_greeting"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/greeting"
+                    android:textColor="@color/textOnPrimarySoft"
+                    android:textSize="@dimen/text_size_greeting" />
 
-                    </FrameLayout>
+            </LinearLayout>
 
-                    <!-- Emoji in translucent circle -->
-                    <FrameLayout
-                        android:layout_width="64dp"
-                        android:layout_height="64dp"
-                        android:layout_gravity="center"
-                        android:layout_marginTop="4dp"
-                        android:background="@drawable/bg_emoji_circle">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:text="\uD83D\uDCE1"
-                            android:textSize="28sp" />
-
-                    </FrameLayout>
-
-                    <!-- Company name (Arabic) -->
-                    <TextView
-                        android:id="@+id/tv_header_title"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/header_title"
-                        android:textColor="@color/white"
-                        android:textSize="@dimen/text_size_header"
-                        android:textStyle="bold" />
-
-                    <!-- Company name (English) -->
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="@string/header_title_en"
-                        android:textColor="#B3FFFFFF"
-                        android:textSize="@dimen/text_size_company_en" />
-
-                    <!-- Greeting -->
-                    <TextView
-                        android:id="@+id/tv_greeting"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:text="@string/greeting"
-                        android:textColor="#D9FFFFFF"
-                        android:textSize="@dimen/text_size_greeting" />
-
-                </LinearLayout>
-
-                <!-- Decorative circle (top-left) -->
-                <View
-                    android:layout_width="80dp"
-                    android:layout_height="80dp"
-                    android:layout_gravity="start|top"
-                    android:layout_marginStart="-20dp"
-                    android:layout_marginTop="-20dp"
-                    android:background="@drawable/bg_hero_circle" />
-
-                <!-- Decorative circle (bottom-right) -->
-                <View
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:layout_gravity="end|bottom"
-                    android:layout_marginEnd="-10dp"
-                    android:layout_marginBottom="-10dp"
-                    android:background="@drawable/bg_hero_circle" />
-
-            </FrameLayout>
-
-            <!-- ===== BACKUP REMINDER BANNER ===== -->
+            <!-- ===== WEEKLY BACKUP REMINDER (amber) ===== -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_backup_reminder"
-                style="@style/CardStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_marginEnd="12dp"
                 android:layout_marginTop="12dp"
-                android:visibility="gone">
+                android:visibility="gone"
+                app:cardBackgroundColor="@color/backupCardBackground"
+                app:cardCornerRadius="@dimen/card_corner_radius"
+                app:cardElevation="1dp"
+                app:strokeColor="@color/amber"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -157,7 +111,7 @@
                             android:layout_marginEnd="8dp"
                             android:contentDescription="@null"
                             android:src="@drawable/ic_warning"
-                            app:tint="@color/red" />
+                            app:tint="@color/amber" />
 
                         <TextView
                             android:id="@+id/tv_backup_reminder"
@@ -173,7 +127,8 @@
                             android:layout_height="36dp"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:contentDescription="@string/dismiss"
-                            android:src="@drawable/ic_close" />
+                            android:src="@drawable/ic_close"
+                            app:tint="@color/textSecondary" />
 
                     </LinearLayout>
 
@@ -192,124 +147,102 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- ===== STAT CARDS: Row 1 (Sales / Received / Debts) ===== -->
+            <!-- ===== STATS 2 x 3 (RTL order: sales, received / debts, customers / payments, invoices) ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:layout_marginTop="16dp">
+                android:paddingEnd="12dp">
 
-                <!-- Total Sales -->
+                <!-- Total sales -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_height="@dimen/stat_card_height"
                     android:layout_margin="4dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/white"
                     app:cardCornerRadius="@dimen/card_corner_radius"
-                    app:cardElevation="@dimen/card_elevation"
-                    app:cardBackgroundColor="@color/white">
+                    app:cardElevation="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
+                        android:layout_height="match_parent"
                         android:gravity="center"
-                        android:padding="12dp">
+                        android:orientation="vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/stat_total_sales"
-                            android:textColor="@color/textSecondary"
-                            android:textSize="@dimen/text_size_stat_label" />
+                            android:textAppearance="@style/TextAppearance.AlMajd.Caption" />
 
                         <TextView
                             android:id="@+id/tv_stat_total_sales"
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
+                            android:ellipsize="none"
+                            android:gravity="center"
+                            android:maxLines="1"
+                            android:singleLine="true"
                             android:text="0"
-                            android:textColor="@color/textPrimary"
+                            android:textColor="@color/primaryColor"
                             android:textSize="@dimen/text_size_stat_value"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            app:autoSizeMaxTextSize="20sp"
+                            app:autoSizeMinTextSize="12sp"
+                            app:autoSizeStepGranularity="1sp"
+                            app:autoSizeTextType="uniform" />
 
                     </LinearLayout>
 
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Total Received -->
+                <!-- Total received -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_height="@dimen/stat_card_height"
                     android:layout_margin="4dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/white"
                     app:cardCornerRadius="@dimen/card_corner_radius"
-                    app:cardElevation="@dimen/card_elevation"
-                    app:cardBackgroundColor="@color/white">
+                    app:cardElevation="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
+                        android:layout_height="match_parent"
                         android:gravity="center"
-                        android:padding="12dp">
+                        android:orientation="vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/stat_total_received"
-                            android:textColor="@color/textSecondary"
-                            android:textSize="@dimen/text_size_stat_label" />
+                            android:textAppearance="@style/TextAppearance.AlMajd.Caption" />
 
                         <TextView
                             android:id="@+id/tv_stat_total_received"
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
+                            android:ellipsize="none"
+                            android:gravity="center"
+                            android:maxLines="1"
+                            android:singleLine="true"
                             android:text="0"
                             android:textColor="@color/green"
                             android:textSize="@dimen/text_size_stat_value"
-                            android:textStyle="bold" />
-
-                    </LinearLayout>
-
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Total Debts -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_margin="4dp"
-                    app:cardCornerRadius="@dimen/card_corner_radius"
-                    app:cardElevation="@dimen/card_elevation"
-                    app:cardBackgroundColor="@color/white">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="12dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/stat_total_debts"
-                            android:textColor="@color/textSecondary"
-                            android:textSize="@dimen/text_size_stat_label" />
-
-                        <TextView
-                            android:id="@+id/tv_stat_total_debts"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:text="0"
-                            android:textColor="@color/red"
-                            android:textSize="@dimen/text_size_stat_value"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            app:autoSizeMaxTextSize="20sp"
+                            app:autoSizeMinTextSize="12sp"
+                            app:autoSizeStepGranularity="1sp"
+                            app:autoSizeTextType="uniform" />
 
                     </LinearLayout>
 
@@ -317,48 +250,157 @@
 
             </LinearLayout>
 
-            <!-- ===== STAT CARDS: Row 2 (Customers / Invoices / Payments) ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:layout_marginTop="4dp">
+                android:paddingEnd="12dp">
+
+                <!-- Total debts -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/stat_card_height"
+                    android:layout_margin="4dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="@dimen/card_corner_radius"
+                    app:cardElevation="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/stat_total_debts"
+                            android:textAppearance="@style/TextAppearance.AlMajd.Caption" />
+
+                        <TextView
+                            android:id="@+id/tv_stat_total_debts"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:ellipsize="none"
+                            android:gravity="center"
+                            android:maxLines="1"
+                            android:singleLine="true"
+                            android:text="0"
+                            android:textColor="@color/red"
+                            android:textSize="@dimen/text_size_stat_value"
+                            android:textStyle="bold"
+                            app:autoSizeMaxTextSize="20sp"
+                            app:autoSizeMinTextSize="12sp"
+                            app:autoSizeStepGranularity="1sp"
+                            app:autoSizeTextType="uniform" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
 
                 <!-- Customer count -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_height="@dimen/stat_card_height"
                     android:layout_margin="4dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/white"
                     app:cardCornerRadius="@dimen/card_corner_radius"
-                    app:cardElevation="@dimen/card_elevation"
-                    app:cardBackgroundColor="@color/white">
+                    app:cardElevation="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
+                        android:layout_height="match_parent"
                         android:gravity="center"
-                        android:padding="12dp">
+                        android:orientation="vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/stat_customer_count"
-                            android:textColor="@color/textSecondary"
-                            android:textSize="@dimen/text_size_stat_label" />
+                            android:textAppearance="@style/TextAppearance.AlMajd.Caption" />
 
                         <TextView
                             android:id="@+id/tv_stat_customer_count"
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
+                            android:ellipsize="none"
+                            android:gravity="center"
+                            android:maxLines="1"
+                            android:singleLine="true"
                             android:text="0"
-                            android:textColor="@color/purple"
+                            android:textColor="@color/primaryColor"
                             android:textSize="@dimen/text_size_stat_value"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            app:autoSizeMaxTextSize="20sp"
+                            app:autoSizeMinTextSize="12sp"
+                            app:autoSizeStepGranularity="1sp"
+                            app:autoSizeTextType="uniform" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <!-- Payment count -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/stat_card_height"
+                    android:layout_margin="4dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="@dimen/card_corner_radius"
+                    app:cardElevation="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/stat_payment_count"
+                            android:textAppearance="@style/TextAppearance.AlMajd.Caption" />
+
+                        <TextView
+                            android:id="@+id/tv_stat_payment_count"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:ellipsize="none"
+                            android:gravity="center"
+                            android:maxLines="1"
+                            android:singleLine="true"
+                            android:text="0"
+                            android:textColor="@color/primaryColor"
+                            android:textSize="@dimen/text_size_stat_value"
+                            android:textStyle="bold"
+                            app:autoSizeMaxTextSize="20sp"
+                            app:autoSizeMinTextSize="12sp"
+                            app:autoSizeStepGranularity="1sp"
+                            app:autoSizeTextType="uniform" />
 
                     </LinearLayout>
 
@@ -367,74 +409,44 @@
                 <!-- Invoice count -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_height="@dimen/stat_card_height"
                     android:layout_margin="4dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="@color/white"
                     app:cardCornerRadius="@dimen/card_corner_radius"
-                    app:cardElevation="@dimen/card_elevation"
-                    app:cardBackgroundColor="@color/white">
+                    app:cardElevation="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
+                        android:layout_height="match_parent"
                         android:gravity="center"
-                        android:padding="12dp">
+                        android:orientation="vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/stat_invoice_count"
-                            android:textColor="@color/textSecondary"
-                            android:textSize="@dimen/text_size_stat_label" />
+                            android:textAppearance="@style/TextAppearance.AlMajd.Caption" />
 
                         <TextView
                             android:id="@+id/tv_stat_invoice_count"
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
+                            android:ellipsize="none"
+                            android:gravity="center"
+                            android:maxLines="1"
+                            android:singleLine="true"
                             android:text="0"
                             android:textColor="@color/primaryColor"
                             android:textSize="@dimen/text_size_stat_value"
-                            android:textStyle="bold" />
-
-                    </LinearLayout>
-
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Payment count -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_margin="4dp"
-                    app:cardCornerRadius="@dimen/card_corner_radius"
-                    app:cardElevation="@dimen/card_elevation"
-                    app:cardBackgroundColor="@color/white">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="12dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/stat_payment_count"
-                            android:textColor="@color/textSecondary"
-                            android:textSize="@dimen/text_size_stat_label" />
-
-                        <TextView
-                            android:id="@+id/tv_stat_payment_count"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:text="0"
-                            android:textColor="@color/teal"
-                            android:textSize="@dimen/text_size_stat_value"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            app:autoSizeMaxTextSize="20sp"
+                            app:autoSizeMinTextSize="12sp"
+                            app:autoSizeStepGranularity="1sp"
+                            app:autoSizeTextType="uniform" />
 
                     </LinearLayout>
 
@@ -442,129 +454,83 @@
 
             </LinearLayout>
 
-            <!-- ===== CUSTOMER CREDIT (money customers have with us, "له عندنا") ===== -->
+            <!-- ===== CUSTOMER CREDIT ===== -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_marginEnd="12dp"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="8dp"
+                app:cardBackgroundColor="@color/white"
                 app:cardCornerRadius="@dimen/card_corner_radius"
-                app:cardElevation="@dimen/card_elevation"
-                app:cardBackgroundColor="@color/white">
+                app:cardElevation="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:padding="12dp">
+                    android:orientation="horizontal"
+                    android:padding="16dp">
 
                     <TextView
-                        android:layout_width="0dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
                         android:text="@string/stat_total_credit"
-                        android:textColor="@color/textSecondary"
-                        android:textSize="@dimen/text_size_stat_label" />
+                        android:textAppearance="@style/TextAppearance.AlMajd.Caption" />
 
                     <TextView
                         android:id="@+id/tv_stat_total_credit"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:ellipsize="none"
+                        android:gravity="end"
+                        android:maxLines="1"
+                        android:singleLine="true"
                         android:text="0"
                         android:textColor="@color/green"
                         android:textSize="@dimen/text_size_stat_value"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        app:autoSizeMaxTextSize="20sp"
+                        app:autoSizeMinTextSize="12sp"
+                        app:autoSizeStepGranularity="1sp"
+                        app:autoSizeTextType="uniform" />
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- ===== NAV GRID (2x2) with colored icon circles ===== -->
+            <!-- ===== NAVIGATION 2 x 2 (all navy icons on a light circle, no borders) ===== -->
             <GridLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
+                android:columnCount="2"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
-                android:columnCount="2"
-                android:rowCount="2"
-                android:useDefaultMargins="false">
+                android:rowCount="2">
 
-                <!-- Customers (purple) -->
+                <!-- Customers -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/btn_add_customer"
                     android:layout_width="0dp"
                     android:layout_height="@dimen/nav_card_height"
                     android:layout_columnWeight="1"
-                    android:layout_margin="6dp"
+                    android:layout_margin="4dp"
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="?attr/selectableItemBackground"
-                    app:cardCornerRadius="@dimen/card_corner_radius"
-                    app:cardElevation="@dimen/card_elevation"
                     app:cardBackgroundColor="@color/white"
-                    app:strokeWidth="1.5dp"
-                    app:strokeColor="#ede9fe">
+                    app:cardCornerRadius="@dimen/card_corner_radius"
+                    app:cardElevation="2dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:orientation="vertical"
                         android:gravity="center"
-                        android:padding="12dp">
-
-                        <FrameLayout
-                            android:layout_width="@dimen/nav_icon_circle_size"
-                            android:layout_height="@dimen/nav_icon_circle_size"
-                            android:background="@drawable/bg_icon_circle_purple">
-
-                            <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_person"
-                                app:tint="@color/purple"
-                                android:contentDescription="@null" />
-
-                        </FrameLayout>
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:text="@string/nav_customers"
-                            android:textColor="@color/textPrimary"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
-
-                    </LinearLayout>
-
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Invoices (navy) -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/btn_new_invoice"
-                    android:layout_width="0dp"
-                    android:layout_height="@dimen/nav_card_height"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="6dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:foreground="?attr/selectableItemBackground"
-                    app:cardCornerRadius="@dimen/card_corner_radius"
-                    app:cardElevation="@dimen/card_elevation"
-                    app:cardBackgroundColor="@color/white"
-                    app:strokeWidth="1.5dp"
-                    app:strokeColor="#dbeafe">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
                         android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="12dp">
+                        android:padding="8dp">
 
                         <FrameLayout
                             android:layout_width="@dimen/nav_icon_circle_size"
@@ -572,124 +538,169 @@
                             android:background="@drawable/bg_icon_circle_navy">
 
                             <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
+                                android:layout_width="@dimen/nav_icon_size"
+                                android:layout_height="@dimen/nav_icon_size"
                                 android:layout_gravity="center"
-                                android:src="@drawable/ic_new_invoice"
-                                app:tint="@color/primaryColor"
-                                android:contentDescription="@null" />
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_person"
+                                app:tint="@color/primaryColor" />
 
                         </FrameLayout>
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:text="@string/nav_invoices"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/nav_customers"
                             android:textColor="@color/textPrimary"
-                            android:textSize="13sp"
+                            android:textSize="@dimen/text_size_body"
                             android:textStyle="bold" />
 
                     </LinearLayout>
 
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Payments (green) -->
+                <!-- Invoices -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/btn_new_invoice"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/nav_card_height"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="4dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="@dimen/card_corner_radius"
+                    app:cardElevation="2dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="8dp">
+
+                        <FrameLayout
+                            android:layout_width="@dimen/nav_icon_circle_size"
+                            android:layout_height="@dimen/nav_icon_circle_size"
+                            android:background="@drawable/bg_icon_circle_navy">
+
+                            <ImageView
+                                android:layout_width="@dimen/nav_icon_size"
+                                android:layout_height="@dimen/nav_icon_size"
+                                android:layout_gravity="center"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_new_invoice"
+                                app:tint="@color/primaryColor" />
+
+                        </FrameLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/nav_invoices"
+                            android:textColor="@color/textPrimary"
+                            android:textSize="@dimen/text_size_body"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Payments -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/btn_add_payment"
                     android:layout_width="0dp"
                     android:layout_height="@dimen/nav_card_height"
                     android:layout_columnWeight="1"
-                    android:layout_margin="6dp"
+                    android:layout_margin="4dp"
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="?attr/selectableItemBackground"
-                    app:cardCornerRadius="@dimen/card_corner_radius"
-                    app:cardElevation="@dimen/card_elevation"
                     app:cardBackgroundColor="@color/white"
-                    app:strokeWidth="1.5dp"
-                    app:strokeColor="#dcfce7">
+                    app:cardCornerRadius="@dimen/card_corner_radius"
+                    app:cardElevation="2dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:orientation="vertical"
                         android:gravity="center"
-                        android:padding="12dp">
+                        android:orientation="vertical"
+                        android:padding="8dp">
 
                         <FrameLayout
                             android:layout_width="@dimen/nav_icon_circle_size"
                             android:layout_height="@dimen/nav_icon_circle_size"
-                            android:background="@drawable/bg_icon_circle_green">
+                            android:background="@drawable/bg_icon_circle_navy">
 
                             <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
+                                android:layout_width="@dimen/nav_icon_size"
+                                android:layout_height="@dimen/nav_icon_size"
                                 android:layout_gravity="center"
+                                android:contentDescription="@null"
                                 android:src="@drawable/ic_payment"
-                                app:tint="@color/green"
-                                android:contentDescription="@null" />
+                                app:tint="@color/primaryColor" />
 
                         </FrameLayout>
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
+                            android:layout_marginTop="6dp"
                             android:text="@string/nav_payments"
                             android:textColor="@color/textPrimary"
-                            android:textSize="13sp"
+                            android:textSize="@dimen/text_size_body"
                             android:textStyle="bold" />
 
                     </LinearLayout>
 
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Reports (teal) -->
+                <!-- Reports -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/btn_reports"
                     android:layout_width="0dp"
                     android:layout_height="@dimen/nav_card_height"
                     android:layout_columnWeight="1"
-                    android:layout_margin="6dp"
+                    android:layout_margin="4dp"
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="?attr/selectableItemBackground"
-                    app:cardCornerRadius="@dimen/card_corner_radius"
-                    app:cardElevation="@dimen/card_elevation"
                     app:cardBackgroundColor="@color/white"
-                    app:strokeWidth="1.5dp"
-                    app:strokeColor="#cffafe">
+                    app:cardCornerRadius="@dimen/card_corner_radius"
+                    app:cardElevation="2dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:orientation="vertical"
                         android:gravity="center"
-                        android:padding="12dp">
+                        android:orientation="vertical"
+                        android:padding="8dp">
 
                         <FrameLayout
                             android:layout_width="@dimen/nav_icon_circle_size"
                             android:layout_height="@dimen/nav_icon_circle_size"
-                            android:background="@drawable/bg_icon_circle_teal">
+                            android:background="@drawable/bg_icon_circle_navy">
 
                             <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
+                                android:layout_width="@dimen/nav_icon_size"
+                                android:layout_height="@dimen/nav_icon_size"
                                 android:layout_gravity="center"
+                                android:contentDescription="@null"
                                 android:src="@drawable/ic_reports"
-                                app:tint="@color/teal"
-                                android:contentDescription="@null" />
+                                app:tint="@color/primaryColor" />
 
                         </FrameLayout>
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
+                            android:layout_marginTop="6dp"
                             android:text="@string/nav_reports"
                             android:textColor="@color/textPrimary"
-                            android:textSize="13sp"
+                            android:textSize="@dimen/text_size_body"
                             android:textStyle="bold" />
 
                     </LinearLayout>
@@ -698,16 +709,16 @@
 
             </GridLayout>
 
-            <!-- ===== RECENT INVOICES SECTION ===== -->
+            <!-- ===== RECENT INVOICES ===== -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_marginEnd="12dp"
                 android:layout_marginTop="16dp"
+                app:cardBackgroundColor="@color/white"
                 app:cardCornerRadius="@dimen/card_corner_radius"
-                app:cardElevation="@dimen/card_elevation"
-                app:cardBackgroundColor="@color/white">
+                app:cardElevation="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -719,26 +730,24 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/recent_invoices"
-                            android:textColor="@color/textPrimary"
-                            android:textSize="@dimen/text_size_subtitle"
-                            android:textStyle="bold" />
+                            android:textAppearance="@style/TextAppearance.AlMajd.SectionHeader" />
 
                         <TextView
                             android:id="@+id/tv_view_all_invoices"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:padding="4dp"
                             android:text="@string/view_all"
                             android:textColor="@color/primaryColor"
-                            android:textSize="@dimen/text_size_small"
-                            android:padding="4dp" />
+                            android:textSize="@dimen/text_size_small" />
 
                     </LinearLayout>
 
@@ -747,7 +756,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:layout_marginTop="12dp"
-                        android:layout_marginBottom="8dp"
+                        android:layout_marginBottom="4dp"
                         android:background="@color/divider" />
 
                     <!-- Recent invoices list container -->
