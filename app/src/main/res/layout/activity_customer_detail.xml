@@ -197,6 +197,7 @@
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:elevation="0dp"
                     android:text="@string/view_all"
                     android:textColor="@color/primaryColor" />
 
@@ -231,6 +232,7 @@
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:elevation="0dp"
                     android:text="@string/view_all"
                     android:textColor="@color/primaryColor" />
 

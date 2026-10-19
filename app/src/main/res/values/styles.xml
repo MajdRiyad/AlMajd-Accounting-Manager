@@ -135,7 +135,11 @@
         <item name="android:insetBottom">0dp</item>
         <item name="backgroundTint">@color/primaryColor</item>
         <item name="cornerRadius">@dimen/button_corner_radius</item>
-        <item name="android:elevation">1dp</item>
+        <!-- Use the Material elevation attr, not android:elevation. The theme's
+             materialButtonStyle is also consulted as a fallback for buttons with
+             an explicit TextButton/OutlinedButton style; android:elevation there
+             leaked a shadow onto those flat buttons (grey "double frame"). -->
+        <item name="elevation">1dp</item>
     </style>
 
     <!-- Success button -->

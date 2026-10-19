@@ -318,26 +318,13 @@ public class InvoiceDetailActivity extends BaseActivity {
     }
 
     /**
-     * Dynamically builds a table of invoice line items.
-     * Adds a header row followed by one row per item.
+     * Builds the data rows of the invoice items table. The navy column header
+     * is defined once in the layout; no header row is added here.
      */
     private void displayItemsTable() {
-        // Clear any existing rows (except keep a possible XML-defined header)
+        // Clear any previously built rows; the header lives in the XML layout.
         tableItems.removeAllViews();
 
-        // --- Header row ---
-        TableRow headerRow = new TableRow(this);
-        headerRow.setBackgroundColor(ContextCompat.getColor(this, R.color.primaryColor));
-        int headerPadding = dpToPx(8);
-
-        headerRow.addView(createHeaderCell(getString(R.string.item_name), 2f, headerPadding));
-        headerRow.addView(createHeaderCell(getString(R.string.quantity), 1f, headerPadding));
-        headerRow.addView(createHeaderCell(getString(R.string.unit_price), 1f, headerPadding));
-        headerRow.addView(createHeaderCell(getString(R.string.subtotal), 1f, headerPadding));
-
-        tableItems.addView(headerRow);
-
-        // --- Data rows ---
         List<InvoiceItem> items = invoice.getItems();
         if (items != null && !items.isEmpty()) {
             int rowPadding = dpToPx(6);
@@ -352,24 +339,31 @@ public class InvoiceDetailActivity extends BaseActivity {
                 }
                 alternate = !alternate;
 
-                // Item name
+                // Item name (may wrap onto a second line)
                 TextView tvName = createDataCell(
                         item.getItemName() != null ? item.getItemName() : "\u2014",
-                        2f, rowPadding);
+                        2.5f, rowPadding);
                 tvName.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
                 row.addView(tvName);
 
                 // Quantity
-                row.addView(createDataCell(
-                        String.valueOf(item.getQuantity()), 1f, rowPadding));
+                TextView tvQuantity = createDataCell(
+                        String.valueOf(item.getQuantity()), 1.1f, rowPadding);
+                makeSingleLine(tvQuantity);
+                row.addView(tvQuantity);
 
                 // Unit price
-                row.addView(createDataCell(
-                        NumberUtils.formatCurrency(item.getUnitPrice()), 1f, rowPadding));
+                TextView tvUnitPrice = createDataCell(
+                        NumberUtils.formatCurrency(item.getUnitPrice()), 2.2f, rowPadding);
+                makeSingleLine(tvUnitPrice);
+                row.addView(tvUnitPrice);
 
-                // Subtotal
-                row.addView(createDataCell(
-                        NumberUtils.formatCurrency(item.getSubtotal()), 1f, rowPadding));
+                // Subtotal (right-aligned, like the header)
+                TextView tvSubtotal = createDataCell(
+                        NumberUtils.formatCurrency(item.getSubtotal()), 2.2f, rowPadding);
+                tvSubtotal.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+                makeSingleLine(tvSubtotal);
+                row.addView(tvSubtotal);
 
                 tableItems.addView(row);
             }
@@ -395,24 +389,6 @@ public class InvoiceDetailActivity extends BaseActivity {
     // --- Helper methods for building table cells ---
 
     /**
-     * Creates a bold white header cell for the items table.
-     */
-    private TextView createHeaderCell(String text, float weight, int padding) {
-        TextView tv = new TextView(this);
-        tv.setText(text);
-        tv.setTextColor(ContextCompat.getColor(this, R.color.white));
-        tv.setTypeface(null, Typeface.BOLD);
-        tv.setGravity(Gravity.CENTER);
-        tv.setPadding(padding, padding, padding, padding);
-
-        TableRow.LayoutParams params = new TableRow.LayoutParams(
-                0, TableRow.LayoutParams.WRAP_CONTENT, weight);
-        tv.setLayoutParams(params);
-
-        return tv;
-    }
-
-    /**
      * Creates a data cell for the items table.
      */
     private TextView createDataCell(String text, float weight, int padding) {
@@ -427,6 +403,16 @@ public class InvoiceDetailActivity extends BaseActivity {
         tv.setLayoutParams(params);
 
         return tv;
+    }
+
+    /**
+     * Keeps a numeric cell on one line; shrinks it slightly instead of wrapping
+     * values such as "1,100.00 ₪" on a narrow screen.
+     */
+    private void makeSingleLine(TextView tv) {
+        tv.setMaxLines(1);
+        tv.setAutoSizeTextTypeUniformWithConfiguration(
+                10, 14, 1, TypedValue.COMPLEX_UNIT_SP);
     }
 
     /**
@@ -523,7 +509,8 @@ public class InvoiceDetailActivity extends BaseActivity {
                     if (isFinishing() || isDestroyed()) {
                         return;
                     }
-                    ShareHelper.sharePdf(InvoiceDetailActivity.this, pdfFile);
+                    ShareHelper.sharePdf(InvoiceDetailActivity.this, pdfFile,
+                            getString(R.string.invoice_number_format, current.getId()));
                 });
             } catch (final Exception e) {
                 AppExecutors.runOnMain(() -> {

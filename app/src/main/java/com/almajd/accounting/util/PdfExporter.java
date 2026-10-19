@@ -181,7 +181,7 @@ public class PdfExporter {
         // Date
         addInfoRow(infoTable, "\u0627\u0644\u062A\u0627\u0631\u064A\u062E:", DateUtils.formatForDisplay(invoice.getInvoiceDate()), labelFont, valueFont);
         // Invoice #
-        addInfoRow(infoTable, "\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629:", String.valueOf(invoice.getId()), labelFont, valueFont);
+        addInfoRow(infoTable, "\u0631\u0642\u0645 \u0627\u0644\u0637\u0644\u0628\u064A\u0629:", String.valueOf(invoice.getId()), labelFont, valueFont);
 
         document.add(infoTable);
 

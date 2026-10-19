@@ -19,6 +19,16 @@ public class ShareHelper {
      *         the request (in which case an error toast is shown).
      */
     public static boolean shareFile(Context context, File file, String mimeType) {
+        return shareFile(context, file, mimeType, file.getName());
+    }
+
+    /**
+     * Variant that controls the title shown at the top of the share sheet
+     * (used for invoices so the chooser says "طلبية #N" instead of the
+     * generated PDF file name).
+     */
+    public static boolean shareFile(Context context, File file, String mimeType,
+                                    String chooserTitle) {
         try {
             Uri uri = FileProvider.getUriForFile(context,
                     context.getPackageName() + ".fileprovider", file);
@@ -29,7 +39,7 @@ public class ShareHelper {
             shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
             context.startActivity(Intent.createChooser(shareIntent,
-                    file.getName()));
+                    chooserTitle != null ? chooserTitle : file.getName()));
             return true;
         } catch (Exception e) {
             Toast.makeText(context, R.string.share_error,
@@ -43,6 +53,13 @@ public class ShareHelper {
      */
     public static void sharePdf(Context context, File pdfFile) {
         shareFile(context, pdfFile, "application/pdf");
+    }
+
+    /**
+     * Share a PDF file with a custom share-sheet title.
+     */
+    public static void sharePdf(Context context, File pdfFile, String chooserTitle) {
+        shareFile(context, pdfFile, "application/pdf", chooserTitle);
     }
 
     /**

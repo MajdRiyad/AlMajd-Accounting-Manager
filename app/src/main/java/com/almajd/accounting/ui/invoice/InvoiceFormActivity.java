@@ -633,7 +633,8 @@ public class InvoiceFormActivity extends BaseActivity
                     Toast.makeText(InvoiceFormActivity.this,
                             R.string.pdf_generation_failed, Toast.LENGTH_SHORT).show();
                 } else {
-                    ShareHelper.sharePdf(InvoiceFormActivity.this, file);
+                    ShareHelper.sharePdf(InvoiceFormActivity.this, file,
+                            getString(R.string.invoice_number_format, invoiceId));
                 }
                 // The chooser is a separate activity and the PDF is shared from
                 // cacheDir through the FileProvider, so nothing here depends on

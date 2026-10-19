@@ -37,17 +37,17 @@
     <string name="confirm_delete_title">تأكيد الحذف</string>
     <string name="confirm_delete_message">هل أنت متأكد من الحذف؟</string>
     <string name="no_data">لا توجد بيانات</string>
-    <string name="invoices">الفواتير</string>
+    <string name="invoices">الطلبيات</string>
     <string name="payments">المدفوعات</string>
     <string name="reports">التقارير</string>
     <string name="add_customer">إضافة عميل</string>
     <string name="edit_customer">تعديل العميل</string>
-    <string name="new_invoice">فاتورة جديدة</string>
-    <string name="edit_invoice">تعديل الفاتورة</string>
+    <string name="new_invoice">طلبية جديدة</string>
+    <string name="edit_invoice">تعديل الطلبية</string>
     <string name="new_payment">دفعة جديدة</string>
     <string name="edit_payment">تعديل الدفعة</string>
     <string name="customer_details">تفاصيل العميل</string>
-    <string name="invoice_details">تفاصيل الفاتورة</string>
+    <string name="invoice_details">تفاصيل الطلبية</string>
     <string name="search">بحث</string>
     <string name="all_stores">كل المحلات</string>
     <string name="from_date">من تاريخ</string>
@@ -58,14 +58,14 @@
     <string name="total_paid">إجمالي المدفوع</string>
     <string name="current_balance">الرصيد الحالي</string>
     <string name="customer_saved">تم حفظ العميل</string>
-    <string name="invoice_saved">تم حفظ الفاتورة</string>
+    <string name="invoice_saved">تم حفظ الطلبية</string>
     <string name="payment_saved">تم حفظ الدفعة</string>
     <string name="deleted_successfully">تم الحذف بنجاح</string>
     <string name="delete_failed">تعذر الحذف، حاول مرة أخرى</string>
     <string name="required_field">هذا الحقل مطلوب</string>
     <string name="store_exists">اسم المحل موجود مسبقاً</string>
     <string name="no_customers">لا يوجد عملاء. أضف عميلاً جديداً!</string>
-    <string name="no_invoices">لا توجد فواتير</string>
+    <string name="no_invoices">لا توجد طلبيات</string>
     <string name="no_payments">لا توجد مدفوعات</string>
     <string name="add_at_least_one_item">أضف صنفاً واحداً على الأقل</string>
     <string name="last_payment_date">تاريخ آخر دفعة</string>
@@ -81,7 +81,7 @@
     <string name="settings_saved">تم حفظ الإعدادات</string>
     <string name="items_section_title">الأصناف</string>
     <string name="view_all">عرض الكل</string>
-    <string name="invoice_number_format">فاتورة #%d</string>
+    <string name="invoice_number_format">طلبية #%d</string>
     <string name="status_paid">مدفوعة</string>
 
     <!-- Customer-credit allocation (on-account payments covering invoices) -->
@@ -93,20 +93,20 @@
 
     <!-- Payment <-> invoice linking -->
     <string name="on_account">دفعة على الحساب</string>
-    <string name="select_invoice">الفاتورة</string>
-    <string name="invoice_option_format">فاتورة #%1$d - %2$s - متبقي %3$s</string>
-    <string name="payment_linked_note">دفعة مرتبطة بالفاتورة رقم %1$d</string>
-    <string name="payment_excess_note">فائض عن الفاتورة رقم %1$d</string>
+    <string name="select_invoice">الطلبية</string>
+    <string name="invoice_option_format">طلبية #%1$d - %2$s - متبقي %3$s</string>
+    <string name="payment_linked_note">دفعة مرتبطة بالطلبية رقم %1$d</string>
+    <string name="payment_excess_note">فائض عن الطلبية رقم %1$d</string>
     <string name="overpayment_title">مبلغ أكبر من المتبقي</string>
-    <string name="overpayment_message">المبلغ المدخل أكبر من المتبقي على الفاتورة. سيتم تسجيل %1$s على الفاتورة و%2$s كدفعة على الحساب.</string>
-    <string name="paid_now_overpayment_title">المدفوع أكبر من إجمالي الفاتورة</string>
-    <string name="paid_now_overpayment_message">المبلغ المدفوع مقدماً أكبر من إجمالي الفاتورة. سيتم تسجيل %1$s على الفاتورة و%2$s كدفعة على الحساب.</string>
+    <string name="overpayment_message">المبلغ المدخل أكبر من المتبقي على الطلبية. سيتم تسجيل %1$s على الطلبية و%2$s كدفعة على الحساب.</string>
+    <string name="paid_now_overpayment_title">المدفوع أكبر من إجمالي الطلبية</string>
+    <string name="paid_now_overpayment_message">المبلغ المدفوع مقدماً أكبر من إجمالي الطلبية. سيتم تسجيل %1$s على الطلبية و%2$s كدفعة على الحساب.</string>
     <string name="invalid_date_range">تاريخ البداية يجب أن يكون قبل تاريخ النهاية أو مساوياً له.</string>
     <string name="confirm">تأكيد</string>
     <string name="save_failed">تعذر الحفظ، حاول مرة أخرى</string>
     <string name="add_payment">إضافة دفعة</string>
-    <string name="invoice_payments_title">الدفعات على هذه الفاتورة</string>
-    <string name="no_invoice_payments">لا توجد دفعات على هذه الفاتورة</string>
+    <string name="invoice_payments_title">الدفعات على هذه الطلبية</string>
+    <string name="no_invoice_payments">لا توجد دفعات على هذه الطلبية</string>
 
     <!-- Customer balance wording (never show a bare negative number) -->
     <string name="balance_owed">عليه %s</string>
@@ -119,18 +119,18 @@
     <string name="stat_total_debts">الديون المستحقة</string>
     <string name="stat_total_credit">رصيد دائن للعملاء</string>
     <string name="stat_customer_count">عدد العملاء</string>
-    <string name="stat_invoice_count">عدد الفواتير</string>
+    <string name="stat_invoice_count">عدد الطلبيات</string>
     <string name="stat_payment_count">عدد الدفعات</string>
 
     <!-- Dashboard nav card labels -->
     <string name="nav_customers">العملاء</string>
-    <string name="nav_invoices">الفواتير</string>
+    <string name="nav_invoices">الطلبيات</string>
     <string name="nav_payments">المدفوعات</string>
     <string name="nav_reports">التقارير</string>
 
     <!-- Recent invoices section -->
-    <string name="recent_invoices">آخر الفواتير</string>
-    <string name="no_recent_invoices">لا توجد فواتير حديثة</string>
+    <string name="recent_invoices">آخر الطلبيات</string>
+    <string name="no_recent_invoices">لا توجد طلبيات حديثة</string>
 
     <!-- Backup & restore -->
     <string name="backup_section_title">النسخ الاحتياطي</string>
@@ -148,7 +148,7 @@
 
     <!-- Restore -->
     <string name="restore_confirm_title">تأكيد الاستعادة</string>
-    <string name="restore_confirm_message">سيتم استبدال بياناتك الحالية بالكامل ببيانات النسخة الاحتياطية.\n\nتاريخ النسخة: %1$s\nالعملاء: %2$d\nالفواتير: %3$d\nالدفعات: %4$d</string>
+    <string name="restore_confirm_message">سيتم استبدال بياناتك الحالية بالكامل ببيانات النسخة الاحتياطية.\n\nتاريخ النسخة: %1$s\nالعملاء: %2$d\nالطلبيات: %3$d\nالدفعات: %4$d</string>
     <string name="restore_success">تمت الاستعادة بنجاح. سيتم إعادة تشغيل التطبيق.</string>
     <string name="restore_invalid_file">الملف غير صالح أو تالف. تأكد من اختيار ملف نسخة احتياطية صحيح.</string>
     <string name="restore_missing_db">النسخة الاحتياطية لا تحتوي على قاعدة البيانات.</string>
@@ -178,17 +178,17 @@
     <string name="statement_print_date">تاريخ الطباعة</string>
     <string name="statement_opening_balance">رصيد افتتاحي</string>
     <string name="statement_closing_balance">الرصيد الختامي</string>
-    <string name="statement_total_debit">إجمالي الفواتير (مدين)</string>
+    <string name="statement_total_debit">إجمالي الطلبيات (مدين)</string>
     <string name="statement_total_credit">إجمالي الدفعات (دائن)</string>
     <string name="statement_col_type">النوع</string>
     <string name="statement_col_reference">البيان</string>
     <string name="statement_col_debit">مدين</string>
     <string name="statement_col_credit">دائن</string>
     <string name="statement_col_balance">الرصيد</string>
-    <string name="statement_type_invoice">فاتورة</string>
+    <string name="statement_type_invoice">طلبية</string>
     <string name="statement_type_payment">دفعة</string>
     <string name="statement_invoice_ref">#%1$d</string>
-    <string name="statement_payment_on_invoice">على فاتورة #%1$d</string>
+    <string name="statement_payment_on_invoice">على طلبية #%1$d</string>
     <string name="statement_payment_on_account">على الحساب</string>
     <string name="statement_reference_with_note">%1$s — %2$s</string>
     <string name="statement_no_movements">لا توجد حركات</string>

@@ -1333,3 +1333,114 @@ touched.
   the mapping was removed afterwards.
 - APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
   (7,395,865 bytes).
+
+## UI polish, part 2 — clean button/card frames, one invoice-table header, فاتورة → طلبية (2026-10-19)
+
+Branch `fix/ui-polish-2` (from `feature/ui-design-system`). Visual/text changes only;
+no DB, accounting, backup/restore or threading changes.
+
+### 1. Doubled grey frame around buttons and cards
+
+**Cause.** The theme sets `materialButtonStyle` to `PrimaryButton`, and that style
+set `android:elevation` (the platform attribute). Buttons using the Material
+`Widget.MaterialComponents.Button.TextButton` / `.OutlinedButton` styles inherit
+`elevation=0dp` from their own style chain, but they do **not** define
+`android:elevation`. Android therefore fell back to the theme style's
+`android:elevation=1dp`, drawing a second shadow inside the report cards and around
+the outlined "add item" button. The same leak affected every explicit
+TextButton/OutlinedButton.
+
+**Fix.** `PrimaryButton` now uses the Material `elevation` attribute (`1dp`) instead
+of `android:elevation`; every explicit TextButton/OutlinedButton in a layout also
+sets `android:elevation="0dp"`. Result: one clean border/shadow per element.
+
+Layouts fixed:
+- `activity_report_menu.xml` — the three report cards' TextButtons (sales, payments, ledger)
+- `activity_invoice_form.xml` — the "add item" OutlinedButton
+- `activity_settings.xml` — the "restore from backup" OutlinedButton
+- `dialog_customer_statement.xml` — the "view PDF" OutlinedButton
+- `activity_customer_detail.xml` — both "view all" TextButtons (orders and payments)
+
+These are all eight MaterialButtons with an explicit TextButton/OutlinedButton style
+in the app.
+
+### 2. Duplicate column header in the invoice detail
+
+**Cause.** `activity_invoice_detail.xml` already contained the navy header row, and
+`InvoiceDetailActivity.displayItemsTable()` added a second header row to
+`table_items`. The two rows also had different weights (3/1/2/2 vs 2/1/1/1) and the
+XML row had an extra 8dp padding, so they could not align even if both were visible.
+
+**Fix.** Removed the programmatic header (and the now-unused `createHeaderCell`);
+kept the navy row. The navy header and the data rows now both use weights
+2.5 / 1.1 / 2.2 / 2.2, with no row padding. Header and numeric cells are single-line
+with auto-size, and the subtotal cell is right-aligned like its header. `tv_total`
+is `maxLines=1`. Verified at 360×640dp with 1,100.00 ₪ / 2,200.00 ₪ — no wrapping,
+columns aligned.
+
+### 3. فاتورة → طلبية
+
+Changed the following 24 string keys (26 word occurrences) in
+`app/src/main/res/values/strings.xml`; resource names are unchanged.
+
+| Key | Old | New |
+|---|---|---|
+| `invoices` | الفواتير | الطلبيات |
+| `new_invoice` | فاتورة جديدة | طلبية جديدة |
+| `edit_invoice` | تعديل الفاتورة | تعديل الطلبية |
+| `invoice_details` | تفاصيل الفاتورة | تفاصيل الطلبية |
+| `invoice_saved` | تم حفظ الفاتورة | تم حفظ الطلبية |
+| `no_invoices` | لا توجد فواتير | لا توجد طلبيات |
+| `invoice_number_format` | فاتورة #%d | طلبية #%d |
+| `select_invoice` | الفاتورة | الطلبية |
+| `invoice_option_format` | فاتورة #%1$d - %2$s - متبقي %3$s | طلبية #%1$d - %2$s - متبقي %3$s |
+| `payment_linked_note` | دفعة مرتبطة بالفاتورة رقم %1$d | دفعة مرتبطة بالطلبية رقم %1$d |
+| `payment_excess_note` | فائض عن الفاتورة رقم %1$d | فائض عن الطلبية رقم %1$d |
+| `overpayment_message` | المبلغ المدخل أكبر من المتبقي على الفاتورة. سيتم تسجيل %1$s على الفاتورة و%2$s كدفعة على الحساب. | المبلغ المدخل أكبر من المتبقي على الطلبية. سيتم تسجيل %1$s على الطلبية و%2$s كدفعة على الحساب. |
+| `paid_now_overpayment_title` | المدفوع أكبر من إجمالي الفاتورة | المدفوع أكبر من إجمالي الطلبية |
+| `paid_now_overpayment_message` | المبلغ المدفوع مقدماً أكبر من إجمالي الفاتورة. سيتم تسجيل %1$s على الفاتورة و%2$s كدفعة على الحساب. | المبلغ المدفوع مقدماً أكبر من إجمالي الطلبية. سيتم تسجيل %1$s على الطلبية و%2$s كدفعة على الحساب. |
+| `invoice_payments_title` | الدفعات على هذه الفاتورة | الدفعات على هذه الطلبية |
+| `no_invoice_payments` | لا توجد دفعات على هذه الفاتورة | لا توجد دفعات على هذه الطلبية |
+| `stat_invoice_count` | عدد الفواتير | عدد الطلبيات |
+| `nav_invoices` | الفواتير | الطلبيات |
+| `recent_invoices` | آخر الفواتير | آخر الطلبيات |
+| `no_recent_invoices` | لا توجد فواتير حديثة | لا توجد طلبيات حديثة |
+| `restore_confirm_message` | سيتم استبدال بياناتك الحالية بالكامل ببيانات النسخة الاحتياطية.\n\nتاريخ النسخة: %1$s\nالعملاء: %2$d\nالفواتير: %3$d\nالدفعات: %4$d | سيتم استبدال بياناتك الحالية بالكامل ببيانات النسخة الاحتياطية.\n\nتاريخ النسخة: %1$s\nالعملاء: %2$d\nالطلبيات: %3$d\nالدفعات: %4$d |
+| `statement_total_debit` | إجمالي الفواتير (مدين) | إجمالي الطلبيات (مدين) |
+| `statement_type_invoice` | فاتورة | طلبية |
+| `statement_payment_on_invoice` | على فاتورة #%1$d | على طلبية #%1$d |
+
+Also changed in code:
+- `PdfExporter`: the invoice info label "رقم الفاتورة:" → "رقم الطلبية:".
+- The statement PDF's type column and "على فاتورة #N" reference use the renamed
+  `statement_type_invoice` / `statement_payment_on_invoice` strings.
+- `ShareHelper`: added a chooser-title overload; invoice shares now show
+  "طلبية #N" as the share-sheet title instead of the generated file name.
+
+Grammar: فاتورة and طلبية are both feminine, so forms such as "تم حفظ الطلبية",
+"مرتبطة بالطلبية", "مسددة" stay correct; "بالفاتورة" → "بالطلبية" and
+"على الفاتورة" → "على الطلبية" were checked.
+
+### Intentionally left containing فاتورة / invoice
+
+- **Existing payment notes already stored in the DB** (e.g. the old note
+  "دفعة مرتبطة بالفاتورة رقم 1") are displayed verbatim on the invoice detail.
+  New notes are written with the new string. Rewriting stored rows would be a data
+  migration, which was out of scope.
+- **Code identifiers, class names, string resource names, DB tables/columns and
+  source file names** (`generateInvoicePdf`, `invoice_number_format`, `invoices`,
+  `invoice_items`, `invoice_<id>.pdf`, ...) were not renamed, as requested.
+- The generated invoice PDF file name remains `invoice_<id>.pdf`; the user-facing
+  share-sheet title is the new Arabic one.
+- Excel/CSV/report headers contained no Arabic "فاتورة" (they use generic labels
+  such as اسم المحل / التاريخ / الإجمالي), so no header text changed there.
+- The invoice PDF has no separate "فاتورة" title; its only occurrence was the
+  "رقم الفاتورة:" label, now "رقم الطلبية:".
+
+### Build
+- `./gradlew testDebugUnitTest assembleDebug --console=plain --offline` →
+  BUILD SUCCESSFUL; **97/97 unit tests pass**.
+- Built through a temporary `subst` drive letter (the `&` in the project path); the
+  mapping was removed afterwards.
+- APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,431,205 bytes).
