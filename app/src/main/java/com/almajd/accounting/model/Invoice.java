@@ -1,5 +1,7 @@
 package com.almajd.accounting.model;
 
+import com.almajd.accounting.util.NumberUtils;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,7 +10,15 @@ public class Invoice {
     private long id;
     private String storeName;
     private String invoiceDate;
+
+    /** Stored net amount: the order subtotal after the order-level discount. */
     private double totalAmount;
+
+    /**
+     * Stored fixed discount amount for the whole order (never a percentage).
+     * The line-item subtotal is derived as {@code totalAmount + discount}.
+     */
+    private double discount;
 
     /**
      * Derived value -- NOT persisted. It is the <b>effective</b> paid amount:
@@ -91,6 +101,23 @@ public class Invoice {
 
     public void setTotalAmount(double totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public double getDiscount() {
+        return discount;
+    }
+
+    public void setDiscount(double discount) {
+        this.discount = discount;
+    }
+
+    /**
+     * Derived value -- NOT persisted: the sum of the line items before the
+     * order-level discount. {@code invoices.total_amount} remains the net amount,
+     * so this is simply {@code totalAmount + discount}.
+     */
+    public double getSubtotal() {
+        return NumberUtils.round2(totalAmount + discount);
     }
 
     public double getPaidAmount() {

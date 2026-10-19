@@ -75,6 +75,7 @@ public class InvoiceDao {
             headerValues.put(DatabaseHelper.COL_STORE_NAME, invoice.getStoreName());
             headerValues.put(DatabaseHelper.COL_INVOICE_DATE, invoice.getInvoiceDate());
             headerValues.put(DatabaseHelper.COL_TOTAL_AMOUNT, NumberUtils.round2(invoice.getTotalAmount()));
+            headerValues.put(DatabaseHelper.COL_DISCOUNT, NumberUtils.round2(invoice.getDiscount()));
             headerValues.put(DatabaseHelper.COL_NOTES, invoice.getNotes());
 
             invoiceId = db.insert(DatabaseHelper.TABLE_INVOICES, null, headerValues);
@@ -156,6 +157,7 @@ public class InvoiceDao {
             headerValues.put(DatabaseHelper.COL_STORE_NAME, invoice.getStoreName());
             headerValues.put(DatabaseHelper.COL_INVOICE_DATE, invoice.getInvoiceDate());
             headerValues.put(DatabaseHelper.COL_TOTAL_AMOUNT, NumberUtils.round2(invoice.getTotalAmount()));
+            headerValues.put(DatabaseHelper.COL_DISCOUNT, NumberUtils.round2(invoice.getDiscount()));
             headerValues.put(DatabaseHelper.COL_NOTES, invoice.getNotes());
 
             int rows = db.update(DatabaseHelper.TABLE_INVOICES, headerValues,
@@ -298,7 +300,7 @@ public class InvoiceDao {
 
     /**
      * All invoices of a store with just the fields the account statement needs
-     * (id, store, date, total, notes), oldest first.
+     * (id, store, date, net total, discount, notes), oldest first.
      * <p>
      * Deliberately reads the invoices table directly rather than the
      * {@code invoice_view}: the statement is about raw movements, so the
@@ -316,6 +318,7 @@ public class InvoiceDao {
                             DatabaseHelper.COL_STORE_NAME,
                             DatabaseHelper.COL_INVOICE_DATE,
                             DatabaseHelper.COL_TOTAL_AMOUNT,
+                            DatabaseHelper.COL_DISCOUNT,
                             DatabaseHelper.COL_NOTES
                     },
                     DatabaseHelper.COL_STORE_NAME + " = ?",
@@ -328,6 +331,7 @@ public class InvoiceDao {
                     invoice.setStoreName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_STORE_NAME)));
                     invoice.setInvoiceDate(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_INVOICE_DATE)));
                     invoice.setTotalAmount(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_TOTAL_AMOUNT)));
+                    invoice.setDiscount(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_DISCOUNT)));
                     invoice.setNotes(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_NOTES)));
                     invoices.add(invoice);
                 } while (cursor.moveToNext());
@@ -773,6 +777,7 @@ public class InvoiceDao {
         invoice.setStoreName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_STORE_NAME)));
         invoice.setInvoiceDate(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_INVOICE_DATE)));
         invoice.setTotalAmount(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_TOTAL_AMOUNT)));
+        invoice.setDiscount(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_DISCOUNT)));
         double paidDirect = cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.COL_PAID_AMOUNT));
         invoice.setPaidAmount(paidDirect);
         invoice.setPaidDirect(paidDirect);

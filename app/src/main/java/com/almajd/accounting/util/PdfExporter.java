@@ -239,6 +239,12 @@ public class PdfExporter {
         footerTable.setWidthPercentage(50);
         footerTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
 
+        addFooterRow(footerTable, context.getString(R.string.invoice_subtotal) + ":",
+                NumberUtils.formatCurrency(invoice.getSubtotal()), totalFont);
+        if (invoice.getDiscount() > 0) {
+            addFooterRow(footerTable, context.getString(R.string.discount) + ":",
+                    NumberUtils.formatCurrency(invoice.getDiscount()), totalFont);
+        }
         addFooterRow(footerTable, "\u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A:",
                 NumberUtils.formatCurrency(invoice.getTotalAmount()), totalFont);
         addFooterRow(footerTable, "\u0627\u0644\u0645\u062F\u0641\u0648\u0639:",
@@ -487,6 +493,11 @@ public class PdfExporter {
             String reference;
             if (row.kind == StatementBuilder.Kind.INVOICE) {
                 reference = context.getString(R.string.statement_invoice_ref, row.id);
+                if (row.discount > 0) {
+                    // Balance/debit stays net; the discount is only an annotation.
+                    reference = context.getString(R.string.statement_invoice_ref_with_discount,
+                            reference, NumberUtils.formatCurrency(row.discount));
+                }
             } else {
                 String link = row.linkedInvoiceId != null
                         ? context.getString(R.string.statement_payment_on_invoice, row.linkedInvoiceId)

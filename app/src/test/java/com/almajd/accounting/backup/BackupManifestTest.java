@@ -66,6 +66,31 @@ public class BackupManifestTest {
 
         manifest.schemaVersion = 2;
         manifest.validateForApp(3); // app upgraded: allowed, migration brings it up
+
+        manifest.schemaVersion = 3;
+        manifest.validateForApp(3); // current version
+    }
+
+    @Test
+    public void v2AndV3BackupsAreAcceptedAndV4IsRejected() {
+        assertTrue(BackupManifest.isSchemaSupported(2, 3));
+        assertTrue(BackupManifest.isSchemaSupported(3, 3));
+        assertFalse(BackupManifest.isSchemaSupported(4, 3));
+
+        BackupManifest manifest = sample();
+        try {
+            manifest.schemaVersion = 2;
+            manifest.validateForApp(3);
+            manifest.schemaVersion = 3;
+            manifest.validateForApp(3);
+        } catch (BackupException e) {
+            throw new AssertionError("v2/v3 backups must restore on schema v3", e);
+        }
+
+        manifest.schemaVersion = 4;
+        BackupException e = assertThrows(BackupException.class,
+                () -> manifest.validateForApp(3));
+        assertEquals(BackupException.Kind.NEWER_VERSION, e.getKind());
     }
 
     @Test

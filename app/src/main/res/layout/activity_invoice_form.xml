@@ -183,6 +183,42 @@
                 android:textColor="@color/primaryColor"
                 app:strokeColor="@color/primaryColor" />
 
+            <!-- Notes Card: internal only (never printed or exported) -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/card_padding">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_notes"
+                        style="@style/AppTextInputStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/notes_optional_hint">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_notes"
+                            style="@style/InputEditText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="top|start"
+                            android:inputType="textMultiLine|textCapSentences"
+                            android:maxLength="500"
+                            android:minLines="3" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Footer Card: Totals -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/CardStyle"
@@ -196,7 +232,99 @@
                     android:orientation="vertical"
                     android:padding="@dimen/card_padding">
 
-                    <!-- Total Row -->
+                    <!-- Subtotal Row (before discount) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/invoice_subtotal"
+                            android:textColor="@color/textPrimary"
+                            android:textSize="@dimen/text_size_body" />
+
+                        <TextView
+                            android:id="@+id/tv_subtotal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="@color/textPrimary"
+                            android:textSize="@dimen/text_size_body"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <!-- Optional fixed discount -->
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/cb_discount"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/add_discount"
+                        android:textColor="@color/textPrimary"
+                        android:textSize="@dimen/text_size_body" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_discount"
+                        style="@style/AppTextInputStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/discount_hint"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_discount"
+                            style="@style/InputEditText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:hint="0"
+                            android:inputType="numberDecimal"
+                            android:textSize="@dimen/text_size_body" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Discount summary Row (shown only when a discount is active) -->
+                    <LinearLayout
+                        android:id="@+id/row_discount_summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/discount"
+                            android:textColor="@color/textSecondary"
+                            android:textSize="@dimen/text_size_body" />
+
+                        <TextView
+                            android:id="@+id/tv_discount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="@color/red"
+                            android:textSize="@dimen/text_size_body"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp"
+                        android:background="@color/divider" />
+
+                    <!-- Net Total Row (after discount) -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -248,6 +376,34 @@
                             android:hint="0"
                             android:inputType="numberDecimal"
                             android:textSize="@dimen/text_size_body" />
+
+                    </LinearLayout>
+
+                    <!-- Read-only paid summary (edit mode; paid is derived) -->
+                    <LinearLayout
+                        android:id="@+id/row_paid_summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/paid"
+                            android:textColor="@color/textSecondary"
+                            android:textSize="@dimen/text_size_body" />
+
+                        <TextView
+                            android:id="@+id/tv_paid_summary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/green"
+                            android:textSize="@dimen/text_size_body"
+                            android:textStyle="bold" />
 
                     </LinearLayout>
 

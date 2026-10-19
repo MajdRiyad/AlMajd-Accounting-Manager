@@ -14,6 +14,13 @@
     <string name="delete">حذف</string>
     <string name="edit">تعديل</string>
     <string name="total">الإجمالي</string>
+    <string name="invoice_subtotal">المجموع قبل الخصم</string>
+    <string name="discount">الخصم</string>
+    <string name="add_discount">إضافة خصم</string>
+    <string name="discount_hint">قيمة الخصم</string>
+    <string name="discount_invalid">قيمة الخصم يجب أن تكون بين 0 والمجموع قبل الخصم</string>
+    <string name="invoice_notes">ملاحظات الطلبية</string>
+    <string name="notes_optional_hint">ملاحظات (اختياري)</string>
     <string name="paid">المدفوع</string>
     <string name="remaining">المتبقي</string>
     <string name="balance">الرصيد</string>
@@ -188,6 +195,7 @@
     <string name="statement_type_invoice">طلبية</string>
     <string name="statement_type_payment">دفعة</string>
     <string name="statement_invoice_ref">#%1$d</string>
+    <string name="statement_invoice_ref_with_discount">%1$s (بعد خصم %2$s)</string>
     <string name="statement_payment_on_invoice">على طلبية #%1$d</string>
     <string name="statement_payment_on_account">على الحساب</string>
     <string name="statement_reference_with_note">%1$s — %2$s</string>

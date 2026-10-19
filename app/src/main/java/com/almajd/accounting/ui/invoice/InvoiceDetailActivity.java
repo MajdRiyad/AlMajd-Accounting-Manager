@@ -73,9 +73,14 @@ public class InvoiceDetailActivity extends BaseActivity {
     private TextView tvStoreName;
     private TextView tvDate;
     private TableLayout tableItems;
+    private TextView tvSubtotal;
+    private View rowDiscount;
+    private TextView tvDiscount;
     private TextView tvTotal;
     private TextView tvPaid;
     private TextView tvRemaining;
+    private View cardNotes;
+    private TextView tvNotes;
     private LinearLayout llInvoicePayments;
     private TextView tvNoInvoicePayments;
     private Button btnAddPayment;
@@ -118,9 +123,14 @@ public class InvoiceDetailActivity extends BaseActivity {
         tvStoreName = findViewById(R.id.tv_store_name);
         tvDate = findViewById(R.id.tv_date);
         tableItems = findViewById(R.id.table_items);
+        tvSubtotal = findViewById(R.id.tv_subtotal);
+        rowDiscount = findViewById(R.id.row_discount);
+        tvDiscount = findViewById(R.id.tv_discount);
         tvTotal = findViewById(R.id.tv_total);
         tvPaid = findViewById(R.id.tv_paid);
         tvRemaining = findViewById(R.id.tv_remaining);
+        cardNotes = findViewById(R.id.card_notes);
+        tvNotes = findViewById(R.id.tv_notes);
         llInvoicePayments = findViewById(R.id.ll_invoice_payments);
         tvNoInvoicePayments = findViewById(R.id.tv_no_invoice_payments);
         btnAddPayment = findViewById(R.id.btn_add_payment);
@@ -170,6 +180,7 @@ public class InvoiceDetailActivity extends BaseActivity {
                 displayInvoiceInfo();
                 displayItemsTable();
                 displayFooter();
+                displayNotes();
                 displayPayments(payments);
             });
         });
@@ -371,9 +382,17 @@ public class InvoiceDetailActivity extends BaseActivity {
     }
 
     /**
-     * Displays the footer totals: total, paid, and remaining amounts.
+     * Displays the footer totals: subtotal, optional discount, net total, paid
+     * and remaining amounts. {@code total_amount} is already the net amount.
      */
     private void displayFooter() {
+        tvSubtotal.setText(NumberUtils.formatCurrency(invoice.getSubtotal()));
+        if (invoice.getDiscount() > 0) {
+            rowDiscount.setVisibility(View.VISIBLE);
+            tvDiscount.setText(NumberUtils.formatCurrency(invoice.getDiscount()));
+        } else {
+            rowDiscount.setVisibility(View.GONE);
+        }
         tvTotal.setText(NumberUtils.formatCurrency(invoice.getTotalAmount()));
         tvPaid.setText(NumberUtils.formatCurrency(invoice.getPaidAmount()));
         tvRemaining.setText(NumberUtils.formatCurrency(invoice.getRemaining()));
@@ -383,6 +402,21 @@ public class InvoiceDetailActivity extends BaseActivity {
             tvRemaining.setTextColor(ContextCompat.getColor(this, R.color.red));
         } else {
             tvRemaining.setTextColor(ContextCompat.getColor(this, R.color.green));
+        }
+    }
+
+    /**
+     * Shows the internal order notes only when they are non-empty. Notes are
+     * never included in PDFs or statements.
+     */
+    private void displayNotes() {
+        String notes = invoice != null ? invoice.getNotes() : null;
+        if (notes != null && !notes.trim().isEmpty()) {
+            cardNotes.setVisibility(View.VISIBLE);
+            tvNotes.setText(notes.trim());
+        } else {
+            cardNotes.setVisibility(View.GONE);
+            tvNotes.setText("");
         }
     }
 

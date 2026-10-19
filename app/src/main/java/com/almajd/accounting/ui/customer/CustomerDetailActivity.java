@@ -423,7 +423,8 @@ public class CustomerDetailActivity extends BaseActivity {
                 if (invoices != null) {
                     for (Invoice invoice : invoices) {
                         invoiceMovements.add(new StatementBuilder.InvoiceMovement(
-                                invoice.getId(), invoice.getInvoiceDate(), invoice.getTotalAmount()));
+                                invoice.getId(), invoice.getInvoiceDate(),
+                                invoice.getTotalAmount(), invoice.getDiscount()));
                     }
                 }
                 List<StatementBuilder.PaymentMovement> paymentMovements = new ArrayList<>();

@@ -225,6 +225,29 @@ public class StatementBuilderTest {
         assertNull(s.rows.get(1).note);
     }
 
+    // ── Discount annotation ──────────────────────────────────────────────
+
+    @Test
+    public void invoiceDiscount_isCarriedOnTheRowWithoutChangingDebitOrBalance() {
+        StatementBuilder.Statement s = StatementBuilder.build(
+                Arrays.asList(new StatementBuilder.InvoiceMovement(
+                                7, "2026-01-01", 85.0, 15.0)),
+                Collections.singletonList(pay(1, "2026-01-02", 35, 7L, null)),
+                null, null);
+
+        assertEquals(2, s.rows.size());
+        StatementBuilder.Row invoiceRow = s.rows.get(0);
+        assertEquals(StatementBuilder.Kind.INVOICE, invoiceRow.kind);
+        assertEquals(15.0, invoiceRow.discount, DELTA);
+        // The debit and the running balance stay on the NET invoice amount.
+        assertEquals(85.0, invoiceRow.debit, DELTA);
+        assertEquals(85.0, invoiceRow.runningBalance, DELTA);
+        assertEquals(0.0, s.rows.get(1).discount, DELTA);
+        assertEquals(85.0, s.totalDebit, DELTA);
+        assertEquals(35.0, s.totalCredit, DELTA);
+        assertEquals(50.0, s.closingBalance, DELTA);
+    }
+
     // ── File name sanitizing ─────────────────────────────────────────────
 
     @Test

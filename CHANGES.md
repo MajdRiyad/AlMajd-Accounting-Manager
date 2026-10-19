@@ -1444,3 +1444,121 @@ Grammar: فاتورة and طلبية are both feminine, so forms such as "تم �
   mapping was removed afterwards.
 - APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
   (7,431,205 bytes).
+
+---
+
+# Order discount + internal order notes (schema v3)
+
+Branch: `feature/order-discount` (from `Dev-0`, which contains the previous
+`fix/ui-polish-2` work at `18c97f2`). One fixed currency discount per order and
+an internal notes field on the order form/detail. `invoices.total_amount` remains
+the **net** amount after discount; no accounting, credit-allocation or statement
+balance math was changed.
+
+## 1. Schema v3 (`DatabaseHelper`)
+- `SCHEMA_VERSION` is now `3`.
+- `invoices` gains `discount REAL NOT NULL DEFAULT 0` in `onCreate` and through
+  the new `MIGRATIONS[2]` step (`ALTER TABLE ...`), followed by
+  `recreateViews(db)`.
+- `invoice_view` exposes `inv.discount` (after `total_amount`). The view is
+  recreated by the migration and by `onCreate`, never by dropping table data.
+- Existing rows keep `discount = 0`, so their stored total/subtotal semantics do
+  not change.
+
+## 2. Backup compatibility
+- `BackupManifest.MIN_SUPPORTED_SCHEMA_VERSION` stays `2`; validation was not
+  weakened.
+- A v2 or v3 manifest is accepted by the v3 app; a v4 manifest is rejected as
+  `NEWER_VERSION`. Restoring a v2 database runs the normal 2 → 3 migration when
+  the restored file is opened.
+- `BackupManifestTest` now covers v2/v3 accepted and v4 rejected.
+
+## 3. Model / DAO
+- `Invoice.discount` (default `0`) and derived
+  `getSubtotal() = round2(totalAmount + discount)`.
+- `InvoiceDao` reads/writes `discount` and reuses the existing nullable
+  `invoices.notes` column for internal notes. `getStatementMovements` also reads
+  `discount`; it already read `notes` but never sent invoice notes to a statement.
+- `total_amount` remains net. No repayment/credit logic reads the discount.
+
+## 4. Order form (`InvoiceFormActivity` + layout)
+- New "إضافة خصم" checkbox, a hidden outlined discount amount field, and a
+  subtotal / discount / net / paid / remaining summary with live recalculation.
+- Validation: `0 <= discount <= subtotal`; an invalid discount shows an error on
+  the discount input and Save is blocked. Net is `round2(subtotal - discount)`.
+- The overpayment check compares "paid now" against the **net** total; the
+  existing confirmation dialog and linked + on-account split are unchanged.
+- Edit mode loads `discount` and `notes`; the checkbox is checked when
+  `discount > 0`; the paid-now input remains hidden and a read-only paid summary
+  is shown instead.
+- New multi-line notes field with hint "ملاحظات (اختياري)", max 500 characters,
+  stored in `invoices.notes`, never printed/exported.
+- Rotation saves/restores the checkbox, discount text and notes in both create
+  and edit mode; double-tap Save protection and `NumberUtils.parseAmount` are
+  preserved, and all amounts stay ASCII.
+
+## 5. Display / PDF / statement
+- **Order detail:** shows subtotal, discount only when `> 0`, net, paid and
+  remaining; an internal notes card appears only when notes are non-empty.
+- **Order PDF:** footer shows subtotal, discount only when `> 0`, net, paid and
+  remaining in RTL-safe cells; the existing customer-credit line is untouched.
+  Notes are not included.
+- **Statement:** debit remains the net `total_amount`. When `discount > 0`, the
+  reference is `#N (بعد خصم X)`; `StatementBuilder` carries the discount through
+  `InvoiceMovement` → `Row` without using it in balance math. Notes are not
+  included.
+- **Sales reports / Excel / CSV:** totals remain net; no new columns and no
+  notes, so report output is unchanged.
+
+## 6. Strings
+- New Arabic resources: `invoice_subtotal`, `discount`, `add_discount`,
+  `discount_hint`, `discount_invalid`, `invoice_notes`, `notes_optional_hint`,
+  `statement_invoice_ref_with_discount`. All user-facing text uses "طلبية", not
+  "فاتورة".
+
+## 7. Tests
+- New Android-free `util/InvoiceTotals.java` and `InvoiceTotalsTest` (6 tests):
+  no discount; discount equal to subtotal; discount greater than subtotal;
+  negative discount; two-decimal rounding (`0.1 + 0.2`); paid-now greater than
+  net (remaining never negative).
+- `StatementBuilderTest` adds a discount-row test proving the debit/balance stay
+  net while the discount is carried for the reference annotation.
+- `BackupManifestTest` adds the v2/v3 accepted + v4 rejected matrix.
+- `./gradlew testDebugUnitTest assembleDebug` → BUILD SUCCESSFUL, **105/105
+  tests pass** (97 prior + 8 new).
+
+## Files touched
+Added:
+- `app/src/main/java/com/almajd/accounting/util/InvoiceTotals.java`
+- `app/src/test/java/com/almajd/accounting/util/InvoiceTotalsTest.java`
+
+Modified:
+- `app/src/main/java/com/almajd/accounting/db/DatabaseHelper.java`
+- `app/src/main/java/com/almajd/accounting/db/InvoiceDao.java`
+- `app/src/main/java/com/almajd/accounting/model/Invoice.java`
+- `app/src/main/java/com/almajd/accounting/ui/invoice/InvoiceFormActivity.java`
+- `app/src/main/java/com/almajd/accounting/ui/invoice/InvoiceDetailActivity.java`
+- `app/src/main/java/com/almajd/accounting/ui/customer/CustomerDetailActivity.java`
+- `app/src/main/java/com/almajd/accounting/util/PdfExporter.java`
+- `app/src/main/java/com/almajd/accounting/util/StatementBuilder.java`
+- `app/src/main/res/layout/activity_invoice_form.xml`
+- `app/src/main/res/layout/activity_invoice_detail.xml`
+- `app/src/main/res/values/strings.xml`
+- `app/src/test/java/com/almajd/accounting/util/StatementBuilderTest.java`
+- `app/src/test/java/com/almajd/accounting/backup/BackupManifestTest.java`
+
+## Deliberately not done
+- No percentage discounts, no per-line discounts, no discount in sales reports or
+  exports, and no invoice notes in any PDF/statement/report/export.
+- No changes to payment allocation, customer credit, ledger balances, report
+  totals or the existing split-payment behavior.
+- The discount is stored as a `double` like every other amount; no currency type
+  was introduced.
+
+## Build
+- `./gradlew testDebugUnitTest assembleDebug --console=plain` →
+  BUILD SUCCESSFUL.
+- Built via a temporary `subst` drive letter (the `&` in the project path);
+  the mapping was removed afterwards.
+- APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,443,882 bytes), built 2026-10-19.

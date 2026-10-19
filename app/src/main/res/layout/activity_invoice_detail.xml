@@ -305,10 +305,64 @@
                     android:orientation="vertical"
                     android:padding="@dimen/card_padding">
 
-                    <!-- Total -->
+                    <!-- Subtotal (before discount) -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/invoice_subtotal"
+                            android:textColor="@color/textPrimary"
+                            android:textSize="@dimen/text_size_body" />
+
+                        <TextView
+                            android:id="@+id/tv_subtotal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:maxLines="1"
+                            android:textColor="@color/textPrimary"
+                            android:textSize="@dimen/text_size_body"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <!-- Discount (only shown when > 0) -->
+                    <LinearLayout
+                        android:id="@+id/row_discount"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/discount"
+                            android:textColor="@color/textSecondary"
+                            android:textSize="@dimen/text_size_body" />
+
+                        <TextView
+                            android:id="@+id/tv_discount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:maxLines="1"
+                            android:textColor="@color/red"
+                            android:textSize="@dimen/text_size_body"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <!-- Net total (after discount) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
                         android:orientation="horizontal">
 
                         <TextView
@@ -387,6 +441,42 @@
                             android:textStyle="bold" />
 
                     </LinearLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Internal notes (shown only when non-empty; never printed) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_notes"
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@color/lightGray"
+                        android:padding="@dimen/card_padding"
+                        android:text="@string/invoice_notes"
+                        android:textColor="@color/textPrimary"
+                        android:textSize="@dimen/text_size_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_notes"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="@dimen/card_padding"
+                        android:textColor="@color/textPrimary"
+                        android:textSize="@dimen/text_size_body" />
 
                 </LinearLayout>
 

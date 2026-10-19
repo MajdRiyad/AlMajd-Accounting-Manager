@@ -15,17 +15,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      * Current schema version: the single source of truth. It is passed to
      * SQLiteOpenHelper and recorded in backup manifests.
      * <p>
-     * <b>To add a new migration (for example version 3):</b>
+     * <b>To add a new migration (for example version 4):</b>
      * <ol>
-     *   <li>bump {@link #SCHEMA_VERSION} to 3;</li>
-     *   <li>add a step at index 2 of {@link #MIGRATIONS} that upgrades 2 &rarr; 3
+     *   <li>bump {@link #SCHEMA_VERSION} to 4;</li>
+     *   <li>add a step at index 3 of {@link #MIGRATIONS} that upgrades 3 &rarr; 4
      *       using only ALTER/CREATE/INSERT statements (never drop table data).</li>
      * </ol>
      * {@code MIGRATIONS.get(v)} must upgrade schema version {@code v} to
      * {@code v + 1}. Steps are run in order, inside the transaction that
      * SQLiteOpenHelper already wraps around onUpgrade().
      */
-    public static final int SCHEMA_VERSION = 2;
+    public static final int SCHEMA_VERSION = 3;
 
     private static DatabaseHelper instance;
 
@@ -48,6 +48,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COL_ID = "id";
     public static final String COL_INVOICE_DATE = "invoice_date";
     public static final String COL_TOTAL_AMOUNT = "total_amount";
+    public static final String COL_DISCOUNT = "discount";
     public static final String COL_PAID_AMOUNT = "paid_amount";
     public static final String COL_REMAINING = "remaining";
     public static final String COL_NOTES = "notes";
@@ -91,6 +92,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     COL_STORE_NAME + " TEXT NOT NULL, " +
                     COL_INVOICE_DATE + " TEXT NOT NULL, " +
                     COL_TOTAL_AMOUNT + " REAL DEFAULT 0, " +
+                    COL_DISCOUNT + " REAL NOT NULL DEFAULT 0, " +
                     COL_NOTES + " TEXT, " +
                     COL_CREATED_AT + " TEXT DEFAULT CURRENT_TIMESTAMP, " +
                     "FOREIGN KEY (" + COL_STORE_NAME + ") REFERENCES " +
@@ -155,6 +157,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     "inv." + COL_STORE_NAME + ", " +
                     "inv." + COL_INVOICE_DATE + ", " +
                     "inv." + COL_TOTAL_AMOUNT + ", " +
+                    "inv." + COL_DISCOUNT + ", " +
                     "COALESCE(paid.total, 0) AS " + COL_PAID_AMOUNT + ", " +
                     "MAX(inv." + COL_TOTAL_AMOUNT + " - COALESCE(paid.total, 0), 0) AS " + COL_REMAINING + ", " +
                     "CASE " +
@@ -181,9 +184,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      * {@code v} to {@code v + 1}.
      * <p>
      * Indices 0 and 1 are unused: version 1 is the legacy development schema and
-     * is handled by the one-time destructive branch in {@link #onUpgrade}. The
-     * next schema change adds a step at index 2 (2 &rarr; 3); see
-     * {@link #SCHEMA_VERSION} for the full recipe.
+     * is handled by the one-time destructive branch in {@link #onUpgrade}.
+     * Index 2 upgrades 2 &rarr; 3 (order discount); see {@link #SCHEMA_VERSION}
+     * for the full recipe.
      */
     private static final List<Migration> MIGRATIONS = buildMigrations();
 
@@ -191,11 +194,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         List<Migration> migrations = new ArrayList<>();
         migrations.add(null); // 0 -> 1 (never used)
         migrations.add(null); // 1 -> 2 (legacy schema, handled destructively)
-        // Example for the next version:
-        // migrations.add(db -> {
-        //     db.execSQL("ALTER TABLE " + TABLE_CUSTOMERS + " ADD COLUMN note TEXT");
-        //     recreateViews(db);   // whenever a view's definition changes
-        // });
+        migrations.add(db -> {
+            // 2 -> 3: one fixed order-level discount amount. Existing rows are
+            // untouched and get the safe default of no discount.
+            db.execSQL("ALTER TABLE " + TABLE_INVOICES
+                    + " ADD COLUMN " + COL_DISCOUNT + " REAL NOT NULL DEFAULT 0");
+            recreateViews(db); // invoice_view now exposes discount
+        });
         return migrations;
     }
 

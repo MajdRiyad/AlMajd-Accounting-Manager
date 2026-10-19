@@ -20,6 +20,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.textfield.TextInputLayout;
 import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.db.InvoiceDao;
@@ -28,6 +30,7 @@ import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.InvoiceItem;
 import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.DateUtils;
+import com.almajd.accounting.util.InvoiceTotals;
 import com.almajd.accounting.util.NumberUtils;
 import com.almajd.accounting.util.PdfExporter;
 import com.almajd.accounting.util.ShareHelper;
@@ -66,6 +69,9 @@ public class InvoiceFormActivity extends BaseActivity
     private static final String STATE_ITEM_PRICES = "state_item_prices";
     private static final String STATE_ITEM_SUBTOTALS = "state_item_subtotals";
     private static final String STATE_STORE_NAME = "state_store_name";
+    private static final String STATE_DISCOUNT_ENABLED = "state_discount_enabled";
+    private static final String STATE_DISCOUNT_TEXT = "state_discount_text";
+    private static final String STATE_NOTES = "state_notes";
 
     /**
      * Id of the invoice saved before a configuration change. Persisted so that
@@ -77,8 +83,17 @@ public class InvoiceFormActivity extends BaseActivity
     private Spinner spinnerStore;
     private EditText etDate;
     private EditText etPaid;
+    private EditText etDiscount;
+    private EditText etNotes;
+    private MaterialCheckBox cbDiscount;
+    private TextInputLayout tilDiscount;
     private View rowPaidNow;
+    private View rowPaidSummary;
+    private View rowDiscountSummary;
+    private TextView tvSubtotal;
+    private TextView tvDiscount;
     private TextView tvTotal;
+    private TextView tvPaidSummary;
     private TextView tvRemaining;
     private RecyclerView rvInvoiceItems;
     private NestedScrollView nsvForm;
@@ -92,8 +107,8 @@ public class InvoiceFormActivity extends BaseActivity
     /** Store names list backing the spinner adapter. */
     private List<String> storeNames;
 
-    /** Current grand total calculated from line items. */
-    private double currentTotal = 0.0;
+    /** Current subtotal (before discount) calculated from line items. */
+    private double currentSubtotal = 0.0;
 
     /** Derived paid amount of the invoice being edited (edit mode only). */
     private double existingPaid = 0.0;
@@ -116,6 +131,12 @@ public class InvoiceFormActivity extends BaseActivity
 
     /** Store name captured in saved instance state (rotation); may be null. */
     private String restoredStoreName;
+
+    /** Discount/notes captured on rotation, restored after the invoice loads too. */
+    private boolean restoredFormMeta;
+    private boolean restoredDiscountEnabled;
+    private String restoredDiscountText;
+    private String restoredNotes;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -147,8 +168,17 @@ public class InvoiceFormActivity extends BaseActivity
         spinnerStore = findViewById(R.id.spinner_store);
         etDate = findViewById(R.id.et_date);
         etPaid = findViewById(R.id.et_paid);
+        etDiscount = findViewById(R.id.et_discount);
+        etNotes = findViewById(R.id.et_notes);
+        cbDiscount = findViewById(R.id.cb_discount);
+        tilDiscount = findViewById(R.id.til_discount);
         rowPaidNow = findViewById(R.id.row_paid_now);
+        rowPaidSummary = findViewById(R.id.row_paid_summary);
+        rowDiscountSummary = findViewById(R.id.row_discount_summary);
+        tvSubtotal = findViewById(R.id.tv_subtotal);
+        tvDiscount = findViewById(R.id.tv_discount);
         tvTotal = findViewById(R.id.tv_total);
+        tvPaidSummary = findViewById(R.id.tv_paid_summary);
         tvRemaining = findViewById(R.id.tv_remaining);
         rvInvoiceItems = findViewById(R.id.rv_invoice_items);
         nsvForm = findViewById(R.id.nsv_form);
@@ -209,6 +239,55 @@ public class InvoiceFormActivity extends BaseActivity
             }
         });
 
+        // --- Optional fixed discount: checkbox reveals the amount field ---
+        cbDiscount.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            updateDiscountVisibility(isChecked);
+            if (!isChecked) {
+                etDiscount.setText("");
+                tilDiscount.setError(null);
+            }
+            recalculateRemaining();
+        });
+        etDiscount.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) { }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                tilDiscount.setError(null);
+                recalculateRemaining();
+            }
+        });
+
+        // Capture any in-progress discount/notes saved before rotation or process
+        // death. Create mode applies them immediately; edit mode applies them
+        // after the invoice has loaded (see bindExistingInvoice), so unsaved
+        // edits are not lost.
+        if (savedInstanceState != null
+                && savedInstanceState.containsKey(STATE_DISCOUNT_ENABLED)) {
+            restoredFormMeta = true;
+            restoredDiscountEnabled =
+                    savedInstanceState.getBoolean(STATE_DISCOUNT_ENABLED, false);
+            restoredDiscountText =
+                    savedInstanceState.getString(STATE_DISCOUNT_TEXT, "");
+            restoredNotes = savedInstanceState.getString(STATE_NOTES, "");
+        }
+        if (!editMode) {
+            if (restoredFormMeta) {
+                etNotes.setText(restoredNotes);
+                etDiscount.setText(restoredDiscountText);
+                cbDiscount.setChecked(restoredDiscountEnabled);
+                updateDiscountVisibility(restoredDiscountEnabled);
+            } else {
+                updateDiscountVisibility(false);
+            }
+        } else {
+            updateDiscountVisibility(false);
+        }
+
         // --- Add item button ---
         btnAddItem.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -230,6 +309,8 @@ public class InvoiceFormActivity extends BaseActivity
         });
 
         // Initialize totals display
+        tvSubtotal.setText(NumberUtils.formatCurrency(0));
+        tvDiscount.setText(NumberUtils.formatCurrency(0));
         tvTotal.setText(NumberUtils.formatCurrency(0));
         tvRemaining.setText(NumberUtils.formatCurrency(0));
 
@@ -370,6 +451,27 @@ public class InvoiceFormActivity extends BaseActivity
         if (rowPaidNow != null) {
             rowPaidNow.setVisibility(View.GONE);
         }
+        rowPaidSummary.setVisibility(View.VISIBLE);
+        tvPaidSummary.setText(NumberUtils.formatCurrency(existingPaid));
+
+        // Discount and internal notes are loaded in edit mode. If the activity is
+        // recreated after rotation, unsaved changes captured in saved state win.
+        // Setting the text before checking the box keeps the listener from
+        // clearing it.
+        double existingDiscount = invoice.getDiscount();
+        boolean discountEnabled = existingDiscount > 0;
+        String discountText = existingDiscount > 0
+                ? NumberUtils.formatAmount(existingDiscount) : "";
+        if (restoredFormMeta) {
+            discountEnabled = restoredDiscountEnabled;
+            discountText = restoredDiscountText != null ? restoredDiscountText : "";
+        }
+        etDiscount.setText(discountText);
+        cbDiscount.setChecked(discountEnabled);
+        updateDiscountVisibility(discountEnabled);
+        etNotes.setText(restoredFormMeta
+                ? (restoredNotes != null ? restoredNotes : "")
+                : (invoice.getNotes() != null ? invoice.getNotes() : ""));
 
         // Line items
         List<InvoiceItem> existingItems = invoice.getItems();
@@ -382,9 +484,10 @@ public class InvoiceFormActivity extends BaseActivity
             itemAdapter.addItem();
         }
 
-        // Update totals from the loaded invoice
-        currentTotal = invoice.getTotalAmount();
-        tvTotal.setText(NumberUtils.formatCurrency(currentTotal));
+        // Update totals from the loaded invoice. total_amount is the net amount,
+        // so the displayed subtotal is derived as net + discount.
+        currentSubtotal = invoice.getSubtotal();
+        tvSubtotal.setText(NumberUtils.formatCurrency(currentSubtotal));
         recalculateRemaining();
     }
 
@@ -392,9 +495,24 @@ public class InvoiceFormActivity extends BaseActivity
 
     @Override
     public void onTotalsChanged(double newTotal) {
-        currentTotal = newTotal;
-        tvTotal.setText(NumberUtils.formatCurrency(currentTotal));
+        currentSubtotal = newTotal;
+        tvSubtotal.setText(NumberUtils.formatCurrency(currentSubtotal));
         recalculateRemaining();
+    }
+
+    /** Shows or hides the discount input and its summary row. */
+    private void updateDiscountVisibility(boolean visible) {
+        tilDiscount.setVisibility(visible ? View.VISIBLE : View.GONE);
+        rowDiscountSummary.setVisibility(visible ? View.VISIBLE : View.GONE);
+    }
+
+    /** @return the entered fixed discount (0 when the checkbox is off). */
+    private double getEnteredDiscount() {
+        if (cbDiscount == null || !cbDiscount.isChecked()) {
+            return 0.0;
+        }
+        return NumberUtils.round2(NumberUtils.parseAmount(
+                etDiscount.getText() != null ? etDiscount.getText().toString() : ""));
     }
 
     /**
@@ -416,11 +534,15 @@ public class InvoiceFormActivity extends BaseActivity
             } catch (Exception ignored) { }
         }
 
-        double remaining = NumberUtils.round2(currentTotal - paid);
-        if (remaining < 0) {
-            remaining = 0;
+        double discount = getEnteredDiscount();
+        InvoiceTotals totals = InvoiceTotals.calculate(currentSubtotal, discount, paid);
+        tvSubtotal.setText(NumberUtils.formatCurrency(totals.subtotal));
+        tvDiscount.setText(NumberUtils.formatCurrency(totals.discount));
+        tvTotal.setText(NumberUtils.formatCurrency(totals.netTotal));
+        if (editMode) {
+            tvPaidSummary.setText(NumberUtils.formatCurrency(totals.paid));
         }
-        tvRemaining.setText(NumberUtils.formatCurrency(remaining));
+        tvRemaining.setText(NumberUtils.formatCurrency(totals.remaining));
     }
 
     /**
@@ -458,16 +580,27 @@ public class InvoiceFormActivity extends BaseActivity
             return;
         }
 
-        // 4. Calculate totals (rounded to 2 decimals)
-        double total = 0.0;
+        // 4. Calculate the line-item subtotal (rounded to 2 decimals)
+        double subtotal = 0.0;
         for (InvoiceItem item : validItems) {
             double sub = NumberUtils.round2(item.getQuantity() * item.getUnitPrice());
             item.setSubtotal(sub);
-            total += sub;
+            subtotal += sub;
         }
-        total = NumberUtils.round2(total);
+        subtotal = NumberUtils.round2(subtotal);
 
-        // 5. "Paid now" applies on create only. On edit the form must not touch
+        // 5. Validate the optional fixed discount: 0 <= discount <= subtotal.
+        double discount = getEnteredDiscount();
+        if (!InvoiceTotals.isValidDiscount(subtotal, discount)) {
+            tilDiscount.setError(getString(R.string.discount_invalid));
+            etDiscount.requestFocus();
+            return;
+        }
+        tilDiscount.setError(null);
+        final InvoiceTotals totals = InvoiceTotals.calculate(subtotal, discount, 0);
+        final double netTotal = totals.netTotal;
+
+        // 6. "Paid now" applies on create only. On edit the form must not touch
         // existing payments, and paid/remaining are derived from them.
         double paidNow = 0.0;
         if (!editMode) {
@@ -482,25 +615,30 @@ public class InvoiceFormActivity extends BaseActivity
             }
         }
 
-        // 6. Build the Invoice object (paid/remaining are derived, not persisted)
+        // 7. Build the Invoice object (paid/remaining are derived, not persisted).
+        // total_amount is always the NET amount after the discount.
+        String notes = etNotes.getText() != null
+                ? etNotes.getText().toString().trim() : "";
         Invoice invoice = new Invoice();
         invoice.setStoreName(storeName);
         invoice.setInvoiceDate(date);
-        invoice.setTotalAmount(total);
+        invoice.setTotalAmount(netTotal);
+        invoice.setDiscount(totals.discount);
+        invoice.setNotes(notes.isEmpty() ? null : notes);
         invoice.setItems(validItems);
 
-        // 7. Save on the background thread. The save button is disabled first so
+        // 8. Save on the background thread. The save button is disabled first so
         // a second tap while the write is in flight cannot insert a duplicate.
         final boolean isEdit = editMode;
         if (isEdit) {
             invoice.setId(editInvoiceId);
         }
 
-        // On create, a "paid now" larger than the invoice total is never applied
-        // silently: ask first, then split the amount (invoice total linked to the
-        // invoice + excess on account) in the same transaction as the insert.
-        if (!isEdit && paidNow > total + 0.0001) {
-            showPaidNowOverpaymentDialog(invoice, total, paidNow);
+        // On create, a "paid now" larger than the NET invoice total is never
+        // applied silently: ask first, then split the amount (net total linked to
+        // the invoice + excess on account) in the same transaction as the insert.
+        if (!isEdit && paidNow > netTotal + 0.0001) {
+            showPaidNowOverpaymentDialog(invoice, netTotal, paidNow);
             return;
         }
 
@@ -509,10 +647,10 @@ public class InvoiceFormActivity extends BaseActivity
 
     /**
      * Confirmation dialog shown when "paid now" on CREATE is greater than the
-     * invoice total. Confirming records the invoice total as a payment linked to
-     * the invoice and the excess as a separate on-account payment (both in the
-     * same transaction as the invoice insert). Cancelling saves nothing and
-     * leaves the form open with Save re-enabled.
+     * net invoice total (after discount). Confirming records the net total as a
+     * payment linked to the invoice and the excess as a separate on-account
+     * payment (both in the same transaction as the invoice insert). Cancelling
+     * saves nothing and leaves the form open with Save re-enabled.
      */
     private void showPaidNowOverpaymentDialog(final Invoice invoice, final double total,
                                               final double paidNow) {
@@ -549,7 +687,7 @@ public class InvoiceFormActivity extends BaseActivity
      * the main thread. The save button is disabled for the whole write so a
      * second tap cannot insert a duplicate. {@code linkedPaid} is recorded as a
      * payment linked to the invoice; {@code onAccountPaid} (the excess of
-     * "paid now" over the total) as a separate on-account payment.
+     * "paid now" over the net total) as a separate on-account payment.
      * <p>
      * In create mode a successful save also generates the invoice PDF and opens
      * the system share sheet (see {@link #generateAndShare}). Edit mode keeps its
@@ -682,13 +820,26 @@ public class InvoiceFormActivity extends BaseActivity
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        // Edit mode reloads from the database, so only create mode saves state.
-        if (editMode) {
-            return;
-        }
         // Remember a completed save so rotation during PDF generation / share
         // cannot re-enable Save and create a duplicate.
         outState.putLong(STATE_SAVED_INVOICE_ID, savedInvoiceId);
+
+        // Keep the discount and internal notes when the device rotates, in both
+        // create and edit mode. Edit mode reloads the line items from the
+        // database, but unsaved discount/notes edits must not be lost.
+        outState.putBoolean(STATE_DISCOUNT_ENABLED,
+                cbDiscount != null && cbDiscount.isChecked());
+        outState.putString(STATE_DISCOUNT_TEXT,
+                etDiscount != null && etDiscount.getText() != null
+                        ? etDiscount.getText().toString() : "");
+        outState.putString(STATE_NOTES,
+                etNotes != null && etNotes.getText() != null
+                        ? etNotes.getText().toString() : "");
+
+        // Line items: edit mode reloads them from the database.
+        if (editMode) {
+            return;
+        }
         if (itemAdapter == null) {
             return;
         }

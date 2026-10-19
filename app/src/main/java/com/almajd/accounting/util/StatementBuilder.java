@@ -37,12 +37,20 @@ public final class StatementBuilder {
     public static final class InvoiceMovement {
         public final long invoiceId;
         public final String date;
+        /** Net invoice amount (after the order discount). */
         public final double total;
+        /** Fixed order discount, used only to annotate the statement reference. */
+        public final double discount;
 
         public InvoiceMovement(long invoiceId, String date, double total) {
+            this(invoiceId, date, total, 0.0);
+        }
+
+        public InvoiceMovement(long invoiceId, String date, double total, double discount) {
             this.invoiceId = invoiceId;
             this.date = date;
             this.total = total;
+            this.discount = discount;
         }
     }
 
@@ -79,10 +87,13 @@ public final class StatementBuilder {
         public final Long linkedInvoiceId;
         /** Payment note; {@code null} for invoices. */
         public final String note;
+        /** Invoice discount; 0 for payments. Balance math always uses {@link #debit}. */
+        public final double discount;
         public final double runningBalance;
 
         private Row(Kind kind, long id, String date, double debit, double credit,
-                    Long linkedInvoiceId, String note, double runningBalance) {
+                    Long linkedInvoiceId, String note, double discount,
+                    double runningBalance) {
             this.kind = kind;
             this.id = id;
             this.date = date;
@@ -90,6 +101,7 @@ public final class StatementBuilder {
             this.credit = credit;
             this.linkedInvoiceId = linkedInvoiceId;
             this.note = note;
+            this.discount = discount;
             this.runningBalance = runningBalance;
         }
     }
@@ -133,14 +145,17 @@ public final class StatementBuilder {
         final double amount;
         final Long linkedInvoiceId;
         final String note;
+        final double discount;
 
-        Entry(Kind kind, long id, String date, double amount, Long linkedInvoiceId, String note) {
+        Entry(Kind kind, long id, String date, double amount, Long linkedInvoiceId,
+              String note, double discount) {
             this.kind = kind;
             this.id = id;
             this.date = date;
             this.amount = amount;
             this.linkedInvoiceId = linkedInvoiceId;
             this.note = note;
+            this.discount = discount;
         }
     }
 
@@ -183,7 +198,7 @@ public final class StatementBuilder {
                     continue;
                 }
                 all.add(new Entry(Kind.INVOICE, invoice.invoiceId, invoice.date,
-                        invoice.total, null, null));
+                        invoice.total, null, null, invoice.discount));
                 if (normalizedFrom != null && isBefore(invoice.date, normalizedFrom)) {
                     openingBalance = NumberUtils.round2(openingBalance + invoice.total);
                 }
@@ -195,7 +210,7 @@ public final class StatementBuilder {
                     continue;
                 }
                 all.add(new Entry(Kind.PAYMENT, payment.paymentId, payment.date,
-                        payment.amount, payment.invoiceId, payment.note));
+                        payment.amount, payment.invoiceId, payment.note, 0.0));
                 if (normalizedFrom != null && isBefore(payment.date, normalizedFrom)) {
                     openingBalance = NumberUtils.round2(openingBalance - payment.amount);
                 }
@@ -217,12 +232,12 @@ public final class StatementBuilder {
                 running = NumberUtils.round2(running + entry.amount);
                 totalDebit = NumberUtils.round2(totalDebit + entry.amount);
                 rows.add(new Row(Kind.INVOICE, entry.id, entry.date, entry.amount, 0,
-                        null, null, running));
+                        null, null, entry.discount, running));
             } else {
                 running = NumberUtils.round2(running - entry.amount);
                 totalCredit = NumberUtils.round2(totalCredit + entry.amount);
                 rows.add(new Row(Kind.PAYMENT, entry.id, entry.date, 0, entry.amount,
-                        entry.linkedInvoiceId, entry.note, running));
+                        entry.linkedInvoiceId, entry.note, 0.0, running));
             }
         }
 
