@@ -1,47 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Activity -->
+    <!-- ===== Activity ===== -->
     <dimen name="activity_margin">16dp</dimen>
 
-    <!-- Card — React: radius 14px, shadow 0 2px 12px rgba(0,0,0,0.07) -->
+    <!-- ===== Cards: radius 16dp, elevation 1-2dp ===== -->
     <dimen name="card_margin">8dp</dimen>
     <dimen name="card_padding">16dp</dimen>
-    <dimen name="card_elevation">4dp</dimen>
-    <dimen name="card_corner_radius">14dp</dimen>
+    <dimen name="card_elevation">2dp</dimen>
+    <dimen name="card_corner_radius">16dp</dimen>
 
-    <!-- Hero section — React: radius 18px -->
-    <dimen name="hero_corner_radius">18dp</dimen>
+    <!-- Dashboard header: 24dp bottom corners only -->
+    <dimen name="hero_corner_radius">24dp</dimen>
 
-    <!-- Text sizes -->
+    <!-- ===== Typography (never below 12sp) ===== -->
     <dimen name="text_size_title">20sp</dimen>
     <dimen name="text_size_subtitle">16sp</dimen>
     <dimen name="text_size_body">14sp</dimen>
     <dimen name="text_size_small">12sp</dimen>
-    <dimen name="text_size_tiny">10sp</dimen>
-    <dimen name="text_size_header">26sp</dimen>
-    <dimen name="text_size_greeting">15sp</dimen>
-    <dimen name="text_size_stat_value">22sp</dimen>
-    <dimen name="text_size_stat_label">11sp</dimen>
-    <dimen name="text_size_company_en">13sp</dimen>
+    <dimen name="text_size_tiny">12sp</dimen>
+    <dimen name="text_size_header">20sp</dimen>
+    <dimen name="text_size_greeting">13sp</dimen>
+    <dimen name="text_size_stat_value">20sp</dimen>
+    <dimen name="text_size_stat_label">12sp</dimen>
+    <dimen name="text_size_company_en">12sp</dimen>
 
-    <!-- Button — React: radius 9px -->
-    <dimen name="button_corner_radius">9dp</dimen>
-    <dimen name="button_height">48dp</dimen>
+    <!-- ===== Buttons: radius 14dp, height 52dp ===== -->
+    <dimen name="button_corner_radius">14dp</dimen>
+    <dimen name="button_height">52dp</dimen>
 
-    <!-- Dashboard -->
+    <!-- ===== Dashboard ===== -->
     <dimen name="fab_margin">16dp</dimen>
     <dimen name="toolbar_height">56dp</dimen>
     <dimen name="item_padding">12dp</dimen>
     <dimen name="accent_bar_width">4dp</dimen>
     <dimen name="icon_size_dashboard">32dp</dimen>
-    <dimen name="nav_card_height">110dp</dimen>
-    <dimen name="nav_icon_circle_size">48dp</dimen>
+    <dimen name="stat_card_height">96dp</dimen>
+    <dimen name="nav_card_height">88dp</dimen>
+    <dimen name="nav_icon_circle_size">40dp</dimen>
+    <dimen name="nav_icon_size">22dp</dimen>
 
-    <!-- Badge -->
+    <!-- ===== Badges: pill shape ===== -->
     <dimen name="badge_padding_horizontal">10dp</dimen>
     <dimen name="badge_padding_vertical">3dp</dimen>
-    <dimen name="badge_corner_radius">6dp</dimen>
+    <dimen name="badge_corner_radius">999dp</dimen>
 
-    <!-- Input — React: radius 9px, border 1.5px -->
-    <dimen name="input_corner_radius">9dp</dimen>
+    <!-- ===== Inputs: radius 12dp, 1dp border, 52dp tall ===== -->
+    <dimen name="input_corner_radius">12dp</dimen>
+    <dimen name="input_min_height">52dp</dimen>
+    <dimen name="input_padding_horizontal">16dp</dimen>
 </resources>

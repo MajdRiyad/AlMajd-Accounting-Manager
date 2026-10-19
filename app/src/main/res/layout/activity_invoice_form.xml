@@ -9,6 +9,7 @@
     <!-- Toolbar -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
+        style="@style/AppTheme.Toolbar"
         android:layout_width="match_parent"
         android:layout_height="@dimen/toolbar_height"
         android:background="@color/primaryColor"
@@ -52,14 +53,14 @@
                     <Spinner
                         android:id="@+id/spinner_store"
                         android:layout_width="match_parent"
-                        android:layout_height="48dp"
+                        android:layout_height="@dimen/input_min_height"
                         android:layout_marginTop="4dp"
                         android:background="@drawable/bg_spinner" />
 
                     <!-- Date -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/til_date"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/AppTextInputStyle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
@@ -67,6 +68,7 @@
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/et_date"
+                            style="@style/InputEditText"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:clickable="true"
@@ -175,6 +177,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:minHeight="@dimen/button_height"
                 android:text="@string/add_item"
                 android:textColor="@color/primaryColor"
                 app:strokeColor="@color/primaryColor" />
@@ -237,6 +240,7 @@
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/et_paid"
+                            style="@style/InputTextBox"
                             android:layout_width="120dp"
                             android:layout_height="wrap_content"
                             android:gravity="center"

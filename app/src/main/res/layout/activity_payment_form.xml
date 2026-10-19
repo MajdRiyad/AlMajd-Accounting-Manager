@@ -9,6 +9,7 @@
     <!-- Toolbar -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
+        style="@style/AppTheme.Toolbar"
         android:layout_width="match_parent"
         android:layout_height="@dimen/toolbar_height"
         android:background="@color/primaryColor"
@@ -49,9 +50,10 @@
                     <Spinner
                         android:id="@+id/spinner_store"
                         android:layout_width="match_parent"
-                        android:layout_height="48dp"
+                        android:layout_height="@dimen/input_min_height"
                         android:layout_marginTop="4dp"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="16dp"
+                        android:background="@drawable/bg_spinner" />
 
                     <!-- Invoice Selector (optional link; first option = on account) -->
                     <TextView
@@ -64,14 +66,15 @@
                     <Spinner
                         android:id="@+id/spinner_invoice"
                         android:layout_width="match_parent"
-                        android:layout_height="48dp"
+                        android:layout_height="@dimen/input_min_height"
                         android:layout_marginTop="4dp"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="16dp"
+                        android:background="@drawable/bg_spinner" />
 
                     <!-- Amount -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/til_amount"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/AppTextInputStyle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="12dp"
@@ -79,6 +82,7 @@
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/et_amount"
+                            style="@style/InputEditText"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="numberDecimal"
@@ -89,7 +93,7 @@
                     <!-- Date -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/til_date"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/AppTextInputStyle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="12dp"
@@ -97,6 +101,7 @@
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/et_date"
+                            style="@style/InputEditText"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:clickable="true"
@@ -110,13 +115,14 @@
                     <!-- Notes -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/til_notes"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/AppTextInputStyle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/notes">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/et_notes"
+                            style="@style/InputEditText"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textMultiLine"

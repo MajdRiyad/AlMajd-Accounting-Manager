@@ -11,6 +11,7 @@
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
+            style="@style/AppTheme.Toolbar"
             android:layout_width="match_parent"
             android:layout_height="@dimen/toolbar_height"
             android:background="@color/primaryColor"
@@ -49,7 +50,7 @@
         android:layout_margin="@dimen/fab_margin"
         android:contentDescription="@string/new_invoice"
         android:src="@drawable/ic_add"
-        app:backgroundTint="@color/accentColor"
+        app:backgroundTint="@color/primaryColor"
         app:tint="@color/white" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

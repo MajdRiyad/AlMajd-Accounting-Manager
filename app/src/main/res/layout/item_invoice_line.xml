@@ -7,8 +7,8 @@
     android:orientation="horizontal"
     android:paddingStart="8dp"
     android:paddingEnd="8dp"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp">
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
 
     <!-- Row number (1, 2, 3...) — updated by the adapter on every bind/delete -->
     <TextView
@@ -24,6 +24,7 @@
     <!-- Item name (اسم الصنف) -->
     <com.google.android.material.textfield.TextInputEditText
         android:id="@+id/et_item_name"
+        style="@style/InputTextBox.LineItem"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
@@ -35,6 +36,7 @@
     <!-- Quantity (الكمية) -->
     <com.google.android.material.textfield.TextInputEditText
         android:id="@+id/et_quantity"
+        style="@style/InputTextBox.LineItem"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
@@ -47,6 +49,7 @@
     <!-- Unit price (سعر الواحدة) -->
     <com.google.android.material.textfield.TextInputEditText
         android:id="@+id/et_unit_price"
+        style="@style/InputTextBox.LineItem"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"

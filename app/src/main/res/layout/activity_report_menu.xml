@@ -9,6 +9,7 @@
     <!-- Toolbar -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
+        style="@style/AppTheme.Toolbar"
         android:layout_width="match_parent"
         android:layout_height="@dimen/toolbar_height"
         android:background="@color/primaryColor"
@@ -85,13 +86,13 @@
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:text="@string/accounts_ledger"
-                android:textColor="@color/accentColor"
+                android:textColor="@color/primaryColor"
                 android:textSize="@dimen/text_size_subtitle"
                 app:icon="@drawable/ic_reports"
                 app:iconGravity="textStart"
                 app:iconPadding="12dp"
                 app:iconSize="24dp"
-                app:iconTint="@color/accentColor" />
+                app:iconTint="@color/primaryColor" />
 
         </com.google.android.material.card.MaterialCardView>
 
