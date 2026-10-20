@@ -1605,3 +1605,29 @@ Modified:
   the mapping was removed afterwards.
 - Copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
   (7,450,596 bytes), built 2026-10-20.
+
+## Navigation cleanup and customer quick actions
+
+## What changed
+- Removed the shared bottom navigation bar from Dashboard, Customers and
+  Reports, along with `BottomNavHelper`, its menu/include layouts, the tint
+  selector, the now-unused `nav_home` string and nav text styles, and
+  `ic_dashboard`.
+- Restored Dashboard/Reports content to `match_parent`, removed the customer
+  list's bar-only bottom padding and FAB lift, and removed the bar-only
+  CLEAR_TOP/SINGLE_TOP navigation logic. Dashboard tiles again own navigation;
+  Back from Customers/Reports returns to Dashboard.
+- Customer detail quick actions are now equal-width 52dp solid buttons with
+  leading plus icons: navy for "new order" and semantic green for "new payment".
+  The bar has a 1dp top divider over white, 12dp padding, zero elevation and no
+  outlined style. The weighted scroll content remains above the fixed bar.
+- Kept inline payment editing, customer pre-selection and RESULT_OK reload.
+
+## Verification
+- Emulator (Pixel_3a_XL_API_26): checked Dashboard, Customers list (FAB fully
+  visible), customer detail (buttons and scrolled-to-end content not covered),
+  Orders list FAB, Payments list FAB and Reports menu. No bottom bar remains.
+- `./gradlew testDebugUnitTest assembleDebug --console=plain` -> BUILD
+  SUCCESSFUL, **111/111 tests pass** (no tests removed).
+- APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,416,584 bytes), built 2026-10-20.

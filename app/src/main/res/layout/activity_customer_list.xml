@@ -39,7 +39,6 @@
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:padding="@dimen/card_margin"
-        android:paddingBottom="96dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
     <!-- FAB -->
@@ -49,16 +48,9 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
-        android:layout_marginBottom="88dp"
         android:contentDescription="@string/add_customer"
         android:src="@drawable/ic_add"
         app:backgroundTint="@color/primaryColor"
         app:tint="@color/white" />
-
-    <include
-        layout="@layout/include_bottom_nav"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
