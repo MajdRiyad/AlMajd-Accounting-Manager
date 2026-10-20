@@ -68,6 +68,16 @@
         <item name="android:textColor">@color/white</item>
     </style>
 
+    <!-- Bottom navigation labels: never smaller than 12sp -->
+    <style name="TextAppearance.AlMajd.BottomNavActive" parent="TextAppearance.AppCompat.Caption">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.AlMajd.BottomNavInactive" parent="TextAppearance.AppCompat.Caption">
+        <item name="android:textSize">12sp</item>
+    </style>
+
     <!-- ============================================================
          Cards — radius 16dp, elevation 1-2dp
          ============================================================ -->

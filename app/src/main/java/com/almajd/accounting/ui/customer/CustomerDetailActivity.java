@@ -34,7 +34,9 @@ import com.almajd.accounting.model.Customer;
 import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.LedgerEntry;
 import com.almajd.accounting.model.Payment;
+import com.almajd.accounting.ui.invoice.InvoiceFormActivity;
 import com.almajd.accounting.ui.invoice.InvoiceListActivity;
+import com.almajd.accounting.ui.payment.PaymentFormActivity;
 import com.almajd.accounting.ui.payment.PaymentListActivity;
 import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.BalanceUtils;
@@ -61,6 +63,8 @@ public class CustomerDetailActivity extends BaseActivity {
     public static final String EXTRA_STORE_NAME = "extra_store_name";
 
     private static final int REQUEST_EDIT = 200;
+    private static final int REQUEST_NEW_ORDER = 201;
+    private static final int REQUEST_NEW_PAYMENT = 202;
     private static final int MAX_RECENT_ITEMS = 5;
 
     // DAOs
@@ -133,6 +137,8 @@ public class CustomerDetailActivity extends BaseActivity {
         rvPayments = findViewById(R.id.rv_payments);
         btnViewAllInvoices = findViewById(R.id.btn_view_all_invoices);
         btnViewAllPayments = findViewById(R.id.btn_view_all_payments);
+        Button btnNewOrder = findViewById(R.id.btn_new_order);
+        Button btnNewPayment = findViewById(R.id.btn_new_payment);
 
         // RecyclerView layout managers (no nested scrolling for embedded lists)
         rvInvoices.setLayoutManager(new LinearLayoutManager(this));
@@ -152,6 +158,26 @@ public class CustomerDetailActivity extends BaseActivity {
             @Override
             public void onClick(View v) {
                 navigateToPaymentList();
+            }
+        });
+
+        btnNewOrder.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(CustomerDetailActivity.this,
+                        InvoiceFormActivity.class);
+                intent.putExtra(InvoiceFormActivity.EXTRA_STORE_NAME, storeName);
+                startActivityForResult(intent, REQUEST_NEW_ORDER);
+            }
+        });
+
+        btnNewPayment.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(CustomerDetailActivity.this,
+                        PaymentFormActivity.class);
+                intent.putExtra(PaymentListActivity.EXTRA_STORE_NAME, storeName);
+                startActivityForResult(intent, REQUEST_NEW_PAYMENT);
             }
         });
 

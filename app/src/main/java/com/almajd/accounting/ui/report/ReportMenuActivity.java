@@ -10,6 +10,7 @@ import androidx.appcompat.widget.Toolbar;
 
 import com.almajd.accounting.R;
 import com.almajd.accounting.ui.BaseActivity;
+import com.almajd.accounting.ui.BottomNavHelper;
 
 /**
  * Simple menu screen that provides navigation to the three report types:
@@ -61,6 +62,8 @@ public class ReportMenuActivity extends BaseActivity {
                 startActivity(intent);
             }
         });
+
+        BottomNavHelper.setup(this, R.id.nav_reports);
     }
 
     @Override

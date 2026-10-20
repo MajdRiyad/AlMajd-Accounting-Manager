@@ -9,6 +9,7 @@ import com.almajd.accounting.R;
 import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.InvoiceItem;
 import com.almajd.accounting.model.InvoiceStatus;
+import com.almajd.accounting.model.PendingPayment;
 import com.almajd.accounting.util.ChunkUtils;
 import com.almajd.accounting.util.CreditAllocator;
 import com.almajd.accounting.util.DateUtils;
@@ -180,6 +181,130 @@ public class InvoiceDao {
                     long itemId = db.insert(DatabaseHelper.TABLE_INVOICE_ITEMS, null, itemValues);
                     if (itemId == -1) {
                         return false;
+                    }
+                }
+            }
+
+            db.setTransactionSuccessful();
+            success = true;
+        } finally {
+            db.endTransaction();
+        }
+        return success;
+    }
+
+    /**
+     * Update an invoice header and its items, then apply pending linked-payment
+     * changes, all in one transaction.
+     * <p>
+     * Existing rows update only their amount and date: {@code invoice_id} and the
+     * original note are deliberately left untouched. New rows are inserted with
+     * this invoice's id and the standard {@code payment_linked_note}. Deleted rows
+     * are removed. A new row with an empty amount is ignored, so the user can add
+     * a blank row and leave it unused.
+     *
+     * @return true when the whole transaction committed
+     */
+    public boolean updateWithPayments(Invoice invoice, List<PendingPayment> pendingPayments) {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        boolean success = false;
+        db.beginTransaction();
+        try {
+            // Delete old invoice items
+            db.delete(DatabaseHelper.TABLE_INVOICE_ITEMS,
+                    DatabaseHelper.COL_INVOICE_ID + " = ?",
+                    new String[]{String.valueOf(invoice.getId())});
+
+            // Update invoice header (no paid_amount / remaining columns)
+            ContentValues headerValues = new ContentValues();
+            headerValues.put(DatabaseHelper.COL_STORE_NAME, invoice.getStoreName());
+            headerValues.put(DatabaseHelper.COL_INVOICE_DATE, invoice.getInvoiceDate());
+            headerValues.put(DatabaseHelper.COL_TOTAL_AMOUNT, NumberUtils.round2(invoice.getTotalAmount()));
+            headerValues.put(DatabaseHelper.COL_DISCOUNT, NumberUtils.round2(invoice.getDiscount()));
+            headerValues.put(DatabaseHelper.COL_NOTES, invoice.getNotes());
+
+            int rows = db.update(DatabaseHelper.TABLE_INVOICES, headerValues,
+                    DatabaseHelper.COL_ID + " = ?",
+                    new String[]{String.valueOf(invoice.getId())});
+            if (rows <= 0) {
+                return false;
+            }
+
+            // Re-insert new items
+            if (invoice.getItems() != null) {
+                for (InvoiceItem item : invoice.getItems()) {
+                    ContentValues itemValues = new ContentValues();
+                    itemValues.put(DatabaseHelper.COL_INVOICE_ID, invoice.getId());
+                    itemValues.put(DatabaseHelper.COL_ITEM_NAME, item.getItemName());
+                    itemValues.put(DatabaseHelper.COL_QUANTITY, item.getQuantity());
+                    itemValues.put(DatabaseHelper.COL_UNIT_PRICE, NumberUtils.round2(item.getUnitPrice()));
+                    itemValues.put(DatabaseHelper.COL_SUBTOTAL, NumberUtils.round2(item.getSubtotal()));
+                    long itemId = db.insert(DatabaseHelper.TABLE_INVOICE_ITEMS, null, itemValues);
+                    if (itemId == -1) {
+                        return false;
+                    }
+                }
+            }
+
+            // Apply the in-memory payment rows.
+            if (pendingPayments != null) {
+                String linkedNote = context.getString(
+                        R.string.payment_linked_note, invoice.getId());
+                for (PendingPayment row : pendingPayments) {
+                    if (row == null) {
+                        continue;
+                    }
+                    if (row.isDeleted()) {
+                        if (!row.isNew() && row.getPaymentId() > 0) {
+                            int deleted = db.delete(DatabaseHelper.TABLE_PAYMENTS,
+                                    DatabaseHelper.COL_ID + " = ? AND " +
+                                            DatabaseHelper.COL_INVOICE_ID + " = ?",
+                                    new String[]{
+                                            String.valueOf(row.getPaymentId()),
+                                            String.valueOf(invoice.getId())
+                                    });
+                            if (deleted <= 0) {
+                                return false;
+                            }
+                        }
+                        continue;
+                    }
+
+                    double amount = NumberUtils.round2(row.getAmount());
+                    if (row.isNew()) {
+                        if (row.hasEmptyAmount()) {
+                            continue; // unused blank row
+                        }
+                        if (amount <= 0) {
+                            return false;
+                        }
+                        ContentValues paymentValues = new ContentValues();
+                        paymentValues.put(DatabaseHelper.COL_STORE_NAME, invoice.getStoreName());
+                        paymentValues.put(DatabaseHelper.COL_AMOUNT, amount);
+                        paymentValues.put(DatabaseHelper.COL_PAYMENT_DATE, row.getPaymentDate());
+                        paymentValues.put(DatabaseHelper.COL_NOTES, linkedNote);
+                        paymentValues.put(DatabaseHelper.COL_INVOICE_ID, invoice.getId());
+                        if (db.insert(DatabaseHelper.TABLE_PAYMENTS, null, paymentValues) == -1) {
+                            return false;
+                        }
+                    } else {
+                        if (amount <= 0 || row.getPaymentId() <= 0) {
+                            return false;
+                        }
+                        // Only amount + date: keep invoice_id and note untouched.
+                        ContentValues paymentValues = new ContentValues();
+                        paymentValues.put(DatabaseHelper.COL_AMOUNT, amount);
+                        paymentValues.put(DatabaseHelper.COL_PAYMENT_DATE, row.getPaymentDate());
+                        int updated = db.update(DatabaseHelper.TABLE_PAYMENTS, paymentValues,
+                                DatabaseHelper.COL_ID + " = ? AND " +
+                                        DatabaseHelper.COL_INVOICE_ID + " = ?",
+                                new String[]{
+                                        String.valueOf(row.getPaymentId()),
+                                        String.valueOf(invoice.getId())
+                                });
+                        if (updated <= 0) {
+                            return false;
+                        }
                     }
                 }
             }

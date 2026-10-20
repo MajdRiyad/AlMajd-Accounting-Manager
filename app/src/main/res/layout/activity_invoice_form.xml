@@ -219,6 +219,64 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Payments Card: edit mode only. Rows are pending until Save. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_payments"
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/card_padding">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/invoice_payments_title"
+                        android:textColor="@color/textPrimary"
+                        android:textSize="@dimen/text_size_subtitle"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_no_invoice_payments"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/no_invoice_payments"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="@dimen/text_size_body"
+                        android:visibility="gone" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_invoice_payments"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:nestedScrollingEnabled="false"
+                        android:overScrollMode="never" />
+
+                    <!-- Outlined, elevation 0 (no doubled shadow) -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_add_invoice_payment"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:elevation="0dp"
+                        android:minHeight="@dimen/button_height"
+                        android:text="@string/add_payment"
+                        android:textColor="@color/primaryColor"
+                        app:strokeColor="@color/primaryColor" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Footer Card: Totals -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/CardStyle"
@@ -406,6 +464,26 @@
                             android:textStyle="bold" />
 
                     </LinearLayout>
+
+                    <!-- Credit allocation shown separately; pending payments remain editable -->
+                    <TextView
+                        android:id="@+id/tv_credit_info"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="@dimen/text_size_small"
+                        android:visibility="gone" />
+
+                    <!-- Informational only: edit mode allows paid > net without splitting -->
+                    <TextView
+                        android:id="@+id/tv_payment_overpaid_info"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/amber"
+                        android:textSize="@dimen/text_size_small"
+                        android:visibility="gone" />
 
                     <View
                         android:layout_width="match_parent"

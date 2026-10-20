@@ -1562,3 +1562,46 @@ Modified:
   the mapping was removed afterwards.
 - APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
   (7,443,882 bytes), built 2026-10-19.
+
+## Inline payment editing, bottom navigation and customer quick actions
+
+## What changed
+- Edit-order screen now loads the order's linked payments on the DB thread and
+  shows an editable "الدفعات" card: outlined amount field, tappable date, delete
+  icon, and "إضافة دفعة". Rows are pending in memory until Save; deleting asks
+  for confirmation and only hides the row.
+- Edit-mode summary is live: paid = sum of pending rows (deleted and blank new
+  rows excluded), remaining = max(net - paid, 0). If paid exceeds net, an
+  informational line is shown and Save is still allowed (no automatic split).
+- Save validates every pending row (positive amount, valid yyyy-MM-dd date) and
+  writes invoice + items + payment updates/inserts/deletes in one DB transaction.
+  Existing payments update only amount/date (invoice link and note untouched);
+  new payments get invoice_id and `payment_linked_note`. Failures roll back and
+  keep the form open with everything unsaved.
+- Pending rows (ids, amounts, dates, deleted/new flags) survive rotation and
+  process death via instance state.
+- Added a shared bottom navigation bar (Dashboard, Customers, New order, Reports)
+  through `include_bottom_nav.xml`, `menu_bottom_nav.xml` and `BottomNavHelper`.
+  Main tabs keep a shallow stack: Back from Customers/Reports returns to
+  Dashboard, Back from Dashboard exits. New order opens the form without
+  changing the selected tab and without finishing the current screen.
+- Customer list reserves bottom space for the bar and lifts its FAB above it;
+  Dashboard and Reports put the bar outside their scroll/content area.
+- Customer detail now has fixed "طلبية جديدة" and "دفعة جديدة" actions that open
+  the forms with the customer pre-selected and reload the customer after
+  RESULT_OK. The scrollable content is weighted above the fixed bar.
+- Accounting semantics, schema/SCHEMA_VERSION, backup/restore and report/export
+  behavior are unchanged. All new Arabic text lives in `strings.xml` and uses
+  "طلبية" rather than "فاتورة".
+
+## Tests
+- Added `PendingPaymentTotalsTest` (6 tests): edited/new/deleted/blank rows,
+  0.1 + 0.2 rounding, paid > net overpayment, and null rows.
+- `./gradlew testDebugUnitTest assembleDebug --console=plain` -> BUILD
+  SUCCESSFUL, **111/111 tests pass** (105 prior + 6 new).
+
+## Build
+- Built through a temporary `subst` drive because the project path contains `&`;
+  the mapping was removed afterwards.
+- Copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,450,596 bytes), built 2026-10-20.

@@ -114,6 +114,11 @@
     <string name="add_payment">إضافة دفعة</string>
     <string name="invoice_payments_title">الدفعات على هذه الطلبية</string>
     <string name="no_invoice_payments">لا توجد دفعات على هذه الطلبية</string>
+    <string name="payment_delete_title">حذف الدفعة</string>
+    <string name="payment_delete_message">هل تريد حذف هذه الدفعة؟ سيتم تطبيق الحذف عند حفظ الطلبية.</string>
+    <string name="payment_amount_required">يجب أن يكون مبلغ كل دفعة أكبر من صفر</string>
+    <string name="payment_date_invalid">تاريخ الدفعة غير صالح</string>
+    <string name="payments_exceed_order_total">الدفعات المسجلة تتجاوز إجمالي الطلبية بمقدار %1$s. لن يتم تعديل الدفعات تلقائياً.</string>
 
     <!-- Customer balance wording (never show a bare negative number) -->
     <string name="balance_owed">عليه %s</string>
@@ -130,6 +135,7 @@
     <string name="stat_payment_count">عدد الدفعات</string>
 
     <!-- Dashboard nav card labels -->
+    <string name="nav_home">الرئيسية</string>
     <string name="nav_customers">العملاء</string>
     <string name="nav_invoices">الطلبيات</string>
     <string name="nav_payments">المدفوعات</string>

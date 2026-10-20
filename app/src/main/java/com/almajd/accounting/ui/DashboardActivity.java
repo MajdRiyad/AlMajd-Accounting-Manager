@@ -171,6 +171,7 @@ public class DashboardActivity extends BaseActivity {
             });
         }
 
+        BottomNavHelper.setup(this, R.id.nav_home);
         showPendingRecoveryMessage();
     }
 

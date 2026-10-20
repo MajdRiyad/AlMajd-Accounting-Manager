@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
 import com.almajd.accounting.ui.BaseActivity;
+import com.almajd.accounting.ui.BottomNavHelper;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.model.Customer;
 import com.almajd.accounting.util.AppExecutors;
@@ -83,6 +84,8 @@ public class CustomerListActivity extends BaseActivity
                 startActivityForResult(intent, REQUEST_ADD_CUSTOMER);
             }
         });
+
+        BottomNavHelper.setup(this, R.id.nav_customers);
 
         // Initial data is loaded by onResume (which always follows onCreate).
     }

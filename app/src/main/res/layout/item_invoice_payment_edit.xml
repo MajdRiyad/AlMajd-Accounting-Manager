@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <!-- Payment amount (outlined, ASCII digits via NumberUtils.parseAmount) -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_payment_amount"
+        style="@style/AppTextInputStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:hint="@string/amount">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_payment_amount"
+            style="@style/InputEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:digits="0123456789."
+            android:gravity="center"
+            android:inputType="numberDecimal"
+            android:textSize="@dimen/text_size_body" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Payment date (tap to pick) -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/til_payment_date"
+        style="@style/AppTextInputStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:hint="@string/date">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_payment_date"
+            style="@style/InputEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:cursorVisible="false"
+            android:focusable="false"
+            android:gravity="center"
+            android:inputType="none"
+            android:textSize="@dimen/text_size_body" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Delete (confirmation + applied only on Save) -->
+    <ImageButton
+        android:id="@+id/btn_delete_payment"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/delete"
+        android:padding="8dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_delete"
+        app:tint="@color/red" />
+
+</LinearLayout>
