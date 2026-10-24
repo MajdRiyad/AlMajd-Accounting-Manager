@@ -56,6 +56,12 @@
     <string name="customer_details">تفاصيل العميل</string>
     <string name="invoice_details">تفاصيل الطلبية</string>
     <string name="search">بحث</string>
+    <string name="search_orders_hint">بحث بالطلبيات (اسم المحل، رقم الطلبية، المبلغ)</string>
+    <string name="search_payments_hint">بحث بالدفعات (اسم المحل، المبلغ، ملاحظات)</string>
+    <string name="filter_all">الكل</string>
+    <string name="filter_partial">جزئية</string>
+    <string name="filter_unpaid">غير مدفوعة</string>
+    <string name="no_search_results">لا توجد نتائج</string>
     <string name="all_stores">كل المحلات</string>
     <string name="from_date">من تاريخ</string>
     <string name="to_date">إلى تاريخ</string>

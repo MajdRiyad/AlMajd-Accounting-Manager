@@ -4,6 +4,10 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.PopupMenu;
@@ -20,7 +24,10 @@ import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.InvoiceDao;
 import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.util.AppExecutors;
+import com.almajd.accounting.util.OrderSearch;
+import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.List;
 
@@ -38,13 +45,26 @@ public class InvoiceListActivity extends BaseActivity
     private static final int REQUEST_EDIT_INVOICE = 101;
     private static final int REQUEST_VIEW_INVOICE = 102;
 
+    private static final long SEARCH_DEBOUNCE_MS = 250L;
+    private static final String STATE_SEARCH_QUERY = "state_search_query";
+    private static final String STATE_STATUS_FILTER = "state_status_filter";
+
     private RecyclerView rvInvoices;
     private TextView tvEmpty;
+    private TextInputEditText etSearch;
+    private ChipGroup chipGroupStatus;
     private InvoiceAdapter adapter;
     private InvoiceDao invoiceDao;
 
     /** Optional store name filter passed via intent. */
     private String filterStoreName;
+
+    /** Current text and status-chip selection, kept across rotation. */
+    private String searchQuery = "";
+    private OrderSearch.StatusFilter statusFilter = OrderSearch.StatusFilter.ALL;
+
+    private final Handler searchHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingSearch;
 
     /** Incremented on every load so stale background results are discarded. */
     private int loadToken = 0;
@@ -76,12 +96,51 @@ public class InvoiceListActivity extends BaseActivity
         // Views
         rvInvoices = findViewById(R.id.rv_invoices);
         tvEmpty = findViewById(R.id.tv_empty);
+        etSearch = findViewById(R.id.et_search);
+        chipGroupStatus = findViewById(R.id.chip_group_status);
         FloatingActionButton fabAdd = findViewById(R.id.fab_add_invoice);
+
+        // Restore the query/chip before attaching listeners so restoration does
+        // not schedule an unnecessary search.
+        if (savedInstanceState != null) {
+            searchQuery = savedInstanceState.getString(STATE_SEARCH_QUERY, "");
+            statusFilter = statusFilterFromName(
+                    savedInstanceState.getString(STATE_STATUS_FILTER));
+        }
+        etSearch.setText(searchQuery);
+        if (searchQuery != null && !searchQuery.isEmpty()) {
+            etSearch.setSelection(searchQuery.length());
+        }
+        chipGroupStatus.check(chipIdForStatus(statusFilter));
 
         // RecyclerView setup
         rvInvoices.setLayoutManager(new LinearLayoutManager(this));
         adapter = new InvoiceAdapter(null, this);
         rvInvoices.setAdapter(adapter);
+
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                searchQuery = s != null ? s.toString() : "";
+                scheduleLoad();
+            }
+        });
+
+        chipGroupStatus.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            int chipId = checkedIds != null && !checkedIds.isEmpty()
+                    ? checkedIds.get(0)
+                    : R.id.chip_all;
+            statusFilter = statusFilterFromChipId(chipId);
+            scheduleLoad();
+        });
 
         // FAB -> create new invoice
         fabAdd.setOnClickListener(new View.OnClickListener() {
@@ -101,22 +160,31 @@ public class InvoiceListActivity extends BaseActivity
     @Override
     protected void onResume() {
         super.onResume();
-        loadInvoices();
+        // Returning from a detail/form screen must keep an active query and
+        // status chip instead of resetting to the full list.
+        loadInvoicesNow();
     }
 
     /**
      * Loads invoices from the database (on the background thread), optionally
-     * filtered by store name, then updates the adapter and empty-state on the
-     * main thread. Items are never loaded here: the list does not show them.
+     * filtered by store name, then applies the text query and effective status
+     * chip in Java. Keeping the search in Java preserves the effective status
+     * that the DAO computed after customer-credit allocation and keeps the
+     * number of database queries constant. Items are never loaded here: the
+     * list does not show them.
      */
     private void loadInvoices() {
         final String store = filterStoreName;
-        final boolean filtered = store != null && !store.isEmpty();
+        final boolean filteredByStore = store != null && !store.isEmpty();
+        final String query = searchQuery;
+        final OrderSearch.StatusFilter status = statusFilter;
+        final boolean filtering = OrderSearch.isFiltering(query, status);
         final int token = ++loadToken;
         AppExecutors.runOnDb(() -> {
-            final List<Invoice> invoices = filtered
+            final List<Invoice> loaded = filteredByStore
                     ? invoiceDao.getByStoreName(store, false)
                     : invoiceDao.getAll(false);
+            final List<Invoice> invoices = OrderSearch.filter(loaded, query, status);
             AppExecutors.runOnMain(() -> {
                 if (isFinishing() || isDestroyed()) {
                     return;
@@ -126,16 +194,74 @@ public class InvoiceListActivity extends BaseActivity
                 }
                 adapter.updateList(invoices);
 
-                if (invoices == null || invoices.isEmpty()) {
+                if (invoices.isEmpty()) {
                     rvInvoices.setVisibility(View.GONE);
                     tvEmpty.setVisibility(View.VISIBLE);
-                    tvEmpty.setText(R.string.no_invoices);
+                    tvEmpty.setText(filtering
+                            ? R.string.no_search_results
+                            : R.string.no_invoices);
                 } else {
                     rvInvoices.setVisibility(View.VISIBLE);
                     tvEmpty.setVisibility(View.GONE);
                 }
             });
         });
+    }
+
+    /** Runs an immediate load and cancels any pending debounced search. */
+    private void loadInvoicesNow() {
+        if (pendingSearch != null) {
+            searchHandler.removeCallbacks(pendingSearch);
+            pendingSearch = null;
+        }
+        loadInvoices();
+    }
+
+    /**
+     * Debounces typing so a burst of keystrokes results in one database read.
+     * The token is bumped immediately, so a result that was already in flight
+     * for an older query cannot be applied.
+     */
+    private void scheduleLoad() {
+        loadToken++;
+        if (pendingSearch != null) {
+            searchHandler.removeCallbacks(pendingSearch);
+        }
+        pendingSearch = this::loadInvoices;
+        searchHandler.postDelayed(pendingSearch, SEARCH_DEBOUNCE_MS);
+    }
+
+    private static int chipIdForStatus(OrderSearch.StatusFilter status) {
+        if (status == OrderSearch.StatusFilter.PAID) {
+            return R.id.chip_paid;
+        } else if (status == OrderSearch.StatusFilter.PARTIAL) {
+            return R.id.chip_partial;
+        } else if (status == OrderSearch.StatusFilter.UNPAID) {
+            return R.id.chip_unpaid;
+        }
+        return R.id.chip_all;
+    }
+
+    private static OrderSearch.StatusFilter statusFilterFromChipId(int chipId) {
+        if (chipId == R.id.chip_paid) {
+            return OrderSearch.StatusFilter.PAID;
+        } else if (chipId == R.id.chip_partial) {
+            return OrderSearch.StatusFilter.PARTIAL;
+        } else if (chipId == R.id.chip_unpaid) {
+            return OrderSearch.StatusFilter.UNPAID;
+        }
+        return OrderSearch.StatusFilter.ALL;
+    }
+
+    private static OrderSearch.StatusFilter statusFilterFromName(String name) {
+        if (name != null) {
+            try {
+                return OrderSearch.StatusFilter.valueOf(name);
+            } catch (IllegalArgumentException ignored) {
+                // Fall back to the default below.
+            }
+        }
+        return OrderSearch.StatusFilter.ALL;
     }
 
     // --- InvoiceAdapter.OnInvoiceClickListener ---
@@ -197,7 +323,7 @@ public class InvoiceListActivity extends BaseActivity
                                     Toast.makeText(InvoiceListActivity.this,
                                             R.string.deleted_successfully,
                                             Toast.LENGTH_SHORT).show();
-                                    loadInvoices();
+                                    loadInvoicesNow();
                                 } else {
                                     Toast.makeText(InvoiceListActivity.this,
                                             R.string.delete_failed,
@@ -215,8 +341,24 @@ public class InvoiceListActivity extends BaseActivity
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK) {
-            loadInvoices();
+            loadInvoicesNow();
         }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(STATE_SEARCH_QUERY, searchQuery);
+        outState.putString(STATE_STATUS_FILTER, statusFilter.name());
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (pendingSearch != null) {
+            searchHandler.removeCallbacks(pendingSearch);
+            pendingSearch = null;
+        }
+        super.onDestroy();
     }
 
     @Override

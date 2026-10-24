@@ -1631,3 +1631,63 @@ Modified:
   SUCCESSFUL, **111/111 tests pass** (no tests removed).
 - APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
   (7,416,584 bytes), built 2026-10-20.
+
+## Searchable lists, order status filter, and customer-search state
+
+### What changed
+- Added an outlined search field with a clear button to the orders list. The
+  hint is exactly "بحث بالطلبيات (اسم المحل، رقم الطلبية، المبلغ)".
+- Added the status chip row "الكل / مدفوعة / جزئية / غير مدفوعة". The chips
+  filter on the **effective** status after customer-credit allocation, and work
+  together with the text query and the optional store-name intent filter.
+- Order matching covers store name, exact order id with or without `#`, and the
+  net total / effective remaining amount when the query is numeric. Numeric
+  amount matching uses string-contains on the plain two-decimal value, so `300`
+  matches both `300.00` and `1300.00`. Arabic-Indic digits (including the Arabic
+  decimal separator) are normalised to ASCII before matching.
+- Added an outlined search field with a clear button to the payments list. The
+  hint is exactly "بحث بالدفعات (اسم المحل، المبلغ، ملاحظات)".
+- Payment matching covers store name, amount string-contains, notes, and the
+  linked order id for `#12`/`12`. Explicit `#id` queries are id-only, so an
+  on-account payment (no linked order) never matches them.
+- The optional store-name filter is still applied before searching on both the
+  orders and payments lists. No extra DAO queries are introduced, and items are
+  never loaded for the lists.
+- Fixed the customers list so `onResume()` and `onActivityResult()` reload using
+  the active `SearchView` query instead of resetting to the full list. The
+  query now survives rotation and the search is debounced by ~250 ms.
+- Extended `CustomerDao.search` to also match phone and location (the columns
+  already existed).
+- All three lists now show the new "لا توجد نتائج" string when a search/filter
+  produces no results. Empty-state text is centered and uses the secondary text
+  colour for better contrast.
+- Added `adjustResize|stateHidden` to the three list activities so the keyboard
+  does not cover the FAB, the lists stay usable when the keyboard is open, and
+  the keyboard does not pop up automatically on entry.
+- Added neutral/navy `FilterChip` styling (no stroke, no extra elevation) and a
+  matching checked-text selector. All new user-facing text lives in
+  `strings.xml`.
+
+### Implementation notes
+- Added Android-free helpers `OrderSearch` and `PaymentSearch`; both are pure
+  Java and covered by JVM tests. The activities keep using `loadToken` and the
+  existing `AppExecutors` DB/main-thread split.
+- Restored query/chip state is persisted in instance state. Search and chip
+  changes bump the load token immediately, so a stale in-flight result cannot
+  overwrite the latest query.
+- Schema/`SCHEMA_VERSION`, accounting semantics, backup/restore and the
+  threading model are unchanged.
+
+### Tests and build
+- Added `OrderSearchTest` (10 tests) and `PaymentSearchTest` (8 tests).
+- `./gradlew testDebugUnitTest assembleDebug --console=plain` -> BUILD
+  SUCCESSFUL, **129/129 tests pass** (111 prior + 18 new; 0 failures/errors).
+- Emulator (Pixel_3a_XL_API_26) checked: orders plain list, store-name query,
+  no-results query, partial/unpaid chips with a query, rotation retention,
+  returning from order detail, payments store filter and amount query,
+  payments no-results state, customers query, returning from customer detail,
+  rotation retention, and the centered no-results message. Arabic-Indic input,
+  `#id` matching, notes matching and on-account id rejection are covered by the
+  JVM tests.
+- Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,437,865 bytes), built 2026-10-24 through a temporary `subst` drive.

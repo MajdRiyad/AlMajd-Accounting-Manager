@@ -26,8 +26,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
+        android:textAlignment="center"
         android:text="@string/no_customers"
-        android:textColor="@color/gray"
+        android:textColor="@color/textSecondary"
         android:textSize="@dimen/text_size_subtitle"
         android:visibility="gone"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />

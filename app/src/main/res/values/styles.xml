@@ -207,6 +207,22 @@
         <item name="rippleColor">@color/rippleColor</item>
     </style>
 
+    <!-- List filter chips: neutral until selected, then navy with white text.
+         No stroke and no elevation, so they stay flat inside the search panel. -->
+    <style name="FilterChip" parent="Widget.MaterialComponents.Chip.Choice">
+        <item name="android:textSize">@dimen/text_size_small</item>
+        <item name="android:textColor">@color/filter_chip_text</item>
+        <item name="android:minHeight">40dp</item>
+        <item name="android:elevation">0dp</item>
+        <item name="chipMinHeight">40dp</item>
+        <item name="chipBackgroundColor">@color/filter_chip_background</item>
+        <item name="chipSurfaceColor">@android:color/transparent</item>
+        <item name="chipStrokeWidth">0dp</item>
+        <item name="chipCornerRadius">20dp</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="rippleColor">@color/rippleColor</item>
+    </style>
+
     <!-- Status badge (paid/unpaid/partial) -->
     <style name="StatusBadge">
         <item name="android:textSize">@dimen/text_size_tiny</item>

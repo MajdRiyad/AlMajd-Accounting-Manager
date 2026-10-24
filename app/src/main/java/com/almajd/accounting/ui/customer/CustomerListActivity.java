@@ -4,9 +4,12 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -41,10 +44,20 @@ public class CustomerListActivity extends BaseActivity
     private static final int REQUEST_EDIT_CUSTOMER = 101;
     private static final int REQUEST_CUSTOMER_DETAIL = 102;
 
+    private static final long SEARCH_DEBOUNCE_MS = 250L;
+    private static final String STATE_SEARCH_QUERY = "state_search_query";
+
     private RecyclerView rvCustomers;
     private TextView tvEmpty;
     private CustomerAdapter adapter;
     private CustomerDao customerDao;
+
+    /** The text currently in the SearchView, kept across rotation. */
+    private String activeQuery = "";
+    private boolean restoringSearchView;
+
+    private final Handler searchHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingSearch;
 
     /** Incremented on every load/search so only the latest result is shown. */
     private int loadToken = 0;
@@ -64,6 +77,11 @@ public class CustomerListActivity extends BaseActivity
 
         // DAO
         customerDao = new CustomerDao(this);
+
+        // Restore the query before onResume reloads the list.
+        if (savedInstanceState != null) {
+            activeQuery = savedInstanceState.getString(STATE_SEARCH_QUERY, "");
+        }
 
         // Views
         rvCustomers = findViewById(R.id.rv_customers);
@@ -90,7 +108,9 @@ public class CustomerListActivity extends BaseActivity
     @Override
     protected void onResume() {
         super.onResume();
-        loadCustomers();
+        // Do not reset an active search to the full list when returning from
+        // a customer screen.
+        reloadCurrentQuery();
     }
 
     /**
@@ -116,9 +136,9 @@ public class CustomerListActivity extends BaseActivity
     }
 
     /**
-     * Loads customers whose store name or owner name matches the query.
-     * Runs on the background thread; the token guarantees that only the result
-     * of the most recent keystroke is applied.
+     * Loads customers whose store name, owner name, phone or location matches
+     * the query. Runs on the background thread; the token guarantees that only
+     * the result of the most recent keystroke is applied.
      *
      * @param query the search text
      */
@@ -145,6 +165,59 @@ public class CustomerListActivity extends BaseActivity
         });
     }
 
+    /** Reloads using the query that is currently active in the SearchView. */
+    private void reloadCurrentQuery() {
+        cancelPendingSearch();
+        if (hasActiveQuery()) {
+            searchCustomers(activeQuery);
+        } else {
+            loadCustomers();
+        }
+    }
+
+    /**
+     * Debounces typing so a burst of keystrokes results in one database read.
+     * The token is bumped immediately, so an in-flight result for an older
+     * query cannot be applied.
+     */
+    private void scheduleSearch(String query) {
+        activeQuery = query != null ? query : "";
+        loadToken++;
+        cancelPendingSearch();
+        pendingSearch = () -> {
+            pendingSearch = null;
+            if (hasActiveQuery()) {
+                searchCustomers(activeQuery);
+            } else {
+                loadCustomers();
+            }
+        };
+        searchHandler.postDelayed(pendingSearch, SEARCH_DEBOUNCE_MS);
+    }
+
+    /** Applies a submitted query immediately without waiting for the debounce. */
+    private void applySearchNow(String query) {
+        activeQuery = query != null ? query : "";
+        loadToken++;
+        cancelPendingSearch();
+        if (hasActiveQuery()) {
+            searchCustomers(activeQuery);
+        } else {
+            loadCustomers();
+        }
+    }
+
+    private void cancelPendingSearch() {
+        if (pendingSearch != null) {
+            searchHandler.removeCallbacks(pendingSearch);
+            pendingSearch = null;
+        }
+    }
+
+    private boolean hasActiveQuery() {
+        return activeQuery != null && !activeQuery.trim().isEmpty();
+    }
+
     /**
      * Shows or hides the empty-state text based on the list size.
      */
@@ -152,7 +225,9 @@ public class CustomerListActivity extends BaseActivity
         if (count == 0) {
             tvEmpty.setVisibility(View.VISIBLE);
             rvCustomers.setVisibility(View.GONE);
-            tvEmpty.setText(R.string.no_customers);
+            tvEmpty.setText(hasActiveQuery()
+                    ? R.string.no_search_results
+                    : R.string.no_customers);
         } else {
             tvEmpty.setVisibility(View.GONE);
             rvCustomers.setVisibility(View.VISIBLE);
@@ -225,7 +300,7 @@ public class CustomerListActivity extends BaseActivity
                                                 : R.string.delete_failed,
                                         Toast.LENGTH_SHORT).show();
                                 if (deleted) {
-                                    loadCustomers();
+                                    reloadCurrentQuery();
                                 }
                             });
                         });
@@ -241,8 +316,20 @@ public class CustomerListActivity extends BaseActivity
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK) {
-            loadCustomers();
+            reloadCurrentQuery();
         }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(STATE_SEARCH_QUERY, activeQuery);
+    }
+
+    @Override
+    protected void onDestroy() {
+        cancelPendingSearch();
+        super.onDestroy();
     }
 
     // ── Options menu with SearchView ─────────────────────────────────────
@@ -256,23 +343,33 @@ public class CustomerListActivity extends BaseActivity
 
         SearchView searchView = new SearchView(this);
         searchView.setQueryHint(getString(R.string.search));
+        // The SearchView sits directly on the navy toolbar, so its default
+        // dark query/hint colors are hard to read. Keep both white.
+        EditText searchText = searchView.findViewById(
+                androidx.appcompat.R.id.search_src_text);
+        if (searchText != null) {
+            searchText.setTextColor(getResources().getColor(R.color.white));
+            searchText.setHintTextColor(getResources().getColor(R.color.white));
+        }
         searchItem.setActionView(searchView);
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                searchCustomers(query);
+                applySearchNow(query);
                 return true;
             }
 
             @Override
             public boolean onQueryTextChange(String newText) {
-                searchCustomers(newText);
+                if (!restoringSearchView) {
+                    scheduleSearch(newText);
+                }
                 return true;
             }
         });
 
-        // When the search view is closed, reload full list
+        // When the search view is closed, clear the query and reload the full list.
         searchItem.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
             @Override
             public boolean onMenuItemActionExpand(MenuItem item) {
@@ -281,10 +378,23 @@ public class CustomerListActivity extends BaseActivity
 
             @Override
             public boolean onMenuItemActionCollapse(MenuItem item) {
+                activeQuery = "";
+                loadToken++;
+                cancelPendingSearch();
                 loadCustomers();
                 return true;
             }
         });
+
+        // Rotation recreates the menu; restore the typed query into it without
+        // scheduling a duplicate debounced search.
+        if (hasActiveQuery()) {
+            restoringSearchView = true;
+            searchItem.expandActionView();
+            searchView.setQuery(activeQuery, false);
+            searchView.clearFocus();
+            restoringSearchView = false;
+        }
 
         return true;
     }
