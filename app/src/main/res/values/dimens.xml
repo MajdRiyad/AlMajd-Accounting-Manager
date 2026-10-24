@@ -1,17 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- ===== Activity ===== -->
     <dimen name="activity_margin">16dp</dimen>
+
+    <!-- ===== Cards: radius 16dp, elevation 1-2dp ===== -->
     <dimen name="card_margin">8dp</dimen>
-    <dimen name="card_padding">12dp</dimen>
-    <dimen name="card_elevation">4dp</dimen>
+    <dimen name="card_padding">16dp</dimen>
+    <dimen name="card_elevation">2dp</dimen>
+    <dimen name="card_corner_radius">16dp</dimen>
+
+    <!-- Dashboard header: 24dp bottom corners only -->
+    <dimen name="hero_corner_radius">24dp</dimen>
+
+    <!-- ===== Typography (never below 12sp) ===== -->
     <dimen name="text_size_title">20sp</dimen>
     <dimen name="text_size_subtitle">16sp</dimen>
     <dimen name="text_size_body">14sp</dimen>
     <dimen name="text_size_small">12sp</dimen>
-    <dimen name="text_size_header">36sp</dimen>
-    <dimen name="text_size_greeting">18sp</dimen>
-    <dimen name="button_height">120dp</dimen>
+    <dimen name="text_size_tiny">12sp</dimen>
+    <dimen name="text_size_header">20sp</dimen>
+    <dimen name="text_size_greeting">13sp</dimen>
+    <dimen name="text_size_stat_value">20sp</dimen>
+    <dimen name="text_size_stat_label">12sp</dimen>
+    <dimen name="text_size_company_en">12sp</dimen>
+
+    <!-- ===== Buttons: radius 14dp, height 52dp ===== -->
+    <dimen name="button_corner_radius">14dp</dimen>
+    <dimen name="button_height">52dp</dimen>
+
+    <!-- ===== Dashboard ===== -->
     <dimen name="fab_margin">16dp</dimen>
     <dimen name="toolbar_height">56dp</dimen>
     <dimen name="item_padding">12dp</dimen>
+    <dimen name="accent_bar_width">4dp</dimen>
+    <dimen name="icon_size_dashboard">32dp</dimen>
+    <dimen name="stat_card_height">96dp</dimen>
+    <dimen name="nav_card_height">88dp</dimen>
+    <dimen name="nav_icon_circle_size">40dp</dimen>
+    <dimen name="nav_icon_size">22dp</dimen>
+
+    <!-- ===== Badges: pill shape ===== -->
+    <dimen name="badge_padding_horizontal">10dp</dimen>
+    <dimen name="badge_padding_vertical">3dp</dimen>
+    <dimen name="badge_corner_radius">999dp</dimen>
+
+    <!-- ===== Inputs: radius 12dp, 1dp border, 52dp tall ===== -->
+    <dimen name="input_corner_radius">12dp</dimen>
+    <dimen name="input_min_height">52dp</dimen>
+    <dimen name="input_padding_horizontal">16dp</dimen>
 </resources>

@@ -65,6 +65,10 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
     public void onBindViewHolder(@NonNull final ViewHolder holder, int position) {
         final InvoiceItem item = items.get(position);
 
+        // Running row number (1-based). Re-set on every bind, so deleting a row
+        // renumbers the rows below it (the activity rebinds the shifted range).
+        holder.tvRowNumber.setText(String.valueOf(position + 1));
+
         // --- Remove any existing watchers before setting text to prevent infinite loops ---
         removeWatchers(holder);
 
@@ -209,24 +213,11 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
      * updates the model and the subtotal TextView, then triggers grand total recalculation.
      */
     private void updateSubtotal(ViewHolder holder, int position) {
-        int qty = 0;
-        double price = 0.0;
+        // NumberUtils tolerates Arabic-Indic digits typed on an Arabic keyboard.
+        int qty = NumberUtils.parseInt(holder.etQuantity.getText().toString().trim());
+        double price = NumberUtils.parseAmount(holder.etUnitPrice.getText().toString().trim());
 
-        try {
-            String qtyStr = holder.etQuantity.getText().toString().trim();
-            if (!qtyStr.isEmpty()) {
-                qty = Integer.parseInt(qtyStr);
-            }
-        } catch (NumberFormatException ignored) { }
-
-        try {
-            String priceStr = holder.etUnitPrice.getText().toString().trim();
-            if (!priceStr.isEmpty()) {
-                price = Double.parseDouble(priceStr);
-            }
-        } catch (NumberFormatException ignored) { }
-
-        double subtotal = qty * price;
+        double subtotal = NumberUtils.round2(qty * price);
 
         InvoiceItem item = items.get(position);
         item.setQuantity(qty);
@@ -246,6 +237,7 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
         for (InvoiceItem item : items) {
             total += item.getSubtotal();
         }
+        total = NumberUtils.round2(total);
         if (listener != null) {
             listener.onTotalsChanged(total);
         }
@@ -253,11 +245,15 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
 
     /**
      * Appends a new empty InvoiceItem row to the end of the list.
+     *
+     * @return the adapter position of the newly added row
      */
-    public void addItem() {
+    public int addItem() {
         InvoiceItem newItem = new InvoiceItem();
         items.add(newItem);
-        notifyItemInserted(items.size() - 1);
+        int position = items.size() - 1;
+        notifyItemInserted(position);
+        return position;
     }
 
     /**
@@ -274,6 +270,7 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
      */
     static class ViewHolder extends RecyclerView.ViewHolder {
 
+        final TextView tvRowNumber;
         final EditText etItemName;
         final EditText etQuantity;
         final EditText etUnitPrice;
@@ -285,6 +282,7 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
 
         ViewHolder(@NonNull View itemView) {
             super(itemView);
+            tvRowNumber = itemView.findViewById(R.id.tv_row_number);
             etItemName = itemView.findViewById(R.id.et_item_name);
             etQuantity = itemView.findViewById(R.id.et_quantity);
             etUnitPrice = itemView.findViewById(R.id.et_unit_price);

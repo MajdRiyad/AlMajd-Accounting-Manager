@@ -1,8 +1,10 @@
 package com.almajd.accounting.ui.customer;
 
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -16,13 +18,14 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.db.InvoiceDao;
 import com.almajd.accounting.db.LedgerDao;
@@ -31,9 +34,19 @@ import com.almajd.accounting.model.Customer;
 import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.LedgerEntry;
 import com.almajd.accounting.model.Payment;
+import com.almajd.accounting.ui.invoice.InvoiceFormActivity;
+import com.almajd.accounting.ui.invoice.InvoiceListActivity;
+import com.almajd.accounting.ui.payment.PaymentFormActivity;
+import com.almajd.accounting.ui.payment.PaymentListActivity;
+import com.almajd.accounting.util.AppExecutors;
+import com.almajd.accounting.util.BalanceUtils;
 import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.NumberUtils;
+import com.almajd.accounting.util.PdfExporter;
+import com.almajd.accounting.util.ShareHelper;
+import com.almajd.accounting.util.StatementBuilder;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,11 +58,13 @@ import java.util.List;
  * <p>
  * Layout: activity_customer_detail.xml
  */
-public class CustomerDetailActivity extends AppCompatActivity {
+public class CustomerDetailActivity extends BaseActivity {
 
     public static final String EXTRA_STORE_NAME = "extra_store_name";
 
     private static final int REQUEST_EDIT = 200;
+    private static final int REQUEST_NEW_ORDER = 201;
+    private static final int REQUEST_NEW_PAYMENT = 202;
     private static final int MAX_RECENT_ITEMS = 5;
 
     // DAOs
@@ -78,6 +93,9 @@ public class CustomerDetailActivity extends AppCompatActivity {
     private Button btnViewAllPayments;
 
     private String storeName;
+
+    /** Incremented on every load so stale background results are discarded. */
+    private int loadToken = 0;
 
     // ── Lifecycle ────────────────────────────────────────────────────────
 
@@ -119,6 +137,8 @@ public class CustomerDetailActivity extends AppCompatActivity {
         rvPayments = findViewById(R.id.rv_payments);
         btnViewAllInvoices = findViewById(R.id.btn_view_all_invoices);
         btnViewAllPayments = findViewById(R.id.btn_view_all_payments);
+        Button btnNewOrder = findViewById(R.id.btn_new_order);
+        Button btnNewPayment = findViewById(R.id.btn_new_payment);
 
         // RecyclerView layout managers (no nested scrolling for embedded lists)
         rvInvoices.setLayoutManager(new LinearLayoutManager(this));
@@ -141,8 +161,27 @@ public class CustomerDetailActivity extends AppCompatActivity {
             }
         });
 
-        // Load data
-        loadData();
+        btnNewOrder.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(CustomerDetailActivity.this,
+                        InvoiceFormActivity.class);
+                intent.putExtra(InvoiceFormActivity.EXTRA_STORE_NAME, storeName);
+                startActivityForResult(intent, REQUEST_NEW_ORDER);
+            }
+        });
+
+        btnNewPayment.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(CustomerDetailActivity.this,
+                        PaymentFormActivity.class);
+                intent.putExtra(PaymentListActivity.EXTRA_STORE_NAME, storeName);
+                startActivityForResult(intent, REQUEST_NEW_PAYMENT);
+            }
+        });
+
+        // Initial data is loaded by onResume (which always follows onCreate).
     }
 
     @Override
@@ -155,32 +194,45 @@ public class CustomerDetailActivity extends AppCompatActivity {
 
     /**
      * Loads the customer, ledger entry, recent invoices, and recent payments
-     * from the database and populates all UI sections.
+     * from the database on the background thread, then populates all UI
+     * sections on the main thread.
      */
     private void loadData() {
-        loadCustomerInfo();
-        loadBalanceSummary();
-        loadRecentInvoices();
-        loadRecentPayments();
+        final int token = ++loadToken;
+        AppExecutors.runOnDb(() -> {
+            final Customer customer = customerDao.getByStoreName(storeName);
+            final LedgerEntry ledger = ledgerDao.getByStoreName(storeName);
+            final List<Invoice> allInvoices = invoiceDao.getByStoreName(storeName, false);
+            final List<Payment> allPayments = paymentDao.getByStoreName(storeName);
+
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (token != loadToken) {
+                    return;
+                }
+                if (customer == null) {
+                    // Customer was deleted externally
+                    finish();
+                    return;
+                }
+                renderCustomerInfo(customer);
+                renderBalanceSummary(ledger);
+                renderRecentInvoices(allInvoices);
+                renderRecentPayments(allPayments);
+            });
+        });
     }
 
-    private void loadCustomerInfo() {
-        Customer customer = customerDao.getByStoreName(storeName);
-        if (customer == null) {
-            // Customer was deleted externally
-            finish();
-            return;
-        }
-
+    private void renderCustomerInfo(Customer customer) {
         tvStoreName.setText(safeText(customer.getStoreName()));
         tvOwnerName.setText(safeText(customer.getOwnerName()));
         tvLocation.setText(safeText(customer.getLocation()));
         tvPhone.setText(safeText(customer.getPhone()));
     }
 
-    private void loadBalanceSummary() {
-        LedgerEntry ledger = ledgerDao.getByStoreName(storeName);
-
+    private void renderBalanceSummary(LedgerEntry ledger) {
         double totalSales = 0;
         double totalPaid = 0;
         double balance = 0;
@@ -193,9 +245,10 @@ public class CustomerDetailActivity extends AppCompatActivity {
 
         tvTotalSales.setText(NumberUtils.formatCurrency(totalSales));
         tvTotalPaid.setText(NumberUtils.formatCurrency(totalPaid));
-        tvBalance.setText(NumberUtils.formatCurrency(balance));
+        // Never show a bare negative number: label owed vs. credit vs. settled.
+        tvBalance.setText(BalanceUtils.format(this, balance));
 
-        // Color the balance: red if customer owes money (> 0), green otherwise
+        // Color the balance: red when the customer owes us, green otherwise
         if (balance > 0) {
             tvBalance.setTextColor(ContextCompat.getColor(this, R.color.red));
         } else {
@@ -203,67 +256,51 @@ public class CustomerDetailActivity extends AppCompatActivity {
         }
     }
 
-    private void loadRecentInvoices() {
-        List<Invoice> allInvoices = invoiceDao.getByStoreName(storeName);
-        if (allInvoices == null) {
-            allInvoices = new ArrayList<>();
-        }
+    private void renderRecentInvoices(List<Invoice> allInvoices) {
+        List<Invoice> invoices = allInvoices != null ? allInvoices : new ArrayList<Invoice>();
 
         // Take last N items (most recent first -- the DAO may already sort)
-        List<Invoice> recent = allInvoices.size() > MAX_RECENT_ITEMS
-                ? allInvoices.subList(0, MAX_RECENT_ITEMS)
-                : allInvoices;
+        List<Invoice> recent = invoices.size() > MAX_RECENT_ITEMS
+                ? new ArrayList<>(invoices.subList(0, MAX_RECENT_ITEMS))
+                : invoices;
 
         rvInvoices.setAdapter(new MiniInvoiceAdapter(recent));
 
         // Hide the "view all" button when there are no invoices at all
-        btnViewAllInvoices.setVisibility(allInvoices.isEmpty() ? View.GONE : View.VISIBLE);
+        btnViewAllInvoices.setVisibility(invoices.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
-    private void loadRecentPayments() {
-        List<Payment> allPayments = paymentDao.getByStoreName(storeName);
-        if (allPayments == null) {
-            allPayments = new ArrayList<>();
-        }
+    private void renderRecentPayments(List<Payment> allPayments) {
+        List<Payment> payments = allPayments != null ? allPayments : new ArrayList<Payment>();
 
-        List<Payment> recent = allPayments.size() > MAX_RECENT_ITEMS
-                ? allPayments.subList(0, MAX_RECENT_ITEMS)
-                : allPayments;
+        List<Payment> recent = payments.size() > MAX_RECENT_ITEMS
+                ? new ArrayList<>(payments.subList(0, MAX_RECENT_ITEMS))
+                : payments;
 
         rvPayments.setAdapter(new MiniPaymentAdapter(recent));
 
-        btnViewAllPayments.setVisibility(allPayments.isEmpty() ? View.GONE : View.VISIBLE);
+        btnViewAllPayments.setVisibility(payments.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
     // ── Navigation helpers ───────────────────────────────────────────────
 
     private void navigateToInvoiceList() {
-        try {
-            // InvoiceListActivity is assumed to exist in a sibling package
-            Class<?> cls = Class.forName("com.almajd.accounting.ui.invoice.InvoiceListActivity");
-            Intent intent = new Intent(this, cls);
-            intent.putExtra(EXTRA_STORE_NAME, storeName);
-            startActivity(intent);
-        } catch (ClassNotFoundException e) {
-            Toast.makeText(this, R.string.no_invoices, Toast.LENGTH_SHORT).show();
-        }
+        Intent intent = new Intent(this, InvoiceListActivity.class);
+        intent.putExtra(InvoiceListActivity.EXTRA_STORE_NAME, storeName);
+        startActivity(intent);
     }
 
     private void navigateToPaymentList() {
-        try {
-            Class<?> cls = Class.forName("com.almajd.accounting.ui.payment.PaymentListActivity");
-            Intent intent = new Intent(this, cls);
-            intent.putExtra(EXTRA_STORE_NAME, storeName);
-            startActivity(intent);
-        } catch (ClassNotFoundException e) {
-            Toast.makeText(this, R.string.no_payments, Toast.LENGTH_SHORT).show();
-        }
+        Intent intent = new Intent(this, PaymentListActivity.class);
+        intent.putExtra(PaymentListActivity.EXTRA_STORE_NAME, storeName);
+        startActivity(intent);
     }
 
-    // ── Toolbar menu (Edit / Delete) ─────────────────────────────────────
+    // ── Toolbar menu (Statement / Edit / Delete) ─────────────────────────
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
+        menu.add(Menu.NONE, 3, 0, R.string.account_statement);
         menu.add(Menu.NONE, 1, 1, R.string.edit);
         menu.add(Menu.NONE, 2, 2, R.string.delete);
         return true;
@@ -274,6 +311,10 @@ public class CustomerDetailActivity extends AppCompatActivity {
         switch (item.getItemId()) {
             case android.R.id.home:
                 finish();
+                return true;
+
+            case 3: // Account statement
+                showStatementDialog();
                 return true;
 
             case 1: // Edit
@@ -306,11 +347,25 @@ public class CustomerDetailActivity extends AppCompatActivity {
                 .setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        customerDao.delete(storeName);
-                        Toast.makeText(CustomerDetailActivity.this,
-                                R.string.deleted_successfully, Toast.LENGTH_SHORT).show();
-                        setResult(RESULT_OK);
-                        finish();
+                        AppExecutors.runOnDb(() -> {
+                            final boolean deleted = customerDao.delete(storeName);
+                            AppExecutors.runOnMain(() -> {
+                                if (isFinishing() || isDestroyed()) {
+                                    return;
+                                }
+                                if (deleted) {
+                                    Toast.makeText(CustomerDetailActivity.this,
+                                            R.string.deleted_successfully,
+                                            Toast.LENGTH_SHORT).show();
+                                    setResult(RESULT_OK);
+                                    finish();
+                                } else {
+                                    Toast.makeText(CustomerDetailActivity.this,
+                                            R.string.delete_failed,
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        });
                     }
                 })
                 .setNegativeButton(R.string.cancel, null)
@@ -324,6 +379,128 @@ public class CustomerDetailActivity extends AppCompatActivity {
      */
     private String safeText(String text) {
         return TextUtils.isEmpty(text) ? "\u2014" : text;
+    }
+
+    // ── Customer account statement ────────────────────────────────────────
+
+    /**
+     * Opens the small period dialog for the customer account statement. Both date
+     * fields are optional; "مشاركة PDF" shares the generated file and "عرض PDF"
+     * opens it in a viewer. The statement itself is derived, never stored.
+     */
+    private void showStatementDialog() {
+        View content = LayoutInflater.from(this)
+                .inflate(R.layout.dialog_customer_statement, null, false);
+        final TextView tvFrom = content.findViewById(R.id.tv_statement_from);
+        final TextView tvTo = content.findViewById(R.id.tv_statement_to);
+
+        tvFrom.setOnClickListener(v -> DateUtils.showDatePicker(this, tvFrom));
+        tvTo.setOnClickListener(v -> DateUtils.showDatePicker(this, tvTo));
+
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.account_statement)
+                .setView(content)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+
+        content.findViewById(R.id.btn_statement_share).setOnClickListener(v -> {
+            if (validatePeriod(tvFrom, tvTo)) {
+                dialog.dismiss();
+                generateStatement(tvFrom.getText().toString(), tvTo.getText().toString(), true);
+            }
+        });
+        content.findViewById(R.id.btn_statement_view).setOnClickListener(v -> {
+            if (validatePeriod(tvFrom, tvTo)) {
+                dialog.dismiss();
+                generateStatement(tvFrom.getText().toString(), tvTo.getText().toString(), false);
+            }
+        });
+
+        dialog.show();
+    }
+
+    /**
+     * @return true when the period is open or {@code from <= to}; otherwise shows
+     *         the shared invalid-range message and keeps the dialog open
+     */
+    private boolean validatePeriod(TextView tvFrom, TextView tvTo) {
+        String from = tvFrom.getText().toString().trim();
+        String to = tvTo.getText().toString().trim();
+        if (!from.isEmpty() && !to.isEmpty() && from.compareTo(to) > 0) {
+            Toast.makeText(this, R.string.invalid_date_range, Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Loads the raw invoices and payments, derives the statement in memory
+     * ({@link StatementBuilder}) and generates the PDF on the DB thread, then
+     * shares or opens it on the main thread.
+     */
+    private void generateStatement(final String from, final String to, final boolean share) {
+        AppExecutors.runOnDb(() -> {
+            try {
+                final Customer customer = customerDao.getByStoreName(storeName);
+                final List<Invoice> invoices = invoiceDao.getStatementMovements(storeName);
+                final List<Payment> payments = paymentDao.getStatementMovements(storeName);
+
+                List<StatementBuilder.InvoiceMovement> invoiceMovements = new ArrayList<>();
+                if (invoices != null) {
+                    for (Invoice invoice : invoices) {
+                        invoiceMovements.add(new StatementBuilder.InvoiceMovement(
+                                invoice.getId(), invoice.getInvoiceDate(),
+                                invoice.getTotalAmount(), invoice.getDiscount()));
+                    }
+                }
+                List<StatementBuilder.PaymentMovement> paymentMovements = new ArrayList<>();
+                if (payments != null) {
+                    for (Payment payment : payments) {
+                        paymentMovements.add(new StatementBuilder.PaymentMovement(
+                                payment.getId(), payment.getPaymentDate(), payment.getAmount(),
+                                payment.getInvoiceId(), payment.getNotes()));
+                    }
+                }
+
+                final StatementBuilder.Statement statement =
+                        StatementBuilder.build(invoiceMovements, paymentMovements, from, to);
+                final File pdfFile = PdfExporter.generateCustomerStatementPdf(
+                        CustomerDetailActivity.this, storeName, customer, statement);
+
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    if (share) {
+                        ShareHelper.sharePdf(CustomerDetailActivity.this, pdfFile);
+                    } else {
+                        openStatementPdf(pdfFile);
+                    }
+                });
+            } catch (final Exception e) {
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    Toast.makeText(CustomerDetailActivity.this,
+                            R.string.pdf_generation_failed, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    /** Opens a generated PDF through ACTION_VIEW, tolerating a missing viewer. */
+    private void openStatementPdf(File pdfFile) {
+        Uri uri = FileProvider.getUriForFile(this,
+                getApplicationContext().getPackageName() + ".fileprovider", pdfFile);
+        Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+        viewIntent.setDataAndType(uri, "application/pdf");
+        viewIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivity(viewIntent);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, R.string.pdf_no_viewer, Toast.LENGTH_LONG).show();
+        }
     }
 
     // =====================================================================
@@ -365,6 +542,13 @@ public class CustomerDetailActivity extends AppCompatActivity {
                     + "  |  "
                     + getString(R.string.remaining) + ": "
                     + NumberUtils.formatCurrency(inv.getRemaining());
+
+            // Line 3 (when applicable): how much came from the customer's credit
+            double creditedFromCustomer = inv.getAllocatedFromCredit();
+            if (creditedFromCustomer > 0) {
+                summary += "\n" + getString(R.string.credit_from_customer_amount,
+                        NumberUtils.formatCurrency(creditedFromCustomer));
+            }
             holder.text2.setText(summary);
         }
 

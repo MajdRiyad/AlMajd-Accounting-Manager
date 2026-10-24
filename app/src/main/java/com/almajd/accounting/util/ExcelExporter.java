@@ -7,56 +7,26 @@ import java.util.List;
 public class ExcelExporter {
 
     /**
-     * Generate an Excel-compatible HTML file (.xls) from tabular data.
-     * This creates an HTML table that Excel can open natively.
+     * Generate a real Excel workbook (.xlsx, Office Open XML) from tabular data.
+     * <p>
+     * Amounts are written as real numeric cells (so they can be summed in Excel,
+     * Google Sheets and LibreOffice); other cells are written as text. The sheet
+     * is right-to-left and the header row is bold. Everything is produced with
+     * {@code java.util.zip} -- no external library.
      */
     public static File generateExcel(Context context, String sheetName,
                                       String[] headers, List<List<String>> rows) throws Exception {
         File exportDir = new File(context.getCacheDir(), "exports");
         if (!exportDir.exists()) exportDir.mkdirs();
-        File file = new File(exportDir, sheetName.replaceAll("\\s+", "_") + "_" + System.currentTimeMillis() + ".xls");
+        File file = new File(exportDir,
+                sheetName.replaceAll("\\s+", "_") + "_" + System.currentTimeMillis() + ".xlsx");
 
-        BufferedWriter writer = new BufferedWriter(
-                new OutputStreamWriter(new FileOutputStream(file), "UTF-8"));
-
-        // Write HTML table that Excel can read
-        writer.write("<html xmlns:o=\"urn:schemas-microsoft-com:office:office\" ");
-        writer.write("xmlns:x=\"urn:schemas-microsoft-com:office:excel\">");
-        writer.newLine();
-        writer.write("<head><meta charset=\"UTF-8\">");
-        writer.write("<style>");
-        writer.write("table { border-collapse: collapse; width: 100%; }");
-        writer.write("th { background-color: #4472C4; color: white; font-weight: bold; ");
-        writer.write("padding: 10px; border: 1px solid #000; text-align: center; }");
-        writer.write("td { padding: 8px; border: 1px solid #ccc; text-align: right; }");
-        writer.write("tr:nth-child(even) { background-color: #f2f2f2; }");
-        writer.write("</style></head>");
-        writer.newLine();
-        writer.write("<body><table>");
-        writer.newLine();
-
-        // Header row
-        writer.write("<tr>");
-        for (String header : headers) {
-            writer.write("<th>" + escapeHtml(header) + "</th>");
+        FileOutputStream out = new FileOutputStream(file);
+        try {
+            XlsxWriter.write(out, sheetName, headers, rows);
+        } finally {
+            out.close();
         }
-        writer.write("</tr>");
-        writer.newLine();
-
-        // Data rows
-        for (List<String> row : rows) {
-            writer.write("<tr>");
-            for (String cell : row) {
-                writer.write("<td>" + escapeHtml(cell != null ? cell : "") + "</td>");
-            }
-            writer.write("</tr>");
-            writer.newLine();
-        }
-
-        writer.write("</table></body></html>");
-        writer.flush();
-        writer.close();
-
         return file;
     }
 
@@ -103,14 +73,5 @@ public class ExcelExporter {
             }
         }
         return sb.toString();
-    }
-
-    private static String escapeHtml(String text) {
-        if (text == null) return "";
-        return text
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;");
     }
 }

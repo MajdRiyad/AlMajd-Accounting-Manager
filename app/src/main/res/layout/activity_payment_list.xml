@@ -7,15 +7,52 @@
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:background="@color/lightGray"
+        android:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
+            style="@style/AppTheme.Toolbar"
             android:layout_width="match_parent"
             android:layout_height="@dimen/toolbar_height"
             android:background="@color/primaryColor"
             app:title="@string/payments"
             app:titleTextColor="@color/white" />
+
+        <!-- Search field; pinned below the toolbar so the FAB stays clear. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/lightGray"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/activity_margin"
+            android:paddingTop="8dp"
+            android:paddingEnd="@dimen/activity_margin"
+            android:paddingBottom="8dp">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_search"
+                style="@style/AppTextInputStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:elevation="0dp"
+                android:hint="@string/search_payments_hint"
+                app:endIconMode="clear_text"
+                app:endIconTint="@color/textSecondary">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_search"
+                    style="@style/InputEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:imeOptions="actionSearch"
+                    android:inputType="text"
+                    android:singleLine="true" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+        </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -25,8 +62,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
+        android:textAlignment="center"
         android:text="@string/no_payments"
-        android:textColor="@color/gray"
+        android:textColor="@color/textSecondary"
         android:textSize="@dimen/text_size_subtitle"
         android:visibility="gone"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
@@ -48,8 +86,8 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
         android:contentDescription="@string/new_payment"
-        android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="@color/accentColor"
+        android:src="@drawable/ic_add"
+        app:backgroundTint="@color/primaryColor"
         app:tint="@color/white" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

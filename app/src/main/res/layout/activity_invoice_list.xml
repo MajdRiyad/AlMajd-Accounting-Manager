@@ -7,15 +7,93 @@
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:background="@color/lightGray"
+        android:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
+            style="@style/AppTheme.Toolbar"
             android:layout_width="match_parent"
             android:layout_height="@dimen/toolbar_height"
             android:background="@color/primaryColor"
             app:title="@string/invoices"
             app:titleTextColor="@color/white" />
+
+        <!-- Search + effective-status filter; pinned below the toolbar. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/lightGray"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/activity_margin"
+            android:paddingTop="8dp"
+            android:paddingEnd="@dimen/activity_margin"
+            android:paddingBottom="4dp">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_search"
+                style="@style/AppTextInputStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:elevation="0dp"
+                android:hint="@string/search_orders_hint"
+                app:endIconMode="clear_text"
+                app:endIconTint="@color/textSecondary">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_search"
+                    style="@style/InputEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:imeOptions="actionSearch"
+                    android:inputType="text"
+                    android:singleLine="true" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chip_group_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                app:chipSpacingHorizontal="8dp"
+                app:chipSpacingVertical="4dp"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_all"
+                    style="@style/FilterChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="@string/filter_all" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_paid"
+                    style="@style/FilterChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/status_paid" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_partial"
+                    style="@style/FilterChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/filter_partial" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_unpaid"
+                    style="@style/FilterChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/filter_unpaid" />
+
+            </com.google.android.material.chip.ChipGroup>
+
+        </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -25,8 +103,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
+        android:textAlignment="center"
         android:text="@string/no_invoices"
-        android:textColor="@color/gray"
+        android:textColor="@color/textSecondary"
         android:textSize="@dimen/text_size_subtitle"
         android:visibility="gone"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
@@ -48,8 +127,8 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
         android:contentDescription="@string/new_invoice"
-        android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="@color/accentColor"
+        android:src="@drawable/ic_add"
+        app:backgroundTint="@color/primaryColor"
         app:tint="@color/white" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

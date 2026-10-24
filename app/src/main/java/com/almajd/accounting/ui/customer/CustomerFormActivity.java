@@ -8,12 +8,13 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.model.Customer;
+import com.almajd.accounting.util.AppExecutors;
 import com.google.android.material.textfield.TextInputLayout;
 
 /**
@@ -25,7 +26,7 @@ import com.google.android.material.textfield.TextInputLayout;
  * <p>
  * Layout: activity_customer_form.xml
  */
-public class CustomerFormActivity extends AppCompatActivity {
+public class CustomerFormActivity extends BaseActivity {
 
     /** Re-use the same extra key defined in the list activity. */
     public static final String EXTRA_STORE_NAME = "extra_store_name";
@@ -40,6 +41,7 @@ public class CustomerFormActivity extends AppCompatActivity {
     private EditText etLocation;
     private EditText etPhone;
 
+    private Button btnSave;
     private CustomerDao customerDao;
 
     /** True when editing an existing customer. */
@@ -76,7 +78,7 @@ public class CustomerFormActivity extends AppCompatActivity {
         etPhone = findViewById(R.id.et_phone);
 
         // Save button
-        Button btnSave = findViewById(R.id.btn_save);
+        btnSave = findViewById(R.id.btn_save);
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -93,6 +95,8 @@ public class CustomerFormActivity extends AppCompatActivity {
             if (getSupportActionBar() != null) {
                 getSupportActionBar().setTitle(R.string.edit_customer);
             }
+            // Keep save disabled until the existing data has loaded.
+            btnSave.setEnabled(false);
             populateForEdit();
         } else {
             // Add mode
@@ -103,30 +107,45 @@ public class CustomerFormActivity extends AppCompatActivity {
     }
 
     /**
-     * Loads the existing customer from the database and fills in the form.
-     * The store name field is disabled because it serves as the primary key.
+     * Loads the existing customer from the database (background thread) and
+     * fills in the form on the main thread. The store name field is disabled
+     * because it serves as the primary key.
      */
     private void populateForEdit() {
-        Customer customer = customerDao.getByStoreName(originalStoreName);
-        if (customer == null) {
-            // Customer no longer exists -- close gracefully
-            Toast.makeText(this, R.string.no_data, Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
+        final String storeName = originalStoreName;
+        AppExecutors.runOnDb(() -> {
+            final Customer customer = customerDao.getByStoreName(storeName);
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (customer == null) {
+                    // Customer no longer exists -- close gracefully
+                    Toast.makeText(CustomerFormActivity.this,
+                            R.string.no_data, Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
 
-        etOwnerName.setText(customer.getOwnerName());
-        etStoreName.setText(customer.getStoreName());
-        etLocation.setText(customer.getLocation());
-        etPhone.setText(customer.getPhone());
+                etOwnerName.setText(customer.getOwnerName());
+                etStoreName.setText(customer.getStoreName());
+                etLocation.setText(customer.getLocation());
+                etPhone.setText(customer.getPhone());
 
-        // Disable store name editing (it is the unique key)
-        etStoreName.setEnabled(false);
-        etStoreName.setFocusable(false);
+                // Disable store name editing (it is the unique key)
+                etStoreName.setEnabled(false);
+                etStoreName.setFocusable(false);
+
+                btnSave.setEnabled(true);
+            });
+        });
     }
 
     /**
-     * Validates input, persists the customer, and returns RESULT_OK.
+     * Validates input on the main thread, then persists the customer on the
+     * background thread (including the add-mode uniqueness check) and reports
+     * the result back on the main thread. The save button is disabled while the
+     * write is in flight so a double tap can only insert once.
      */
     private void onSaveClicked() {
         // Clear previous errors
@@ -155,31 +174,56 @@ public class CustomerFormActivity extends AppCompatActivity {
             return;
         }
 
-        // In ADD mode, verify uniqueness of the store name
-        if (!isEditMode) {
-            Customer existing = customerDao.getByStoreName(storeName);
-            if (existing != null) {
-                tilStoreName.setError(getString(R.string.store_exists));
-                return;
-            }
-        }
-
         // ── Build and persist ────────────────────────────────────────
-        Customer customer = new Customer();
+        final Customer customer = new Customer();
         customer.setOwnerName(ownerName);
         customer.setStoreName(storeName);
         customer.setLocation(location);
         customer.setPhone(phone);
 
-        if (isEditMode) {
-            customerDao.update(customer);
-        } else {
-            customerDao.insert(customer);
-        }
+        final boolean editMode = isEditMode;
+        btnSave.setEnabled(false);
 
-        Toast.makeText(this, R.string.customer_saved, Toast.LENGTH_SHORT).show();
-        setResult(RESULT_OK);
-        finish();
+        AppExecutors.runOnDb(() -> {
+            boolean duplicate = false;
+            boolean success;
+            if (editMode) {
+                success = customerDao.update(customer);
+            } else {
+                // In ADD mode, verify uniqueness of the store name on this thread
+                // so the check and the insert cannot race.
+                Customer existing = customerDao.getByStoreName(storeName);
+                if (existing != null) {
+                    duplicate = true;
+                    success = false;
+                } else {
+                    success = customerDao.insert(customer);
+                }
+            }
+
+            final boolean isDuplicate = duplicate;
+            final boolean saved = success;
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (isDuplicate) {
+                    tilStoreName.setError(getString(R.string.store_exists));
+                    btnSave.setEnabled(true);
+                    return;
+                }
+                if (saved) {
+                    Toast.makeText(CustomerFormActivity.this,
+                            R.string.customer_saved, Toast.LENGTH_SHORT).show();
+                    setResult(RESULT_OK);
+                    finish();
+                } else {
+                    Toast.makeText(CustomerFormActivity.this,
+                            R.string.save_failed, Toast.LENGTH_SHORT).show();
+                    btnSave.setEnabled(true);
+                }
+            });
+        });
     }
 
     /**

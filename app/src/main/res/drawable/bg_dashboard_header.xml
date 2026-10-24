@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Compact dashboard header: navy gradient with 24dp bottom corners only -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="135"
+        android:startColor="@color/gradientStart"
+        android:endColor="@color/gradientEnd"
+        android:type="linear" />
+    <corners
+        android:topLeftRadius="0dp"
+        android:topRightRadius="0dp"
+        android:bottomLeftRadius="@dimen/hero_corner_radius"
+        android:bottomRightRadius="@dimen/hero_corner_radius" />
+</shape>

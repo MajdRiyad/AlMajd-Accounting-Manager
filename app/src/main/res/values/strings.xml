@@ -2,11 +2,8 @@
 <resources>
     <string name="app_name">AlMajd Accounting</string>
     <string name="header_title">المجد للاتصالات</string>
+    <string name="header_title_en">AlMajd Communications</string>
     <string name="greeting">مرحباً بك، أبو المجد</string>
-    <string name="btn_add_customer">إضافة عميل</string>
-    <string name="btn_new_invoice">فاتورة جديدة</string>
-    <string name="btn_add_payment">إضافة دفعة</string>
-    <string name="btn_reports">التقارير</string>
     <string name="customers">العملاء</string>
     <string name="owner_name">اسم صاحب المحل</string>
     <string name="store_name">اسم المحل</string>
@@ -17,14 +14,22 @@
     <string name="delete">حذف</string>
     <string name="edit">تعديل</string>
     <string name="total">الإجمالي</string>
+    <string name="invoice_subtotal">المجموع قبل الخصم</string>
+    <string name="discount">الخصم</string>
+    <string name="add_discount">إضافة خصم</string>
+    <string name="discount_hint">قيمة الخصم</string>
+    <string name="discount_invalid">قيمة الخصم يجب أن تكون بين 0 والمجموع قبل الخصم</string>
+    <string name="invoice_notes">ملاحظات الطلبية</string>
+    <string name="notes_optional_hint">ملاحظات (اختياري)</string>
     <string name="paid">المدفوع</string>
     <string name="remaining">المتبقي</string>
     <string name="balance">الرصيد</string>
-    <string name="item_name">اسم البند</string>
+    <string name="item_name">اسم الصنف</string>
     <string name="quantity">الكمية</string>
-    <string name="unit_price">سعر الوحدة</string>
+    <string name="unit_price">سعر الواحدة</string>
     <string name="subtotal">المجموع</string>
-    <string name="add_item">+ إضافة بند</string>
+    <string name="col_number">#</string>
+    <string name="add_item">+ إضافة صنف</string>
     <string name="select_store">اختر المحل</string>
     <string name="date">التاريخ</string>
     <string name="amount">المبلغ</string>
@@ -39,22 +44,24 @@
     <string name="confirm_delete_title">تأكيد الحذف</string>
     <string name="confirm_delete_message">هل أنت متأكد من الحذف؟</string>
     <string name="no_data">لا توجد بيانات</string>
-    <string name="invoice">فاتورة</string>
-    <string name="invoices">الفواتير</string>
+    <string name="invoices">الطلبيات</string>
     <string name="payments">المدفوعات</string>
-    <string name="payment">دفعة</string>
     <string name="reports">التقارير</string>
     <string name="add_customer">إضافة عميل</string>
     <string name="edit_customer">تعديل العميل</string>
-    <string name="new_invoice">فاتورة جديدة</string>
-    <string name="edit_invoice">تعديل الفاتورة</string>
+    <string name="new_invoice">طلبية جديدة</string>
+    <string name="edit_invoice">تعديل الطلبية</string>
     <string name="new_payment">دفعة جديدة</string>
     <string name="edit_payment">تعديل الدفعة</string>
     <string name="customer_details">تفاصيل العميل</string>
-    <string name="invoice_details">تفاصيل الفاتورة</string>
-    <string name="total_customers">عدد العملاء: %d</string>
-    <string name="outstanding_balance">الرصيد المستحق: %s</string>
+    <string name="invoice_details">تفاصيل الطلبية</string>
     <string name="search">بحث</string>
+    <string name="search_orders_hint">بحث بالطلبيات (اسم المحل، رقم الطلبية، المبلغ)</string>
+    <string name="search_payments_hint">بحث بالدفعات (اسم المحل، المبلغ، ملاحظات)</string>
+    <string name="filter_all">الكل</string>
+    <string name="filter_partial">جزئية</string>
+    <string name="filter_unpaid">غير مدفوعة</string>
+    <string name="no_search_results">لا توجد نتائج</string>
     <string name="all_stores">كل المحلات</string>
     <string name="from_date">من تاريخ</string>
     <string name="to_date">إلى تاريخ</string>
@@ -64,20 +71,148 @@
     <string name="total_paid">إجمالي المدفوع</string>
     <string name="current_balance">الرصيد الحالي</string>
     <string name="customer_saved">تم حفظ العميل</string>
-    <string name="invoice_saved">تم حفظ الفاتورة</string>
+    <string name="invoice_saved">تم حفظ الطلبية</string>
     <string name="payment_saved">تم حفظ الدفعة</string>
     <string name="deleted_successfully">تم الحذف بنجاح</string>
+    <string name="delete_failed">تعذر الحذف، حاول مرة أخرى</string>
     <string name="required_field">هذا الحقل مطلوب</string>
     <string name="store_exists">اسم المحل موجود مسبقاً</string>
     <string name="no_customers">لا يوجد عملاء. أضف عميلاً جديداً!</string>
-    <string name="no_invoices">لا توجد فواتير</string>
+    <string name="no_invoices">لا توجد طلبيات</string>
     <string name="no_payments">لا توجد مدفوعات</string>
-    <string name="add_at_least_one_item">أضف بنداً واحداً على الأقل</string>
-    <string name="pdf_header_ar_line1">المجد للاتصالات</string>
-    <string name="pdf_header_ar_line2">رياض برهم</string>
-    <string name="pdf_header_en_line1">AlMajd Communications</string>
-    <string name="pdf_header_en_line2">Riyad Barham</string>
-    <string name="pdf_phone_placeholder">[PHONE]</string>
-    <string name="export">تصدير</string>
+    <string name="add_at_least_one_item">أضف صنفاً واحداً على الأقل</string>
     <string name="last_payment_date">تاريخ آخر دفعة</string>
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_company_info">معلومات الشركة</string>
+    <string name="settings_company_name_ar">اسم الشركة (عربي)</string>
+    <string name="settings_company_name_en">Company Name (English)</string>
+    <string name="settings_owner_info">معلومات المالك</string>
+    <string name="settings_owner_name_ar">اسم المالك (عربي)</string>
+    <string name="settings_owner_name_en">Owner Name (English)</string>
+    <string name="settings_contact_info">معلومات الاتصال</string>
+    <string name="settings_phone">رقم الهاتف</string>
+    <string name="settings_saved">تم حفظ الإعدادات</string>
+    <string name="items_section_title">الأصناف</string>
+    <string name="view_all">عرض الكل</string>
+    <string name="invoice_number_format">طلبية #%d</string>
+    <string name="status_paid">مدفوعة</string>
+
+    <!-- Customer-credit allocation (on-account payments covering invoices) -->
+    <string name="status_paid_from_credit">مسددة من رصيد الزبون</string>
+    <string name="status_partial_from_credit">مسددة جزئياً من رصيد الزبون</string>
+    <string name="credit_from_customer_label">من رصيد الزبون</string>
+    <string name="credit_from_customer_amount">من رصيد الزبون: %1$s</string>
+    <string name="credit_from_customer_amount_remaining">من رصيد الزبون: %1$s • المتبقي: %2$s</string>
+
+    <!-- Payment <-> invoice linking -->
+    <string name="on_account">دفعة على الحساب</string>
+    <string name="select_invoice">الطلبية</string>
+    <string name="invoice_option_format">طلبية #%1$d - %2$s - متبقي %3$s</string>
+    <string name="payment_linked_note">دفعة مرتبطة بالطلبية رقم %1$d</string>
+    <string name="payment_excess_note">فائض عن الطلبية رقم %1$d</string>
+    <string name="overpayment_title">مبلغ أكبر من المتبقي</string>
+    <string name="overpayment_message">المبلغ المدخل أكبر من المتبقي على الطلبية. سيتم تسجيل %1$s على الطلبية و%2$s كدفعة على الحساب.</string>
+    <string name="paid_now_overpayment_title">المدفوع أكبر من إجمالي الطلبية</string>
+    <string name="paid_now_overpayment_message">المبلغ المدفوع مقدماً أكبر من إجمالي الطلبية. سيتم تسجيل %1$s على الطلبية و%2$s كدفعة على الحساب.</string>
+    <string name="invalid_date_range">تاريخ البداية يجب أن يكون قبل تاريخ النهاية أو مساوياً له.</string>
+    <string name="confirm">تأكيد</string>
+    <string name="save_failed">تعذر الحفظ، حاول مرة أخرى</string>
+    <string name="add_payment">إضافة دفعة</string>
+    <string name="invoice_payments_title">الدفعات على هذه الطلبية</string>
+    <string name="no_invoice_payments">لا توجد دفعات على هذه الطلبية</string>
+    <string name="payment_delete_title">حذف الدفعة</string>
+    <string name="payment_delete_message">هل تريد حذف هذه الدفعة؟ سيتم تطبيق الحذف عند حفظ الطلبية.</string>
+    <string name="payment_amount_required">يجب أن يكون مبلغ كل دفعة أكبر من صفر</string>
+    <string name="payment_date_invalid">تاريخ الدفعة غير صالح</string>
+    <string name="payments_exceed_order_total">الدفعات المسجلة تتجاوز إجمالي الطلبية بمقدار %1$s. لن يتم تعديل الدفعات تلقائياً.</string>
+
+    <!-- Customer balance wording (never show a bare negative number) -->
+    <string name="balance_owed">عليه %s</string>
+    <string name="balance_credit">له عندنا %s</string>
+    <string name="balance_settled">مسدد</string>
+
+    <!-- Dashboard stat card labels (React design) -->
+    <string name="stat_total_sales">إجمالي المبيعات</string>
+    <string name="stat_total_received">المبالغ المستلمة</string>
+    <string name="stat_total_debts">الديون المستحقة</string>
+    <string name="stat_total_credit">رصيد دائن للعملاء</string>
+    <string name="stat_customer_count">عدد العملاء</string>
+    <string name="stat_invoice_count">عدد الطلبيات</string>
+    <string name="stat_payment_count">عدد الدفعات</string>
+
+    <!-- Dashboard nav card labels -->
+    <string name="nav_customers">العملاء</string>
+    <string name="nav_invoices">الطلبيات</string>
+    <string name="nav_payments">المدفوعات</string>
+    <string name="nav_reports">التقارير</string>
+
+    <!-- Recent invoices section -->
+    <string name="recent_invoices">آخر الطلبيات</string>
+    <string name="no_recent_invoices">لا توجد طلبيات حديثة</string>
+
+    <!-- Backup & restore -->
+    <string name="backup_section_title">النسخ الاحتياطي</string>
+    <string name="backup_section_description">احفظ بياناتك في ملف واحد يمكنك الاحتفاظ به خارج التطبيق (Google Drive أو واتساب أو البريد).</string>
+    <string name="backup_create">إنشاء نسخة احتياطية</string>
+    <string name="backup_restore">استعادة من نسخة احتياطية</string>
+    <string name="backup_last_never">لا توجد نسخة احتياطية بعد</string>
+    <string name="backup_last_at">آخر نسخة احتياطية: %s</string>
+    <string name="backup_failed">تعذر إنشاء النسخة الاحتياطية</string>
+
+    <!-- Backup reminder banner -->
+    <string name="backup_reminder_never">لم تقم بإنشاء نسخة احتياطية بعد. احمِ بياناتك الآن.</string>
+    <string name="backup_reminder_days_ago">آخر نسخة احتياطية كانت قبل %d يوماً. يُنصح بإنشاء نسخة جديدة.</string>
+    <string name="backup_now">نسخ الآن</string>
+
+    <!-- Restore -->
+    <string name="restore_confirm_title">تأكيد الاستعادة</string>
+    <string name="restore_confirm_message">سيتم استبدال بياناتك الحالية بالكامل ببيانات النسخة الاحتياطية.\n\nتاريخ النسخة: %1$s\nالعملاء: %2$d\nالطلبيات: %3$d\nالدفعات: %4$d</string>
+    <string name="restore_success">تمت الاستعادة بنجاح. سيتم إعادة تشغيل التطبيق.</string>
+    <string name="restore_invalid_file">الملف غير صالح أو تالف. تأكد من اختيار ملف نسخة احتياطية صحيح.</string>
+    <string name="restore_missing_db">النسخة الاحتياطية لا تحتوي على قاعدة البيانات.</string>
+    <string name="restore_wrong_app">هذه النسخة الاحتياطية تخص تطبيقاً آخر.</string>
+    <string name="restore_newer_version">هذه النسخة من إصدار أحدث من التطبيق. حدّث التطبيق ثم أعد المحاولة.</string>
+    <string name="restore_unsupported_version">إصدار قاعدة البيانات في هذه النسخة غير مدعوم.</string>
+    <string name="restore_db_corrupt">قاعدة البيانات داخل النسخة تالفة.</string>
+    <string name="restore_failed_rolled_back">فشلت الاستعادة وتمت إعادة بياناتك السابقة.</string>
+    <string name="restore_too_large">حجم الملف كبير جداً بحيث لا يمكن استعادته.</string>
+    <string name="restore_not_enough_space">لا توجد مساحة كافية في الجهاز لاستعادة النسخة الاحتياطية.</string>
+    <string name="restore_recovered_title">تمت استعادة بياناتك</string>
+    <string name="restore_recovered_message">تمت مقاطعة عملية الاستعادة، وتمت استرجاع بياناتك السابقة.</string>
+    <string name="restore_completed_title">اكتملت الاستعادة</string>
+    <string name="restore_completed_message">تمت استعادة النسخة الاحتياطية بنجاح.</string>
+    <string name="share_error">تعذر مشاركة الملف</string>
+    <string name="dismiss">إغلاق</string>
+
+    <!-- Customer account statement (كشف حساب) -->
+    <string name="account_statement">كشف حساب</string>
+    <string name="statement_share_pdf">مشاركة PDF</string>
+    <string name="statement_view_pdf">عرض PDF</string>
+    <string name="statement_period_label">الفترة</string>
+    <string name="statement_period_all">كل الفترات</string>
+    <string name="statement_period_from_to">من %1$s إلى %2$s</string>
+    <string name="statement_period_from">من %1$s</string>
+    <string name="statement_period_until">حتى %1$s</string>
+    <string name="statement_print_date">تاريخ الطباعة</string>
+    <string name="statement_opening_balance">رصيد افتتاحي</string>
+    <string name="statement_closing_balance">الرصيد الختامي</string>
+    <string name="statement_total_debit">إجمالي الطلبيات (مدين)</string>
+    <string name="statement_total_credit">إجمالي الدفعات (دائن)</string>
+    <string name="statement_col_type">النوع</string>
+    <string name="statement_col_reference">البيان</string>
+    <string name="statement_col_debit">مدين</string>
+    <string name="statement_col_credit">دائن</string>
+    <string name="statement_col_balance">الرصيد</string>
+    <string name="statement_type_invoice">طلبية</string>
+    <string name="statement_type_payment">دفعة</string>
+    <string name="statement_invoice_ref">#%1$d</string>
+    <string name="statement_invoice_ref_with_discount">%1$s (بعد خصم %2$s)</string>
+    <string name="statement_payment_on_invoice">على طلبية #%1$d</string>
+    <string name="statement_payment_on_account">على الحساب</string>
+    <string name="statement_reference_with_note">%1$s — %2$s</string>
+    <string name="statement_no_movements">لا توجد حركات</string>
+    <string name="statement_page_label">صفحة</string>
+    <string name="statement_page_of">من</string>
+    <string name="pdf_generation_failed">تعذر إنشاء الملف، حاول مرة أخرى</string>
+    <string name="pdf_no_viewer">لا يوجد تطبيق لعرض ملفات PDF</string>
 </resources>

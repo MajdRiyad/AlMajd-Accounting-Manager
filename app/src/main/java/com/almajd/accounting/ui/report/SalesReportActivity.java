@@ -12,16 +12,17 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.db.InvoiceDao;
 import com.almajd.accounting.model.Customer;
 import com.almajd.accounting.model.Invoice;
+import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.ExcelExporter;
 import com.almajd.accounting.util.NumberUtils;
@@ -44,7 +45,7 @@ import java.util.List;
  * Layout: activity_sales_report.xml
  * IDs: toolbar, spinner_store, et_from_date, et_to_date, btn_filter, rv_report, tv_total
  */
-public class SalesReportActivity extends AppCompatActivity {
+public class SalesReportActivity extends BaseActivity {
 
     private static final String ALL_STORES_KEY = "__ALL__";
 
@@ -60,6 +61,9 @@ public class SalesReportActivity extends AppCompatActivity {
     private ReportAdapter adapter;
     private List<Invoice> currentInvoices = new ArrayList<>();
     private List<String> storeNames = new ArrayList<>();
+
+    /** Incremented on every filter so stale background results are discarded. */
+    private int loadToken = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -108,9 +112,6 @@ public class SalesReportActivity extends AppCompatActivity {
         adapter = new ReportAdapter(new ArrayList<ReportAdapter.ReportRow>());
         rvReport.setAdapter(adapter);
 
-        // Populate store spinner
-        populateStoreSpinner();
-
         // Filter button
         btnFilter.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -119,70 +120,116 @@ public class SalesReportActivity extends AppCompatActivity {
             }
         });
 
-        // Load all invoices initially
-        applyFilter();
+        // Populate the store spinner on the background thread; once it is ready
+        // it triggers the initial (all stores) filter.
+        populateStoreSpinner();
     }
 
     /**
      * Populates the store spinner with "All Stores" as the first entry,
-     * followed by every customer's store name from the database.
+     * followed by every customer's store name from the database. The customer
+     * list is read on the background thread; the adapter is built on main.
      */
     private void populateStoreSpinner() {
-        storeNames.clear();
-        storeNames.add(getString(R.string.all_stores));
+        AppExecutors.runOnDb(() -> {
+            final List<Customer> customers = customerDao.getAll();
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                storeNames.clear();
+                storeNames.add(getString(R.string.all_stores));
+                if (customers != null) {
+                    for (Customer c : customers) {
+                        storeNames.add(c.getStoreName());
+                    }
+                }
 
-        List<Customer> customers = customerDao.getAll();
-        if (customers != null) {
-            for (Customer c : customers) {
-                storeNames.add(c.getStoreName());
-            }
-        }
+                ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
+                        SalesReportActivity.this, android.R.layout.simple_spinner_item, storeNames);
+                spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinnerStore.setAdapter(spinnerAdapter);
 
-        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_item, storeNames);
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerStore.setAdapter(spinnerAdapter);
+                // Load all invoices initially (now that the spinner is ready).
+                applyFilter();
+            });
+        });
     }
 
     /**
-     * Reads the current filter state (store selection and date range) and
-     * queries the InvoiceDao accordingly. Updates the RecyclerView and footer total.
+     * Reads the current filter state (store selection and date range) on the
+     * main thread and queries the InvoiceDao on the background thread. Updates
+     * the RecyclerView and footer total on the main thread.
      */
     private void applyFilter() {
-        int storeIndex = spinnerStore.getSelectedItemPosition();
-        String fromDate = etFromDate.getText().toString().trim();
-        String toDate = etToDate.getText().toString().trim();
+        final int storeIndex = spinnerStore.getSelectedItemPosition();
+        final String fromDate = etFromDate.getText().toString().trim();
+        final String toDate = etToDate.getText().toString().trim();
 
-        boolean isAllStores = (storeIndex <= 0);
-        String selectedStore = isAllStores ? null : storeNames.get(storeIndex);
-        boolean hasDates = !fromDate.isEmpty() && !toDate.isEmpty();
-
-        if (isAllStores && !hasDates) {
-            currentInvoices = invoiceDao.getAll();
-        } else if (isAllStores) {
-            currentInvoices = invoiceDao.getByDateRange(fromDate, toDate);
-        } else if (!hasDates) {
-            currentInvoices = invoiceDao.getByStoreName(selectedStore);
-        } else {
-            currentInvoices = invoiceDao.getByStoreAndDateRange(selectedStore, fromDate, toDate);
+        // A complete range must be ordered; otherwise tell the user and stop.
+        if (!fromDate.isEmpty() && !toDate.isEmpty() && fromDate.compareTo(toDate) > 0) {
+            Toast.makeText(this, R.string.invalid_date_range, Toast.LENGTH_SHORT).show();
+            return;
         }
 
-        if (currentInvoices == null) {
-            currentInvoices = new ArrayList<>();
-        }
+        final boolean isAllStores = (storeIndex <= 0);
+        final String selectedStore =
+                (isAllStores || storeIndex >= storeNames.size()) ? null : storeNames.get(storeIndex);
+        // One-sided ranges are supported: the DAO opens the missing bound.
+        final boolean hasDates = !fromDate.isEmpty() || !toDate.isEmpty();
+        final int token = ++loadToken;
 
-        // Build report rows
+        AppExecutors.runOnDb(() -> {
+            final List<Invoice> result;
+            if (selectedStore == null && !hasDates) {
+                result = invoiceDao.getAll(false);
+            } else if (selectedStore == null) {
+                result = invoiceDao.getByDateRange(fromDate, toDate, false);
+            } else if (!hasDates) {
+                result = invoiceDao.getByStoreName(selectedStore, false);
+            } else {
+                result = invoiceDao.getByStoreAndDateRange(selectedStore, fromDate, toDate, false);
+            }
+            final List<Invoice> invoices = result != null ? result : new ArrayList<Invoice>();
+
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (token != loadToken) {
+                    return;
+                }
+                currentInvoices = invoices;
+                renderInvoices();
+            });
+        });
+    }
+
+    /**
+     * Rebuilds the report rows and footer total from {@link #currentInvoices}.
+     * Must be called on the main thread.
+     */
+    private void renderInvoices() {
         List<ReportAdapter.ReportRow> rows = new ArrayList<>();
         double totalSum = 0;
 
         for (Invoice inv : currentInvoices) {
+            // Total, plus (when applicable) how much of the invoice was settled
+            // from the customer's on-account credit.
+            String totalText = NumberUtils.formatCurrency(inv.getTotalAmount());
+            double creditedFromCustomer = inv.getAllocatedFromCredit();
+            if (creditedFromCustomer > 0) {
+                totalText += "\n" + getString(R.string.credit_from_customer_amount,
+                        NumberUtils.formatCurrency(creditedFromCustomer));
+            }
+
             ReportAdapter.ReportRow row = new ReportAdapter.ReportRow(
                     getString(R.string.store_name),
                     inv.getStoreName(),
                     getString(R.string.date),
                     DateUtils.formatForDisplay(inv.getInvoiceDate()),
                     getString(R.string.total),
-                    NumberUtils.formatCurrency(inv.getTotalAmount())
+                    totalText
             );
 
             // Color the value3 (total) red if there is a remaining balance
@@ -203,84 +250,130 @@ public class SalesReportActivity extends AppCompatActivity {
     /**
      * Builds the header array and data rows list used by all three export formats.
      *
-     * @return a two-element Object array: [0] = String[] headers, [1] = List of List of String rows
+     * @param invoices snapshot of the invoices to export
+     * @return a three-element Object array: [0] = String[] headers,
+     *         [1] = List of List of String rows, [2] = String[] footer
      */
-    private Object[] buildExportData() {
+    private Object[] buildExportData(List<Invoice> invoices) {
         String[] headers = {
                 getString(R.string.store_name),
                 getString(R.string.date),
                 getString(R.string.total),
-                getString(R.string.remaining)
+                getString(R.string.remaining),
+                getString(R.string.credit_from_customer_label)
         };
 
         List<List<String>> dataRows = new ArrayList<>();
         double totalSum = 0;
         double totalRemaining = 0;
+        double totalCredit = 0;
 
-        for (Invoice inv : currentInvoices) {
+        for (Invoice inv : invoices) {
             List<String> row = new ArrayList<>();
             row.add(inv.getStoreName());
             row.add(DateUtils.formatForDisplay(inv.getInvoiceDate()));
             row.add(NumberUtils.formatCurrency(inv.getTotalAmount()));
             row.add(NumberUtils.formatCurrency(inv.getRemaining()));
+            row.add(NumberUtils.formatCurrency(inv.getAllocatedFromCredit()));
             dataRows.add(row);
             totalSum += inv.getTotalAmount();
             totalRemaining += inv.getRemaining();
+            totalCredit += inv.getAllocatedFromCredit();
         }
 
         String[] footer = {
                 getString(R.string.grand_total),
                 "",
                 NumberUtils.formatCurrency(totalSum),
-                NumberUtils.formatCurrency(totalRemaining)
+                NumberUtils.formatCurrency(totalRemaining),
+                NumberUtils.formatCurrency(totalCredit)
         };
 
         return new Object[]{headers, dataRows, footer};
     }
 
     private void exportPdf() {
-        try {
-            Object[] data = buildExportData();
-            String[] headers = (String[]) data[0];
-            @SuppressWarnings("unchecked")
-            List<List<String>> rows = (List<List<String>>) data[1];
-            String[] footer = (String[]) data[2];
+        final List<Invoice> snapshot = new ArrayList<>(currentInvoices);
+        AppExecutors.runOnDb(() -> {
+            try {
+                Object[] data = buildExportData(snapshot);
+                String[] headers = (String[]) data[0];
+                @SuppressWarnings("unchecked")
+                List<List<String>> rows = (List<List<String>>) data[1];
+                String[] footer = (String[]) data[2];
 
-            File file = PdfExporter.generateReportPdf(this,
-                    getString(R.string.sales_history), headers, rows, footer);
-            ShareHelper.shareFile(this, file, "application/pdf");
-        } catch (Exception e) {
-            Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+                final File file = PdfExporter.generateReportPdf(SalesReportActivity.this,
+                        getString(R.string.sales_history), headers, rows, footer);
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    ShareHelper.shareFile(SalesReportActivity.this, file, "application/pdf");
+                });
+            } catch (final Exception e) {
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    Toast.makeText(SalesReportActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     private void exportExcel() {
-        try {
-            Object[] data = buildExportData();
-            String[] headers = (String[]) data[0];
-            @SuppressWarnings("unchecked")
-            List<List<String>> rows = (List<List<String>>) data[1];
+        final List<Invoice> snapshot = new ArrayList<>(currentInvoices);
+        AppExecutors.runOnDb(() -> {
+            try {
+                Object[] data = buildExportData(snapshot);
+                String[] headers = (String[]) data[0];
+                @SuppressWarnings("unchecked")
+                List<List<String>> rows = (List<List<String>>) data[1];
 
-            File file = ExcelExporter.generateExcel(this, "Sales", headers, rows);
-            ShareHelper.shareFile(this, file,
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        } catch (Exception e) {
-            Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+                final File file = ExcelExporter.generateExcel(SalesReportActivity.this, "Sales", headers, rows);
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    ShareHelper.shareFile(SalesReportActivity.this, file,
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                });
+            } catch (final Exception e) {
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    Toast.makeText(SalesReportActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     private void exportCsv() {
-        try {
-            Object[] data = buildExportData();
-            String[] headers = (String[]) data[0];
-            @SuppressWarnings("unchecked")
-            List<List<String>> rows = (List<List<String>>) data[1];
+        final List<Invoice> snapshot = new ArrayList<>(currentInvoices);
+        AppExecutors.runOnDb(() -> {
+            try {
+                Object[] data = buildExportData(snapshot);
+                String[] headers = (String[]) data[0];
+                @SuppressWarnings("unchecked")
+                List<List<String>> rows = (List<List<String>>) data[1];
 
-            File file = ExcelExporter.generateCsv(this, "sales_report", headers, rows);
-            ShareHelper.shareFile(this, file, "text/csv");
-        } catch (Exception e) {
-            Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+                final File file = ExcelExporter.generateCsv(SalesReportActivity.this, "sales_report", headers, rows);
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    ShareHelper.shareFile(SalesReportActivity.this, file, "text/csv");
+                });
+            } catch (final Exception e) {
+                AppExecutors.runOnMain(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    Toast.makeText(SalesReportActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     // ── Options menu ─────────────────────────────────────────────────────

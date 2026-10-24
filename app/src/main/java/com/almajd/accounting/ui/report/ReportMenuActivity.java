@@ -6,10 +6,10 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.almajd.accounting.R;
+import com.almajd.accounting.ui.BaseActivity;
 
 /**
  * Simple menu screen that provides navigation to the three report types:
@@ -18,7 +18,7 @@ import com.almajd.accounting.R;
  * Layout: activity_report_menu.xml
  * IDs: toolbar, btn_sales_report, btn_payment_report, btn_ledger_report
  */
-public class ReportMenuActivity extends AppCompatActivity {
+public class ReportMenuActivity extends BaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

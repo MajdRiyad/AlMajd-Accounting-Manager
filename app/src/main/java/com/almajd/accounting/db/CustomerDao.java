@@ -96,8 +96,10 @@ public class CustomerDao {
             String likeQuery = "%" + query + "%";
             cursor = db.query(DatabaseHelper.TABLE_CUSTOMERS, null,
                     DatabaseHelper.COL_STORE_NAME + " LIKE ? OR " +
-                            DatabaseHelper.COL_OWNER_NAME + " LIKE ?",
-                    new String[]{likeQuery, likeQuery}, null, null,
+                            DatabaseHelper.COL_OWNER_NAME + " LIKE ? OR " +
+                            DatabaseHelper.COL_PHONE + " LIKE ? OR " +
+                            DatabaseHelper.COL_LOCATION + " LIKE ?",
+                    new String[]{likeQuery, likeQuery, likeQuery, likeQuery}, null, null,
                     DatabaseHelper.COL_OWNER_NAME + " ASC");
             if (cursor != null && cursor.moveToFirst()) {
                 do {

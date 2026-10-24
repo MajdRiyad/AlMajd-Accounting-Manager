@@ -5,21 +5,38 @@
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="8dp">
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
 
-    <!-- Item Name -->
+    <!-- Row number (1, 2, 3...) — updated by the adapter on every bind/delete -->
+    <TextView
+        android:id="@+id/tv_row_number"
+        android:layout_width="24dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="1"
+        android:textColor="@color/textSecondary"
+        android:textSize="@dimen/text_size_small"
+        android:textStyle="bold" />
+
+    <!-- Item name (اسم الصنف) -->
     <com.google.android.material.textfield.TextInputEditText
         android:id="@+id/et_item_name"
+        style="@style/InputTextBox.LineItem"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
         android:layout_weight="3"
         android:hint="@string/item_name"
         android:inputType="text"
         android:textSize="@dimen/text_size_body" />
 
-    <!-- Quantity -->
+    <!-- Quantity (الكمية) -->
     <com.google.android.material.textfield.TextInputEditText
         android:id="@+id/et_quantity"
+        style="@style/InputTextBox.LineItem"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
@@ -29,9 +46,10 @@
         android:inputType="number"
         android:textSize="@dimen/text_size_body" />
 
-    <!-- Unit Price -->
+    <!-- Unit price (سعر الواحدة) -->
     <com.google.android.material.textfield.TextInputEditText
         android:id="@+id/et_unit_price"
+        style="@style/InputTextBox.LineItem"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
@@ -41,7 +59,7 @@
         android:inputType="numberDecimal"
         android:textSize="@dimen/text_size_body" />
 
-    <!-- Subtotal -->
+    <!-- Row total (المجموع) -->
     <TextView
         android:id="@+id/tv_subtotal"
         android:layout_width="0dp"
@@ -54,15 +72,16 @@
         android:textSize="@dimen/text_size_body"
         android:textStyle="bold" />
 
-    <!-- Delete Button -->
+    <!-- Delete button -->
     <ImageButton
         android:id="@+id/btn_delete"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/delete"
-        android:padding="4dp"
-        android:src="@android:drawable/ic_menu_delete"
+        android:padding="8dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_delete"
         app:tint="@color/red" />
 
 </LinearLayout>

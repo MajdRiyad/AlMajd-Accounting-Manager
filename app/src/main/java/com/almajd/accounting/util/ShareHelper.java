@@ -5,14 +5,30 @@ import android.content.Intent;
 import android.net.Uri;
 import android.widget.Toast;
 import androidx.core.content.FileProvider;
+
+import com.almajd.accounting.R;
+
 import java.io.File;
 
 public class ShareHelper {
 
     /**
      * Share a file using the native Android share sheet.
+     *
+     * @return true if the share sheet was launched, false if no app could handle
+     *         the request (in which case an error toast is shown).
      */
-    public static void shareFile(Context context, File file, String mimeType) {
+    public static boolean shareFile(Context context, File file, String mimeType) {
+        return shareFile(context, file, mimeType, file.getName());
+    }
+
+    /**
+     * Variant that controls the title shown at the top of the share sheet
+     * (used for invoices so the chooser says "طلبية #N" instead of the
+     * generated PDF file name).
+     */
+    public static boolean shareFile(Context context, File file, String mimeType,
+                                    String chooserTitle) {
         try {
             Uri uri = FileProvider.getUriForFile(context,
                     context.getPackageName() + ".fileprovider", file);
@@ -23,10 +39,12 @@ public class ShareHelper {
             shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
             context.startActivity(Intent.createChooser(shareIntent,
-                    file.getName()));
+                    chooserTitle != null ? chooserTitle : file.getName()));
+            return true;
         } catch (Exception e) {
-            Toast.makeText(context, "Error sharing: " + e.getMessage(),
+            Toast.makeText(context, R.string.share_error,
                     Toast.LENGTH_LONG).show();
+            return false;
         }
     }
 
@@ -38,10 +56,18 @@ public class ShareHelper {
     }
 
     /**
+     * Share a PDF file with a custom share-sheet title.
+     */
+    public static void sharePdf(Context context, File pdfFile, String chooserTitle) {
+        shareFile(context, pdfFile, "application/pdf", chooserTitle);
+    }
+
+    /**
      * Share an Excel file.
      */
     public static void shareExcel(Context context, File excelFile) {
-        shareFile(context, excelFile, "application/vnd.ms-excel");
+        shareFile(context, excelFile,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
 
     /**

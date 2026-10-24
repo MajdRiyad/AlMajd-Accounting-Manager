@@ -3,6 +3,15 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+# Build outputs / artifacts
+*.apk
+
+# Flutter / native extraction output
+cairo_font_extracted/
+
+# Test screenshots
+captures/
+
 # IntelliJ/Android Studio
 .idea/
 *.iml

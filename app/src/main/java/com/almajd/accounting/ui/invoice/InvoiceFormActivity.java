@@ -1,6 +1,8 @@
 package com.almajd.accounting.ui.invoice;
 
 import android.os.Bundle;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -11,22 +13,37 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.annotation.NonNull;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.almajd.accounting.R;
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.textfield.TextInputLayout;
+import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.db.InvoiceDao;
+import com.almajd.accounting.db.PaymentDao;
 import com.almajd.accounting.model.Customer;
 import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.model.InvoiceItem;
+import com.almajd.accounting.model.Payment;
+import com.almajd.accounting.model.PendingPayment;
+import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.DateUtils;
+import com.almajd.accounting.util.InvoiceTotals;
 import com.almajd.accounting.util.NumberUtils;
+import com.almajd.accounting.util.PdfExporter;
+import com.almajd.accounting.util.PendingPaymentTotals;
+import com.almajd.accounting.util.ShareHelper;
 
+import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Form activity for creating or editing an invoice.
@@ -46,30 +63,84 @@ import java.util.List;
  *   <li>{@code EXTRA_STORE_NAME} (String) - add mode: pre-selects the store</li>
  * </ul>
  */
-public class InvoiceFormActivity extends AppCompatActivity
+public class InvoiceFormActivity extends BaseActivity
         implements InvoiceItemAdapter.OnTotalsChangedListener {
 
     public static final String EXTRA_INVOICE_ID = "extra_invoice_id";
     public static final String EXTRA_STORE_NAME = "extra_store_name";
 
+    // Saved-instance-state keys (rotation / process death).
+    private static final String STATE_ITEM_NAMES = "state_item_names";
+    private static final String STATE_ITEM_QUANTITIES = "state_item_quantities";
+    private static final String STATE_ITEM_PRICES = "state_item_prices";
+    private static final String STATE_ITEM_SUBTOTALS = "state_item_subtotals";
+    private static final String STATE_STORE_NAME = "state_store_name";
+    private static final String STATE_DISCOUNT_ENABLED = "state_discount_enabled";
+    private static final String STATE_DISCOUNT_TEXT = "state_discount_text";
+    private static final String STATE_NOTES = "state_notes";
+    private static final String STATE_PAYMENTS_PRESENT = "state_payments_present";
+    private static final String STATE_PAYMENT_IDS = "state_payment_ids";
+    private static final String STATE_PAYMENT_AMOUNTS = "state_payment_amounts";
+    private static final String STATE_PAYMENT_DATES = "state_payment_dates";
+    private static final String STATE_PAYMENT_DELETED = "state_payment_deleted";
+    private static final String STATE_PAYMENT_NEW = "state_payment_new";
+
+    /**
+     * Id of the invoice saved before a configuration change. Persisted so that
+     * rotating the device while the PDF/share sheet is being prepared cannot
+     * re-enable Save and let the user create a duplicate.
+     */
+    private static final String STATE_SAVED_INVOICE_ID = "state_saved_invoice_id";
+
     private Spinner spinnerStore;
     private EditText etDate;
     private EditText etPaid;
+    private EditText etDiscount;
+    private EditText etNotes;
+    private MaterialCheckBox cbDiscount;
+    private TextInputLayout tilDiscount;
+    private View rowPaidNow;
+    private View rowPaidSummary;
+    private View rowDiscountSummary;
+    private TextView tvSubtotal;
+    private TextView tvDiscount;
     private TextView tvTotal;
+    private TextView tvPaidSummary;
     private TextView tvRemaining;
+    private TextView tvCreditInfo;
+    private TextView tvPaymentOverpaidInfo;
     private RecyclerView rvInvoiceItems;
+    private RecyclerView rvInvoicePayments;
+    private View cardPayments;
+    private TextView tvNoInvoicePayments;
+    private Button btnAddInvoicePayment;
+    private NestedScrollView nsvForm;
     private Button btnAddItem;
     private Button btnSave;
 
     private InvoiceItemAdapter itemAdapter;
+    private PendingPaymentAdapter paymentAdapter;
     private InvoiceDao invoiceDao;
     private CustomerDao customerDao;
+    private PaymentDao paymentDao;
+
+    /** Editable payment rows for edit mode; only written to the DB on Save. */
+    private final List<PendingPayment> pendingPayments = new ArrayList<>();
+
+    /** Non-null when rotation captured payment rows; applied after the invoice loads. */
+    private List<PendingPayment> restoredPendingPayments;
+
+    /** True if the activity restored payment rows (possibly an empty list). */
+    private boolean restoredPaymentsPresent = false;
+
+    /** True once linked payments have been loaded into {@link #pendingPayments}. */
+    private boolean paymentsLoaded = false;
 
     /** Store names list backing the spinner adapter. */
     private List<String> storeNames;
 
-    /** Current grand total calculated from line items. */
-    private double currentTotal = 0.0;
+    /** Current subtotal (before discount) calculated from line items. */
+    private double currentSubtotal = 0.0;
 
     /** True when editing an existing invoice; false when creating a new one. */
     private boolean editMode = false;
@@ -77,10 +148,39 @@ public class InvoiceFormActivity extends AppCompatActivity
     /** ID of the invoice being edited (only valid when editMode is true). */
     private long editInvoiceId = -1;
 
+    /**
+     * ID of the invoice saved by this (create-mode) form, or -1 before a
+     * successful save. Once it is set the form only reports success and closes;
+     * it must never save again.
+     */
+    private long savedInvoiceId = -1;
+
+    /** True when create-mode line items were restored from saved state (rotation). */
+    private boolean restoredItems = false;
+
+    /** Store name captured in saved instance state (rotation); may be null. */
+    private String restoredStoreName;
+
+    /** Discount/notes captured on rotation, restored after the invoice loads too. */
+    private boolean restoredFormMeta;
+    private boolean restoredDiscountEnabled;
+    private String restoredDiscountText;
+    private String restoredNotes;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_invoice_form);
+
+        // Recovery: the invoice was already saved before the device rotated while
+        // the share sheet was being prepared. The form must not save again, so it
+        // closes immediately and still reports the saved invoice to the caller.
+        if (savedInstanceState != null
+                && savedInstanceState.getLong(STATE_SAVED_INVOICE_ID, -1) > 0) {
+            setResult(RESULT_OK);
+            finish();
+            return;
+        }
 
         // --- Toolbar ---
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -92,14 +192,32 @@ public class InvoiceFormActivity extends AppCompatActivity
         // --- DAOs ---
         invoiceDao = new InvoiceDao(this);
         customerDao = new CustomerDao(this);
+        paymentDao = new PaymentDao(this);
 
         // --- View references ---
         spinnerStore = findViewById(R.id.spinner_store);
         etDate = findViewById(R.id.et_date);
         etPaid = findViewById(R.id.et_paid);
+        etDiscount = findViewById(R.id.et_discount);
+        etNotes = findViewById(R.id.et_notes);
+        cbDiscount = findViewById(R.id.cb_discount);
+        tilDiscount = findViewById(R.id.til_discount);
+        rowPaidNow = findViewById(R.id.row_paid_now);
+        rowPaidSummary = findViewById(R.id.row_paid_summary);
+        rowDiscountSummary = findViewById(R.id.row_discount_summary);
+        tvSubtotal = findViewById(R.id.tv_subtotal);
+        tvDiscount = findViewById(R.id.tv_discount);
         tvTotal = findViewById(R.id.tv_total);
+        tvPaidSummary = findViewById(R.id.tv_paid_summary);
         tvRemaining = findViewById(R.id.tv_remaining);
+        tvCreditInfo = findViewById(R.id.tv_credit_info);
+        tvPaymentOverpaidInfo = findViewById(R.id.tv_payment_overpaid_info);
         rvInvoiceItems = findViewById(R.id.rv_invoice_items);
+        rvInvoicePayments = findViewById(R.id.rv_invoice_payments);
+        cardPayments = findViewById(R.id.card_payments);
+        tvNoInvoicePayments = findViewById(R.id.tv_no_invoice_payments);
+        btnAddInvoicePayment = findViewById(R.id.btn_add_invoice_payment);
+        nsvForm = findViewById(R.id.nsv_form);
         btnAddItem = findViewById(R.id.btn_add_item);
         btnSave = findViewById(R.id.btn_save);
 
@@ -115,9 +233,6 @@ public class InvoiceFormActivity extends AppCompatActivity
             getSupportActionBar().setTitle(editMode ? R.string.edit_invoice : R.string.new_invoice);
         }
 
-        // --- Populate store spinner ---
-        setupStoreSpinner();
-
         // --- Date field ---
         etDate.setText(DateUtils.todayAsDbFormat());
         etDate.setFocusable(false);
@@ -130,10 +245,47 @@ public class InvoiceFormActivity extends AppCompatActivity
         });
 
         // --- Invoice items RecyclerView ---
+        // On rotation, create-mode items are restored from saved state so no work
+        // is lost. Edit mode reloads from the database instead (see
+        // onStoreSpinnerReady), so it never restores here.
         List<InvoiceItem> initialItems = new ArrayList<>();
+        if (!editMode && savedInstanceState != null) {
+            List<InvoiceItem> restored = restoreItems(savedInstanceState);
+            if (restored != null) {
+                initialItems.addAll(restored);
+                restoredItems = true;
+                restoredStoreName = savedInstanceState.getString(STATE_STORE_NAME);
+            }
+        }
         itemAdapter = new InvoiceItemAdapter(initialItems, this);
         rvInvoiceItems.setLayoutManager(new LinearLayoutManager(this));
         rvInvoiceItems.setAdapter(itemAdapter);
+
+        // --- Edit-mode payment rows (in memory until Save) ---
+        paymentAdapter = new PendingPaymentAdapter(new PendingPaymentAdapter.Listener() {
+            @Override
+            public void onPaymentsChanged() {
+                recalculateRemaining();
+            }
+
+            @Override
+            public void onDeleteRequested(PendingPayment row) {
+                confirmDeletePayment(row);
+            }
+        });
+        rvInvoicePayments.setLayoutManager(new LinearLayoutManager(this));
+        rvInvoicePayments.setAdapter(paymentAdapter);
+        cardPayments.setVisibility(View.GONE);
+        btnAddInvoicePayment.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                addPendingPaymentRow();
+            }
+        });
+
+        // Restore pending payment rows captured before rotation. They are applied
+        // after the invoice has loaded (edit mode only).
+        restorePendingPaymentState(savedInstanceState);
 
         // --- Paid amount watcher -> recalculate remaining ---
         etPaid.addTextChangedListener(new TextWatcher() {
@@ -149,17 +301,68 @@ public class InvoiceFormActivity extends AppCompatActivity
             }
         });
 
+        // --- Optional fixed discount: checkbox reveals the amount field ---
+        cbDiscount.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            updateDiscountVisibility(isChecked);
+            if (!isChecked) {
+                etDiscount.setText("");
+                tilDiscount.setError(null);
+            }
+            recalculateRemaining();
+        });
+        etDiscount.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) { }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                tilDiscount.setError(null);
+                recalculateRemaining();
+            }
+        });
+
+        // Capture any in-progress discount/notes saved before rotation or process
+        // death. Create mode applies them immediately; edit mode applies them
+        // after the invoice has loaded (see bindExistingInvoice), so unsaved
+        // edits are not lost.
+        if (savedInstanceState != null
+                && savedInstanceState.containsKey(STATE_DISCOUNT_ENABLED)) {
+            restoredFormMeta = true;
+            restoredDiscountEnabled =
+                    savedInstanceState.getBoolean(STATE_DISCOUNT_ENABLED, false);
+            restoredDiscountText =
+                    savedInstanceState.getString(STATE_DISCOUNT_TEXT, "");
+            restoredNotes = savedInstanceState.getString(STATE_NOTES, "");
+        }
+        if (!editMode) {
+            if (restoredFormMeta) {
+                etNotes.setText(restoredNotes);
+                etDiscount.setText(restoredDiscountText);
+                cbDiscount.setChecked(restoredDiscountEnabled);
+                updateDiscountVisibility(restoredDiscountEnabled);
+            } else {
+                updateDiscountVisibility(false);
+            }
+        } else {
+            updateDiscountVisibility(false);
+        }
+
         // --- Add item button ---
         btnAddItem.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                itemAdapter.addItem();
-                // Scroll to the newly added item
-                rvInvoiceItems.smoothScrollToPosition(itemAdapter.getItemCount() - 1);
+                // Add the row, then scroll it into view and focus its name field.
+                addItemAndReveal(itemAdapter.addItem());
             }
         });
 
         // --- Save button ---
+        // Disabled until the initial data (store list / existing invoice) has
+        // loaded, so a half-initialised form can never be saved.
+        btnSave.setEnabled(false);
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -167,47 +370,88 @@ public class InvoiceFormActivity extends AppCompatActivity
             }
         });
 
-        // --- Load existing invoice if in edit mode ---
-        if (editMode) {
-            loadExistingInvoice();
-        } else {
-            // In add mode, if store name was passed, pre-select it
-            String preSelectStore = getIntent() != null
-                    ? getIntent().getStringExtra(EXTRA_STORE_NAME) : null;
-            if (preSelectStore != null && !preSelectStore.isEmpty()) {
-                selectStoreInSpinner(preSelectStore);
-            }
-
-            // Start with one empty line item
-            itemAdapter.addItem();
-        }
-
         // Initialize totals display
+        tvSubtotal.setText(NumberUtils.formatCurrency(0));
+        tvDiscount.setText(NumberUtils.formatCurrency(0));
         tvTotal.setText(NumberUtils.formatCurrency(0));
         tvRemaining.setText(NumberUtils.formatCurrency(0));
+
+        // --- Populate store spinner ---
+        // Runs on the background thread; when it finishes it either loads the
+        // invoice (edit mode) or pre-selects the store and adds a first blank
+        // line item (add mode).
+        setupStoreSpinner();
     }
 
     /**
      * Populates the store spinner with store names from the customer database.
-     * The first entry is a prompt string ("Select store").
+     * The customers are read on the background thread; the adapter is built on
+     * the main thread. The first entry is a prompt string ("Select store").
      */
     private void setupStoreSpinner() {
-        storeNames = new ArrayList<>();
-        storeNames.add(getString(R.string.select_store)); // index 0 = prompt
-
-        List<Customer> customers = customerDao.getAll();
-        if (customers != null) {
-            for (Customer c : customers) {
-                if (c.getStoreName() != null && !c.getStoreName().isEmpty()) {
-                    storeNames.add(c.getStoreName());
+        AppExecutors.runOnDb(() -> {
+            final List<Customer> customers = customerDao.getAll();
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
                 }
+                storeNames = new ArrayList<>();
+                storeNames.add(getString(R.string.select_store)); // index 0 = prompt
+
+                if (customers != null) {
+                    for (Customer c : customers) {
+                        if (c.getStoreName() != null && !c.getStoreName().isEmpty()) {
+                            storeNames.add(c.getStoreName());
+                        }
+                    }
+                }
+
+                ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
+                        InvoiceFormActivity.this, android.R.layout.simple_spinner_item, storeNames);
+                spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinnerStore.setAdapter(spinnerAdapter);
+
+                onStoreSpinnerReady();
+            });
+        });
+    }
+
+    /**
+     * Continues the initialisation once the store list is available: in edit
+     * mode the existing invoice is loaded, in add mode the store is pre-selected
+     * (when passed via intent) and one blank line item is added.
+     */
+    private void onStoreSpinnerReady() {
+        if (editMode) {
+            // Edit mode always reloads the invoice and its linked payments from
+            // the database; the create-mode "paid now" field stays hidden.
+            if (rowPaidNow != null) {
+                rowPaidNow.setVisibility(View.GONE);
             }
+            loadExistingInvoice();
+            return;
         }
 
-        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_item, storeNames);
-        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerStore.setAdapter(spinnerAdapter);
+        // Create mode, restored after rotation: keep the in-progress line items
+        // instead of starting over with a single blank row.
+        if (restoredItems) {
+            selectStoreInSpinner(restoredStoreName);
+            refreshTotalsFromAdapter();
+            btnSave.setEnabled(true);
+            return;
+        }
+
+        // In add mode, if store name was passed, pre-select it
+        String preSelectStore = getIntent() != null
+                ? getIntent().getStringExtra(EXTRA_STORE_NAME) : null;
+        if (preSelectStore != null && !preSelectStore.isEmpty()) {
+            selectStoreInSpinner(preSelectStore);
+        }
+
+        // Start with one empty line item
+        itemAdapter.addItem();
+
+        btnSave.setEnabled(true);
     }
 
     /**
@@ -226,16 +470,34 @@ public class InvoiceFormActivity extends AppCompatActivity
     }
 
     /**
-     * Loads an existing invoice by its ID and populates all form fields.
+     * Loads an existing invoice by its ID on the background thread and
+     * populates all form fields on the main thread.
      */
     private void loadExistingInvoice() {
-        Invoice invoice = invoiceDao.getById(editInvoiceId);
-        if (invoice == null) {
-            Toast.makeText(this, R.string.no_data, Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
+        final long id = editInvoiceId;
+        AppExecutors.runOnDb(() -> {
+            final Invoice invoice = invoiceDao.getById(id);
+            final List<Payment> linkedPayments = paymentDao.getByInvoiceId(id);
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (invoice == null) {
+                    Toast.makeText(InvoiceFormActivity.this,
+                            R.string.no_data, Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
+                bindExistingInvoice(invoice, linkedPayments);
+                btnSave.setEnabled(true);
+            });
+        });
+    }
 
+    /**
+     * Binds a loaded invoice to the form. Must be called on the main thread.
+     */
+    private void bindExistingInvoice(Invoice invoice, List<Payment> linkedPayments) {
         // Store selection
         selectStoreInSpinner(invoice.getStoreName());
 
@@ -244,10 +506,61 @@ public class InvoiceFormActivity extends AppCompatActivity
             etDate.setText(invoice.getInvoiceDate());
         }
 
-        // Paid amount
-        if (invoice.getPaidAmount() > 0) {
-            etPaid.setText(String.valueOf(invoice.getPaidAmount()));
+        // Direct payments are edited below. Any customer-credit allocation is
+        // shown separately and is never rewritten by this form.
+        if (rowPaidNow != null) {
+            rowPaidNow.setVisibility(View.GONE);
         }
+        rowPaidSummary.setVisibility(View.VISIBLE);
+        if (invoice.getAllocatedFromCredit() > 0) {
+            tvCreditInfo.setText(getString(R.string.credit_from_customer_amount,
+                    NumberUtils.formatCurrency(invoice.getAllocatedFromCredit())));
+            tvCreditInfo.setVisibility(View.VISIBLE);
+        } else {
+            tvCreditInfo.setVisibility(View.GONE);
+        }
+
+        // Payment rows: rotation state wins over the freshly loaded rows.
+        if (restoredPaymentsPresent) {
+            pendingPayments.clear();
+            if (restoredPendingPayments != null) {
+                pendingPayments.addAll(restoredPendingPayments);
+            }
+        } else {
+            pendingPayments.clear();
+            if (linkedPayments != null) {
+                for (Payment payment : linkedPayments) {
+                    pendingPayments.add(new PendingPayment(
+                            payment.getId(),
+                            formatEditableAmount(payment.getAmount()),
+                            payment.getPaymentDate(),
+                            false,
+                            false));
+                }
+            }
+        }
+        cardPayments.setVisibility(View.VISIBLE);
+        paymentsLoaded = true;
+        refreshPaymentRows();
+
+        // Discount and internal notes are loaded in edit mode. If the activity is
+        // recreated after rotation, unsaved changes captured in saved state win.
+        // Setting the text before checking the box keeps the listener from
+        // clearing it.
+        double existingDiscount = invoice.getDiscount();
+        boolean discountEnabled = existingDiscount > 0;
+        String discountText = existingDiscount > 0
+                ? NumberUtils.formatAmount(existingDiscount) : "";
+        if (restoredFormMeta) {
+            discountEnabled = restoredDiscountEnabled;
+            discountText = restoredDiscountText != null ? restoredDiscountText : "";
+        }
+        etDiscount.setText(discountText);
+        cbDiscount.setChecked(discountEnabled);
+        updateDiscountVisibility(discountEnabled);
+        etNotes.setText(restoredFormMeta
+                ? (restoredNotes != null ? restoredNotes : "")
+                : (invoice.getNotes() != null ? invoice.getNotes() : ""));
 
         // Line items
         List<InvoiceItem> existingItems = invoice.getItems();
@@ -260,9 +573,10 @@ public class InvoiceFormActivity extends AppCompatActivity
             itemAdapter.addItem();
         }
 
-        // Update totals from the loaded invoice
-        currentTotal = invoice.getTotalAmount();
-        tvTotal.setText(NumberUtils.formatCurrency(currentTotal));
+        // Update totals from the loaded invoice. total_amount is the net amount,
+        // so the displayed subtotal is derived as net + discount.
+        currentSubtotal = invoice.getSubtotal();
+        tvSubtotal.setText(NumberUtils.formatCurrency(currentSubtotal));
         recalculateRemaining();
     }
 
@@ -270,15 +584,55 @@ public class InvoiceFormActivity extends AppCompatActivity
 
     @Override
     public void onTotalsChanged(double newTotal) {
-        currentTotal = newTotal;
-        tvTotal.setText(NumberUtils.formatCurrency(currentTotal));
+        currentSubtotal = newTotal;
+        tvSubtotal.setText(NumberUtils.formatCurrency(currentSubtotal));
         recalculateRemaining();
     }
 
+    /** Shows or hides the discount input and its summary row. */
+    private void updateDiscountVisibility(boolean visible) {
+        tilDiscount.setVisibility(visible ? View.VISIBLE : View.GONE);
+        rowDiscountSummary.setVisibility(visible ? View.VISIBLE : View.GONE);
+    }
+
+    /** @return the entered fixed discount (0 when the checkbox is off). */
+    private double getEnteredDiscount() {
+        if (cbDiscount == null || !cbDiscount.isChecked()) {
+            return 0.0;
+        }
+        return NumberUtils.round2(NumberUtils.parseAmount(
+                etDiscount.getText() != null ? etDiscount.getText().toString() : ""));
+    }
+
     /**
-     * Recalculates the remaining balance as total minus paid and updates the display.
+     * Recalculates the summary live. Edit mode derives paid from the pending
+     * payment rows (never from the old invoice view value), so amount edits and
+     * deletions are reflected before Save. Create mode keeps the existing
+     * "paid now" behaviour.
      */
     private void recalculateRemaining() {
+        double discount = getEnteredDiscount();
+        InvoiceTotals baseTotals = InvoiceTotals.calculate(currentSubtotal, discount, 0);
+
+        if (editMode) {
+            PendingPaymentTotals paymentTotals =
+                    PendingPaymentTotals.calculate(baseTotals.netTotal, pendingPayments);
+            tvSubtotal.setText(NumberUtils.formatCurrency(baseTotals.subtotal));
+            tvDiscount.setText(NumberUtils.formatCurrency(baseTotals.discount));
+            tvTotal.setText(NumberUtils.formatCurrency(baseTotals.netTotal));
+            tvPaidSummary.setText(NumberUtils.formatCurrency(paymentTotals.paid));
+            tvRemaining.setText(NumberUtils.formatCurrency(paymentTotals.remaining));
+            if (paymentTotals.overpaidBy > 0) {
+                tvPaymentOverpaidInfo.setText(getString(
+                        R.string.payments_exceed_order_total,
+                        NumberUtils.formatCurrency(paymentTotals.overpaidBy)));
+                tvPaymentOverpaidInfo.setVisibility(View.VISIBLE);
+            } else {
+                tvPaymentOverpaidInfo.setVisibility(View.GONE);
+            }
+            return;
+        }
+
         double paid = 0.0;
         try {
             String paidStr = etPaid.getText().toString().trim();
@@ -287,11 +641,128 @@ public class InvoiceFormActivity extends AppCompatActivity
             }
         } catch (Exception ignored) { }
 
-        double remaining = currentTotal - paid;
-        if (remaining < 0) {
-            remaining = 0;
+        InvoiceTotals totals = InvoiceTotals.calculate(currentSubtotal, discount, paid);
+        tvSubtotal.setText(NumberUtils.formatCurrency(totals.subtotal));
+        tvDiscount.setText(NumberUtils.formatCurrency(totals.discount));
+        tvTotal.setText(NumberUtils.formatCurrency(totals.netTotal));
+        tvRemaining.setText(NumberUtils.formatCurrency(totals.remaining));
+        tvCreditInfo.setVisibility(View.GONE);
+        tvPaymentOverpaidInfo.setVisibility(View.GONE);
+    }
+
+    // ── Edit-mode payment rows ───────────────────────────────────────────
+
+    /** Formats an existing amount for editing: ASCII digits, no thousands comma. */
+    private static String formatEditableAmount(double amount) {
+        return String.format(Locale.US, "%.2f", NumberUtils.round2(amount));
+    }
+
+    /** Rebuilds the visible (non-deleted) rows and the empty-state label. */
+    private void refreshPaymentRows() {
+        List<PendingPayment> visible = new ArrayList<>();
+        for (PendingPayment row : pendingPayments) {
+            if (!row.isDeleted()) {
+                visible.add(row);
+            }
         }
-        tvRemaining.setText(NumberUtils.formatCurrency(remaining));
+        paymentAdapter.setRows(visible);
+        tvNoInvoicePayments.setVisibility(visible.isEmpty() ? View.VISIBLE : View.GONE);
+    }
+
+    /** Adds a blank row (today's date, empty amount). Not persisted until Save. */
+    private void addPendingPaymentRow() {
+        PendingPayment row = new PendingPayment(
+                0,
+                "",
+                DateUtils.todayAsDbFormat(),
+                false,
+                true);
+        pendingPayments.add(row);
+        refreshPaymentRows();
+        recalculateRemaining();
+        rvInvoicePayments.post(new Runnable() {
+            @Override
+            public void run() {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                nsvForm.smoothScrollTo(0, cardPayments.getTop());
+            }
+        });
+    }
+
+    /** Confirms before hiding/marking a payment row; nothing is deleted yet. */
+    private void confirmDeletePayment(final PendingPayment row) {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.payment_delete_title)
+                .setMessage(R.string.payment_delete_message)
+                .setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        if (row.isNew()) {
+                            pendingPayments.remove(row);
+                        } else {
+                            row.setDeleted(true);
+                        }
+                        refreshPaymentRows();
+                        recalculateRemaining();
+                    }
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    /**
+     * Validates pending rows. Blank new rows are ignored; existing rows must
+     * have an amount greater than zero. Deleted rows are skipped.
+     */
+    private boolean validatePendingPayments() {
+        for (PendingPayment row : pendingPayments) {
+            if (row.isDeleted()) {
+                continue;
+            }
+            if (row.isNew() && row.hasEmptyAmount()) {
+                continue;
+            }
+            if (row.getAmount() <= 0) {
+                Toast.makeText(this, R.string.payment_amount_required,
+                        Toast.LENGTH_SHORT).show();
+                return false;
+            }
+            if (!isValidDbDate(row.getPaymentDate())) {
+                Toast.makeText(this, R.string.payment_date_invalid,
+                        Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Strict {@code yyyy-MM-dd} check for dates coming from a picker or restore. */
+    private boolean isValidDbDate(String value) {
+        if (value == null || value.length() != DateUtils.DB_DATE_FORMAT.length()) {
+            return false;
+        }
+        SimpleDateFormat format = new SimpleDateFormat(DateUtils.DB_DATE_FORMAT, Locale.US);
+        format.setLenient(false);
+        try {
+            format.parse(value);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Deep copy for the DB transaction. The UI is disabled during Save, but a
+     * snapshot makes the transaction independent from later adapter changes.
+     */
+    private List<PendingPayment> snapshotPendingPayments() {
+        List<PendingPayment> copy = new ArrayList<>();
+        for (PendingPayment row : pendingPayments) {
+            copy.add(row.copy());
+        }
+        return copy;
     }
 
     /**
@@ -329,53 +800,394 @@ public class InvoiceFormActivity extends AppCompatActivity
             return;
         }
 
-        // 4. Calculate totals
-        double total = 0.0;
+        // 4. Calculate the line-item subtotal (rounded to 2 decimals)
+        double subtotal = 0.0;
         for (InvoiceItem item : validItems) {
-            double sub = item.getQuantity() * item.getUnitPrice();
+            double sub = NumberUtils.round2(item.getQuantity() * item.getUnitPrice());
             item.setSubtotal(sub);
-            total += sub;
+            subtotal += sub;
         }
+        subtotal = NumberUtils.round2(subtotal);
 
-        double paid = 0.0;
-        try {
-            String paidStr = etPaid.getText().toString().trim();
-            if (!paidStr.isEmpty()) {
-                paid = NumberUtils.parseAmount(paidStr);
+        // 5. Validate the optional fixed discount: 0 <= discount <= subtotal.
+        double discount = getEnteredDiscount();
+        if (!InvoiceTotals.isValidDiscount(subtotal, discount)) {
+            tilDiscount.setError(getString(R.string.discount_invalid));
+            etDiscount.requestFocus();
+            return;
+        }
+        tilDiscount.setError(null);
+        final InvoiceTotals totals = InvoiceTotals.calculate(subtotal, discount, 0);
+        final double netTotal = totals.netTotal;
+
+        // 6. Payments. Create mode keeps the "paid now" field unchanged. Edit
+        // mode validates the pending rows, but paid/remaining stay derived.
+        double paidNow = 0.0;
+        if (!editMode) {
+            try {
+                String paidStr = etPaid.getText().toString().trim();
+                if (!paidStr.isEmpty()) {
+                    paidNow = NumberUtils.round2(NumberUtils.parseAmount(paidStr));
+                }
+            } catch (Exception ignored) { }
+            if (paidNow < 0) {
+                paidNow = 0;
             }
-        } catch (Exception ignored) { }
-
-        double remaining = total - paid;
-        if (remaining < 0) {
-            remaining = 0;
+        } else if (!validatePendingPayments()) {
+            return;
         }
 
-        // 5. Build the Invoice object
+        // 7. Build the Invoice object (paid/remaining are derived, not persisted).
+        // total_amount is always the NET amount after the discount.
+        String notes = etNotes.getText() != null
+                ? etNotes.getText().toString().trim() : "";
         Invoice invoice = new Invoice();
         invoice.setStoreName(storeName);
         invoice.setInvoiceDate(date);
-        invoice.setTotalAmount(total);
-        invoice.setPaidAmount(paid);
-        invoice.setRemaining(remaining);
+        invoice.setTotalAmount(netTotal);
+        invoice.setDiscount(totals.discount);
+        invoice.setNotes(notes.isEmpty() ? null : notes);
         invoice.setItems(validItems);
 
-        // 6. Save
-        if (editMode) {
+        // 8. Save on the background thread. The save button is disabled first so
+        // a second tap while the write is in flight cannot insert a duplicate.
+        final boolean isEdit = editMode;
+        if (isEdit) {
             invoice.setId(editInvoiceId);
-            boolean updated = invoiceDao.update(invoice);
-            if (updated) {
-                Toast.makeText(this, R.string.invoice_saved, Toast.LENGTH_SHORT).show();
-                setResult(RESULT_OK);
-                finish();
-            }
-        } else {
-            long newId = invoiceDao.insert(invoice);
-            if (newId > 0) {
-                Toast.makeText(this, R.string.invoice_saved, Toast.LENGTH_SHORT).show();
-                setResult(RESULT_OK);
-                finish();
-            }
         }
+
+        // On create, a "paid now" larger than the NET invoice total is never
+        // applied silently: ask first, then split the amount (net total linked to
+        // the invoice + excess on account) in the same transaction as the insert.
+        if (!isEdit && paidNow > netTotal + 0.0001) {
+            showPaidNowOverpaymentDialog(invoice, netTotal, paidNow);
+            return;
+        }
+
+        saveInvoice(invoice, isEdit, paidNow, 0.0);
+    }
+
+    /**
+     * Confirmation dialog shown when "paid now" on CREATE is greater than the
+     * net invoice total (after discount). Confirming records the net total as a
+     * payment linked to the invoice and the excess as a separate on-account
+     * payment (both in the same transaction as the invoice insert). Cancelling
+     * saves nothing and leaves the form open with Save re-enabled.
+     */
+    private void showPaidNowOverpaymentDialog(final Invoice invoice, final double total,
+                                              final double paidNow) {
+        final double excess = NumberUtils.round2(paidNow - total);
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.paid_now_overpayment_title)
+                .setMessage(getString(R.string.paid_now_overpayment_message,
+                        NumberUtils.formatCurrency(total),
+                        NumberUtils.formatCurrency(excess)))
+                .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        saveInvoice(invoice, false, total, excess);
+                    }
+                })
+                .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // Cancelled: leave the form open and allow another save.
+                        btnSave.setEnabled(true);
+                    }
+                })
+                .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        btnSave.setEnabled(true);
+                    }
+                })
+                .show();
+    }
+
+    /**
+     * Persists the invoice on the background thread, then reports the result on
+     * the main thread. The save button is disabled for the whole write so a
+     * second tap cannot insert a duplicate. {@code linkedPaid} is recorded as a
+     * payment linked to the invoice; {@code onAccountPaid} (the excess of
+     * "paid now" over the net total) as a separate on-account payment.
+     * <p>
+     * In create mode a successful save also generates the invoice PDF and opens
+     * the system share sheet (see {@link #generateAndShare}). Edit mode keeps its
+     * previous behaviour and never opens the share sheet.
+     */
+    private void saveInvoice(final Invoice invoice, final boolean isEdit,
+                             final double linkedPaid, final double onAccountPaid) {
+        btnSave.setEnabled(false);
+        final List<PendingPayment> paymentsSnapshot =
+                isEdit ? snapshotPendingPayments() : null;
+        AppExecutors.runOnDb(() -> {
+            final long invoiceId;
+            if (isEdit) {
+                // One transaction: invoice + items + payment edits/inserts/deletes.
+                invoiceId = invoiceDao.updateWithPayments(invoice, paymentsSnapshot)
+                        ? invoice.getId() : -1L;
+            } else {
+                invoiceId = invoiceDao.insert(invoice, linkedPaid, onAccountPaid);
+            }
+
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (invoiceId <= 0) {
+                    Toast.makeText(InvoiceFormActivity.this,
+                            R.string.save_failed, Toast.LENGTH_SHORT).show();
+                    btnSave.setEnabled(true);
+                    return;
+                }
+                Toast.makeText(InvoiceFormActivity.this,
+                        R.string.invoice_saved, Toast.LENGTH_SHORT).show();
+                // The invoice is committed: report success *now*, so the caller
+                // refreshes even if the user leaves while the PDF is generated.
+                setResult(RESULT_OK);
+                savedInvoiceId = invoiceId;
+
+                if (isEdit) {
+                    // Edit mode: unchanged -- just close.
+                    finish();
+                } else {
+                    // Create mode: build the PDF off the main thread and open the
+                    // system share sheet. Save stays disabled meanwhile.
+                    generateAndShare(invoiceId);
+                }
+            });
+        });
+    }
+
+    /**
+     * Re-loads the freshly saved invoice (so it carries its items and its
+     * effective paid/remaining values), generates the invoice PDF with the same
+     * code {@code InvoiceDetailActivity} uses, and opens the system share sheet.
+     * <p>
+     * The DB read and the PDF generation run on the shared background thread; the
+     * share sheet is launched on the main thread. The invoice is already saved, so
+     * a generation failure only shows {@code pdf_generation_failed} and the form
+     * still closes with {@code RESULT_OK} -- the save is never reported as failed.
+     */
+    private void generateAndShare(final long invoiceId) {
+        AppExecutors.runOnDb(() -> {
+            File pdfFile = null;
+            boolean failed = false;
+            try {
+                final Invoice saved = invoiceDao.getById(invoiceId);
+                if (saved != null) {
+                    final Customer customer =
+                            customerDao.getByStoreName(saved.getStoreName());
+                    pdfFile = PdfExporter.generateInvoicePdf(
+                            InvoiceFormActivity.this, saved, customer);
+                } else {
+                    failed = true;
+                }
+            } catch (Exception e) {
+                failed = true;
+            }
+
+            final File file = pdfFile;
+            final boolean error = failed || file == null;
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (error) {
+                    Toast.makeText(InvoiceFormActivity.this,
+                            R.string.pdf_generation_failed, Toast.LENGTH_SHORT).show();
+                } else {
+                    ShareHelper.sharePdf(InvoiceFormActivity.this, file,
+                            getString(R.string.invoice_number_format, invoiceId));
+                }
+                // The chooser is a separate activity and the PDF is shared from
+                // cacheDir through the FileProvider, so nothing here depends on
+                // this Activity staying alive. Finishing straight after launching
+                // is safe and guarantees the caller refreshes even when the user
+                // never comes back through the form.
+                finish();
+            });
+        });
+    }
+
+    // ── Scrolling / focus ────────────────────────────────────────────────
+
+    /**
+     * Scrolls the form so the just-added line item is visible and focuses its
+     * name field. The item RecyclerView is intentionally non-scrolling (its
+     * height is {@code wrap_content}), so scrolling is done on the surrounding
+     * {@link NestedScrollView} to avoid nested-scroll conflicts.
+     *
+     * @param position adapter position of the new item
+     */
+    private void addItemAndReveal(final int position) {
+        rvInvoiceItems.post(new Runnable() {
+            @Override
+            public void run() {
+                RecyclerView.ViewHolder holder =
+                        rvInvoiceItems.findViewHolderForAdapterPosition(position);
+                if (holder == null) {
+                    // Not laid out yet: fall back to scrolling to the list bottom.
+                    nsvForm.smoothScrollTo(0, rvInvoiceItems.getBottom());
+                    return;
+                }
+                View row = holder.itemView;
+                nsvForm.smoothScrollTo(0, rvInvoiceItems.getTop() + row.getTop());
+                View nameField = row.findViewById(R.id.et_item_name);
+                if (nameField != null) {
+                    nameField.requestFocus();
+                }
+            }
+        });
+    }
+
+    // ── Rotation / process-death state ───────────────────────────────────
+
+    /** Reads pending payment rows captured before rotation (if any). */
+    private void restorePendingPaymentState(Bundle state) {
+        if (state == null || !state.getBoolean(STATE_PAYMENTS_PRESENT, false)) {
+            return;
+        }
+        restoredPaymentsPresent = true;
+        restoredPendingPayments = new ArrayList<>();
+
+        long[] ids = state.getLongArray(STATE_PAYMENT_IDS);
+        String[] amounts = state.getStringArray(STATE_PAYMENT_AMOUNTS);
+        String[] dates = state.getStringArray(STATE_PAYMENT_DATES);
+        boolean[] deleted = state.getBooleanArray(STATE_PAYMENT_DELETED);
+        boolean[] isNew = state.getBooleanArray(STATE_PAYMENT_NEW);
+        int count = amounts != null ? amounts.length : 0;
+        for (int i = 0; i < count; i++) {
+            restoredPendingPayments.add(new PendingPayment(
+                    ids != null && i < ids.length ? ids[i] : 0,
+                    amounts[i] != null ? amounts[i] : "",
+                    dates != null && i < dates.length && dates[i] != null
+                            ? dates[i] : DateUtils.todayAsDbFormat(),
+                    deleted != null && i < deleted.length && deleted[i],
+                    isNew != null && i < isNew.length && isNew[i]));
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        // Remember a completed save so rotation during PDF generation / share
+        // cannot re-enable Save and create a duplicate.
+        outState.putLong(STATE_SAVED_INVOICE_ID, savedInvoiceId);
+
+        // Keep the discount and internal notes when the device rotates, in both
+        // create and edit mode. Edit mode reloads the line items from the
+        // database, but unsaved discount/notes edits must not be lost.
+        outState.putBoolean(STATE_DISCOUNT_ENABLED,
+                cbDiscount != null && cbDiscount.isChecked());
+        outState.putString(STATE_DISCOUNT_TEXT,
+                etDiscount != null && etDiscount.getText() != null
+                        ? etDiscount.getText().toString() : "");
+        outState.putString(STATE_NOTES,
+                etNotes != null && etNotes.getText() != null
+                        ? etNotes.getText().toString() : "");
+
+        // Pending payment rows: persist the in-memory edits across rotation. Only
+        // save after the DB load completed, otherwise an empty list would
+        // overwrite the real linked payments on recreate.
+        if (editMode) {
+            if (paymentsLoaded) {
+                outState.putBoolean(STATE_PAYMENTS_PRESENT, true);
+                int count = pendingPayments.size();
+                long[] ids = new long[count];
+                String[] amounts = new String[count];
+                String[] dates = new String[count];
+                boolean[] deleted = new boolean[count];
+                boolean[] isNew = new boolean[count];
+                for (int i = 0; i < count; i++) {
+                    PendingPayment row = pendingPayments.get(i);
+                    ids[i] = row.getPaymentId();
+                    amounts[i] = row.getAmountText();
+                    dates[i] = row.getPaymentDate();
+                    deleted[i] = row.isDeleted();
+                    isNew[i] = row.isNew();
+                }
+                outState.putLongArray(STATE_PAYMENT_IDS, ids);
+                outState.putStringArray(STATE_PAYMENT_AMOUNTS, amounts);
+                outState.putStringArray(STATE_PAYMENT_DATES, dates);
+                outState.putBooleanArray(STATE_PAYMENT_DELETED, deleted);
+                outState.putBooleanArray(STATE_PAYMENT_NEW, isNew);
+            }
+            return;
+        }
+        if (itemAdapter == null) {
+            return;
+        }
+        // Persist the in-progress line items so rotating the device does not lose
+        // them.
+        List<InvoiceItem> items = itemAdapter.getAllItems();
+        String[] names = new String[items.size()];
+        int[] quantities = new int[items.size()];
+        double[] prices = new double[items.size()];
+        double[] subtotals = new double[items.size()];
+        for (int i = 0; i < items.size(); i++) {
+            InvoiceItem item = items.get(i);
+            names[i] = item.getItemName();
+            quantities[i] = item.getQuantity();
+            prices[i] = item.getUnitPrice();
+            subtotals[i] = item.getSubtotal();
+        }
+        outState.putStringArray(STATE_ITEM_NAMES, names);
+        outState.putIntArray(STATE_ITEM_QUANTITIES, quantities);
+        outState.putDoubleArray(STATE_ITEM_PRICES, prices);
+        outState.putDoubleArray(STATE_ITEM_SUBTOTALS, subtotals);
+        outState.putString(STATE_STORE_NAME, getSelectedStoreName());
+    }
+
+    /**
+     * Rebuilds the line items from saved instance state.
+     *
+     * @return the restored items, or {@code null} when the state contains none
+     *         (fresh start, so the caller should add a blank row)
+     */
+    private List<InvoiceItem> restoreItems(Bundle state) {
+        String[] names = state.getStringArray(STATE_ITEM_NAMES);
+        if (names == null) {
+            return null;
+        }
+        int[] quantities = state.getIntArray(STATE_ITEM_QUANTITIES);
+        double[] prices = state.getDoubleArray(STATE_ITEM_PRICES);
+        double[] subtotals = state.getDoubleArray(STATE_ITEM_SUBTOTALS);
+
+        List<InvoiceItem> items = new ArrayList<>();
+        for (int i = 0; i < names.length; i++) {
+            InvoiceItem item = new InvoiceItem();
+            item.setItemName(names[i] != null ? names[i] : "");
+            item.setQuantity(quantities != null && i < quantities.length ? quantities[i] : 0);
+            item.setUnitPrice(prices != null && i < prices.length ? prices[i] : 0.0);
+            item.setSubtotal(subtotals != null && i < subtotals.length ? subtotals[i] : 0.0);
+            items.add(item);
+        }
+        return items;
+    }
+
+    /**
+     * Recomputes the displayed grand total (and remaining) from the adapter's
+     * current items. Used when the items are restored rather than re-typed.
+     */
+    private void refreshTotalsFromAdapter() {
+        double total = 0.0;
+        for (InvoiceItem item : itemAdapter.getAllItems()) {
+            total += item.getSubtotal();
+        }
+        onTotalsChanged(NumberUtils.round2(total));
+    }
+
+    /** @return the currently selected store name, or null when none is selected. */
+    private String getSelectedStoreName() {
+        if (storeNames == null) {
+            return null;
+        }
+        int pos = spinnerStore.getSelectedItemPosition();
+        if (pos <= 0 || pos >= storeNames.size()) {
+            return null;
+        }
+        return storeNames.get(pos);
     }
 
     @Override

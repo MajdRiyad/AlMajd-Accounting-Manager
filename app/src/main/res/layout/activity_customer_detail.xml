@@ -9,16 +9,18 @@
     <!-- Toolbar -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
+        style="@style/AppTheme.Toolbar"
         android:layout_width="match_parent"
         android:layout_height="@dimen/toolbar_height"
         android:background="@color/primaryColor"
-        app:navigationIcon="@android:drawable/ic_menu_revert"
+        app:navigationIcon="@drawable/ic_arrow_back"
         app:title="@string/customer_details"
         app:titleTextColor="@color/white" />
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -196,7 +198,8 @@
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="عرض الكل"
+                    android:elevation="0dp"
+                    android:text="@string/view_all"
                     android:textColor="@color/primaryColor" />
 
             </LinearLayout>
@@ -230,7 +233,8 @@
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="عرض الكل"
+                    android:elevation="0dp"
+                    android:text="@string/view_all"
                     android:textColor="@color/primaryColor" />
 
             </LinearLayout>
@@ -245,5 +249,73 @@
         </LinearLayout>
 
     </ScrollView>
+
+    <!-- Fixed quick actions: always reachable without scrolling -->
+    <LinearLayout
+        android:id="@+id/bar_quick_actions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:elevation="0dp"
+        android:orientation="vertical">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/divider" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_new_order"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/button_height"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:elevation="0dp"
+                android:gravity="center"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minHeight="@dimen/button_height"
+                android:text="@string/new_invoice"
+                android:textColor="@color/white"
+                android:textSize="@dimen/text_size_body"
+                app:backgroundTint="@color/primaryColor"
+                app:cornerRadius="@dimen/button_corner_radius"
+                app:icon="@drawable/ic_add"
+                app:iconGravity="textStart"
+                app:iconPadding="6dp"
+                app:iconSize="18dp"
+                app:iconTint="@color/white" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_new_payment"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/button_height"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:elevation="0dp"
+                android:gravity="center"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minHeight="@dimen/button_height"
+                android:text="@string/new_payment"
+                android:textColor="@color/white"
+                android:textSize="@dimen/text_size_body"
+                app:backgroundTint="@color/green"
+                app:cornerRadius="@dimen/button_corner_radius"
+                app:icon="@drawable/ic_add"
+                app:iconGravity="textStart"
+                app:iconPadding="6dp"
+                app:iconSize="18dp"
+                app:iconTint="@color/white" />
+
+        </LinearLayout>
+
+    </LinearLayout>
 
 </LinearLayout>

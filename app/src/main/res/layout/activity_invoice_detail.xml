@@ -9,17 +9,19 @@
     <!-- Toolbar -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
+        style="@style/AppTheme.Toolbar"
         android:layout_width="match_parent"
         android:layout_height="@dimen/toolbar_height"
         android:background="@color/primaryColor"
         app:menu="@menu/menu_detail"
-        app:navigationIcon="@android:drawable/ic_menu_revert"
+        app:navigationIcon="@drawable/ic_arrow_back"
         app:title="@string/invoice_details"
         app:titleTextColor="@color/white" />
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -27,7 +29,7 @@
             android:orientation="vertical"
             android:padding="@dimen/activity_margin">
 
-            <!-- Bilingual Header -->
+            <!-- Bilingual Header Card -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/CardStyle"
                 android:layout_width="match_parent"
@@ -36,106 +38,57 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:padding="@dimen/card_padding">
+                    android:orientation="vertical">
 
-                    <!-- Left Side (English) -->
-                    <TextView
-                        android:id="@+id/tv_en_header"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textColor="@color/primaryColor"
-                        android:textSize="@dimen/text_size_small"
-                        android:lineSpacingExtra="4dp" />
+                    <!-- Top accent bar -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="4dp"
+                        android:background="@color/primaryColor" />
 
-                    <!-- Right Side (Arabic) -->
-                    <TextView
-                        android:id="@+id/tv_ar_header"
-                        android:layout_width="0dp"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:gravity="end"
-                        android:textColor="@color/primaryColor"
-                        android:textSize="@dimen/text_size_small"
-                        android:textDirection="rtl"
-                        android:lineSpacingExtra="4dp" />
+                        android:orientation="horizontal"
+                        android:padding="@dimen/card_padding">
+
+                        <!-- Left Side (English) -->
+                        <TextView
+                            android:id="@+id/tv_en_header"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textColor="@color/primaryColor"
+                            android:textSize="@dimen/text_size_small"
+                            android:lineSpacingExtra="4dp" />
+
+                        <!-- Center divider -->
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="match_parent"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginEnd="8dp"
+                            android:background="@color/divider" />
+
+                        <!-- Right Side (Arabic) -->
+                        <TextView
+                            android:id="@+id/tv_ar_header"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="end"
+                            android:textColor="@color/primaryColor"
+                            android:textSize="@dimen/text_size_small"
+                            android:textDirection="rtl"
+                            android:lineSpacingExtra="4dp" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
-
-            <!-- Divider -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:background="@color/divider" />
 
             <!-- Info Card: Store and Date -->
-            <com.google.android.material.card.MaterialCardView
-                style="@style/CardStyle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/store_name"
-                            android:textColor="@color/textSecondary"
-                            android:textSize="@dimen/text_size_body" />
-
-                        <TextView
-                            android:id="@+id/tv_store_name"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textColor="@color/textPrimary"
-                            android:textSize="@dimen/text_size_body"
-                            android:textStyle="bold" />
-
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/date"
-                            android:textColor="@color/textSecondary"
-                            android:textSize="@dimen/text_size_body" />
-
-                        <TextView
-                            android:id="@+id/tv_date"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textColor="@color/textPrimary"
-                            android:textSize="@dimen/text_size_body" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Items Table -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/CardStyle"
                 android:layout_width="match_parent"
@@ -145,23 +98,136 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/card_padding">
+                    android:orientation="horizontal">
 
-                    <!-- Table Header -->
+                    <!-- Navy accent bar -->
+                    <View
+                        android:layout_width="@dimen/accent_bar_width"
+                        android:layout_height="match_parent"
+                        android:background="@color/primaryColor" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/card_padding">
+
+                        <!-- Store name row -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_marginEnd="8dp"
+                                android:src="@drawable/ic_person"
+                                app:tint="@color/primaryColor" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/store_name"
+                                android:textColor="@color/textSecondary"
+                                android:textSize="@dimen/text_size_body" />
+
+                            <TextView
+                                android:id="@+id/tv_store_name"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/textPrimary"
+                                android:textSize="@dimen/text_size_body"
+                                android:textStyle="bold" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginBottom="8dp"
+                            android:background="@color/dividerLight" />
+
+                        <!-- Date row -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_marginEnd="8dp"
+                                android:src="@drawable/ic_clock"
+                                app:tint="@color/primaryColor" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/date"
+                                android:textColor="@color/textSecondary"
+                                android:textSize="@dimen/text_size_body" />
+
+                            <TextView
+                                android:id="@+id/tv_date"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/textPrimary"
+                                android:textSize="@dimen/text_size_body" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Items Table Card -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Section header -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@color/lightGray"
+                        android:padding="@dimen/card_padding"
+                        android:text="@string/items_section_title"
+                        android:textColor="@color/textPrimary"
+                        android:textSize="@dimen/text_size_body"
+                        android:textStyle="bold" />
+
+                    <!-- Table Header (the only header row; the data rows are built in code) -->
                     <TableLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content">
 
                         <TableRow
-                            android:background="@color/primaryColor"
-                            android:padding="8dp">
+                            android:background="@color/primaryColor">
 
                             <TextView
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="3"
-                                android:padding="4dp"
+                                android:layout_weight="2.5"
+                                android:autoSizeMaxTextSize="@dimen/text_size_small"
+                                android:autoSizeMinTextSize="10sp"
+                                android:autoSizeTextType="uniform"
+                                android:maxLines="1"
+                                android:padding="6dp"
                                 android:text="@string/item_name"
                                 android:textColor="@color/white"
                                 android:textSize="@dimen/text_size_small"
@@ -170,9 +236,13 @@
                             <TextView
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
+                                android:layout_weight="1.1"
+                                android:autoSizeMaxTextSize="@dimen/text_size_small"
+                                android:autoSizeMinTextSize="10sp"
+                                android:autoSizeTextType="uniform"
                                 android:gravity="center"
-                                android:padding="4dp"
+                                android:maxLines="1"
+                                android:padding="6dp"
                                 android:text="@string/quantity"
                                 android:textColor="@color/white"
                                 android:textSize="@dimen/text_size_small"
@@ -181,9 +251,13 @@
                             <TextView
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="2"
+                                android:layout_weight="2.2"
+                                android:autoSizeMaxTextSize="@dimen/text_size_small"
+                                android:autoSizeMinTextSize="10sp"
+                                android:autoSizeTextType="uniform"
                                 android:gravity="center"
-                                android:padding="4dp"
+                                android:maxLines="1"
+                                android:padding="6dp"
                                 android:text="@string/unit_price"
                                 android:textColor="@color/white"
                                 android:textSize="@dimen/text_size_small"
@@ -192,9 +266,13 @@
                             <TextView
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="2"
+                                android:layout_weight="2.2"
+                                android:autoSizeMaxTextSize="@dimen/text_size_small"
+                                android:autoSizeMinTextSize="10sp"
+                                android:autoSizeTextType="uniform"
                                 android:gravity="end"
-                                android:padding="4dp"
+                                android:maxLines="1"
+                                android:padding="6dp"
                                 android:text="@string/subtotal"
                                 android:textColor="@color/white"
                                 android:textSize="@dimen/text_size_small"
@@ -214,19 +292,12 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Divider -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:background="@color/divider" />
-
             <!-- Footer Card: Totals -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/CardStyle"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -234,10 +305,64 @@
                     android:orientation="vertical"
                     android:padding="@dimen/card_padding">
 
-                    <!-- Total -->
+                    <!-- Subtotal (before discount) -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/invoice_subtotal"
+                            android:textColor="@color/textPrimary"
+                            android:textSize="@dimen/text_size_body" />
+
+                        <TextView
+                            android:id="@+id/tv_subtotal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:maxLines="1"
+                            android:textColor="@color/textPrimary"
+                            android:textSize="@dimen/text_size_body"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <!-- Discount (only shown when > 0) -->
+                    <LinearLayout
+                        android:id="@+id/row_discount"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/discount"
+                            android:textColor="@color/textSecondary"
+                            android:textSize="@dimen/text_size_body" />
+
+                        <TextView
+                            android:id="@+id/tv_discount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:maxLines="1"
+                            android:textColor="@color/red"
+                            android:textSize="@dimen/text_size_body"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <!-- Net total (after discount) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
                         android:orientation="horizontal">
 
                         <TextView
@@ -253,6 +378,7 @@
                             android:id="@+id/tv_total"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:maxLines="1"
                             android:textColor="@color/textPrimary"
                             android:textSize="@dimen/text_size_subtitle"
                             android:textStyle="bold" />
@@ -315,6 +441,97 @@
                             android:textStyle="bold" />
 
                     </LinearLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Internal notes (shown only when non-empty; never printed) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_notes"
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@color/lightGray"
+                        android:padding="@dimen/card_padding"
+                        android:text="@string/invoice_notes"
+                        android:textColor="@color/textPrimary"
+                        android:textSize="@dimen/text_size_body"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_notes"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="@dimen/card_padding"
+                        android:textColor="@color/textPrimary"
+                        android:textSize="@dimen/text_size_body" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Payments Card: payments linked to this invoice -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Section header -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@color/lightGray"
+                        android:padding="@dimen/card_padding"
+                        android:text="@string/invoice_payments_title"
+                        android:textColor="@color/textPrimary"
+                        android:textSize="@dimen/text_size_body"
+                        android:textStyle="bold" />
+
+                    <!-- Payments are added programmatically -->
+                    <LinearLayout
+                        android:id="@+id/ll_invoice_payments"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingStart="@dimen/card_padding"
+                        android:paddingEnd="@dimen/card_padding"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp" />
+
+                    <TextView
+                        android:id="@+id/tv_no_invoice_payments"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="@dimen/card_padding"
+                        android:text="@string/no_invoice_payments"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="@dimen/text_size_small"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_add_payment"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="@dimen/card_padding"
+                        android:text="@string/add_payment" />
 
                 </LinearLayout>
 

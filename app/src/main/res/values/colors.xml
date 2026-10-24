@@ -1,17 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primaryColor">#1565C0</color>
-    <color name="primaryDarkColor">#0D47A1</color>
-    <color name="accentColor">#FF6F00</color>
+    <!-- ============================================================
+         DESIGN SYSTEM — one brand color (deep navy), semantic accents,
+         white surfaces on a light blue-grey app background.
+         ============================================================ -->
+
+    <!-- ===== Brand (single brand color) ===== -->
+    <color name="primaryColor">#1A3A6E</color>
+    <color name="primaryDarkColor">#0F2347</color>
+    <color name="primaryLightColor">#2A5298</color>
+
+    <!-- ===== Semantic colors ===== -->
+    <color name="green">#15803D</color>        <!-- positive / paid / received / credit -->
+    <color name="greenLight">#F0FDF4</color>
+    <color name="red">#DC2626</color>          <!-- debt / unpaid -->
+    <color name="redLight">#FEF2F2</color>
+    <color name="amber">#D97706</color>        <!-- partial / warning -->
+    <color name="amberLight">#FEF3C7</color>
+
+    <!-- ===== Neutrals / surfaces ===== -->
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
-    <color name="lightGray">#F5F5F5</color>
-    <color name="gray">#9E9E9E</color>
-    <color name="darkGray">#616161</color>
-    <color name="red">#D32F2F</color>
-    <color name="green">#388E3C</color>
+    <color name="lightGray">#F1F4F9</color>     <!-- app surface -->
+    <color name="gray">#9CA3AF</color>
+    <color name="darkGray">#64748B</color>
+    <color name="borderSubtle">#E2E8F0</color>
+
+    <!-- ===== Cards ===== -->
     <color name="cardBackground">#FFFFFF</color>
-    <color name="divider">#E0E0E0</color>
-    <color name="textPrimary">#212121</color>
-    <color name="textSecondary">#757575</color>
+    <color name="divider">#E2E8F0</color>
+    <color name="dividerLight">#F1F5F9</color>
+    <color name="iconCircleBackground">#EFF6FF</color>
+    <color name="backupCardBackground">#FEF3C7</color>
+
+    <!-- ===== Text ===== -->
+    <color name="textPrimary">#1E293B</color>      <!-- dark navy-grey -->
+    <color name="textSecondary">#64748B</color>
+    <color name="textHint">#94A3B8</color>
+    <color name="textOnPrimary">#FFFFFF</color>
+    <color name="textOnPrimaryMuted">#B3FFFFFF</color>
+    <color name="textOnPrimarySoft">#D9FFFFFF</color>
+
+    <!-- ===== Header gradient ===== -->
+    <color name="gradientStart">#1A3A6E</color>
+    <color name="gradientEnd">#0F2347</color>
+    <color name="statusBarOverlay">#1A000000</color>
+
+    <!-- ===== Card accent bars ===== -->
+    <color name="accentBarInvoice">#1A3A6E</color>
+    <color name="accentBarPayment">#15803D</color>
+
+    <!-- ===== Status badges ===== -->
+    <color name="badgePaid">#F0FDF4</color>
+    <color name="badgePaidText">#15803D</color>
+    <color name="badgeUnpaid">#FEF2F2</color>
+    <color name="badgeUnpaidText">#DC2626</color>
+    <color name="badgePartial">#FEF3C7</color>
+    <color name="badgePartialText">#D97706</color>
+
+    <!-- ===== Inputs ===== -->
+    <color name="inputBorder">#CBD5E1</color>
+    <color name="inputBackground">#FFFFFF</color>
+    <color name="inputBorderFocus">#1A3A6E</color>
+
+    <!-- ===== Misc ===== -->
+    <color name="ghostBackground">#F1F5F9</color>
+    <color name="rippleColor">#1A1A3A6E</color>
 </resources>

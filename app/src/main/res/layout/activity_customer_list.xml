@@ -11,6 +11,7 @@
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
+            style="@style/AppTheme.Toolbar"
             android:layout_width="match_parent"
             android:layout_height="@dimen/toolbar_height"
             android:background="@color/primaryColor"
@@ -25,8 +26,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
+        android:textAlignment="center"
         android:text="@string/no_customers"
-        android:textColor="@color/gray"
+        android:textColor="@color/textSecondary"
         android:textSize="@dimen/text_size_subtitle"
         android:visibility="gone"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
@@ -48,8 +50,8 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
         android:contentDescription="@string/add_customer"
-        android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="@color/accentColor"
+        android:src="@drawable/ic_add"
+        app:backgroundTint="@color/primaryColor"
         app:tint="@color/white" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

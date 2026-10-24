@@ -9,6 +9,7 @@
     <!-- Toolbar -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
+        style="@style/AppTheme.Toolbar"
         android:layout_width="match_parent"
         android:layout_height="@dimen/toolbar_height"
         android:background="@color/primaryColor"
@@ -16,10 +17,12 @@
         app:titleTextColor="@color/white" />
 
     <!-- Scrollable Content -->
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/nsv_form"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -50,14 +53,14 @@
                     <Spinner
                         android:id="@+id/spinner_store"
                         android:layout_width="match_parent"
-                        android:layout_height="48dp"
+                        android:layout_height="@dimen/input_min_height"
                         android:layout_marginTop="4dp"
-                        android:background="@android:drawable/btn_dropdown" />
+                        android:background="@drawable/bg_spinner" />
 
                     <!-- Date -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/til_date"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/AppTextInputStyle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
@@ -65,6 +68,7 @@
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/et_date"
+                            style="@style/InputEditText"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:clickable="true"
@@ -85,12 +89,81 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="8dp"
-                android:text="البنود"
+                android:text="@string/items_section_title"
                 android:textColor="@color/textPrimary"
                 android:textSize="@dimen/text_size_subtitle"
                 android:textStyle="bold" />
 
-            <!-- Invoice Items RecyclerView -->
+            <!-- Column header (mirrors item_invoice_line.xml so columns line up).
+                 RTL visual order: # | اسم الصنف | الكمية | سعر الواحدة | المجموع | (delete) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="2dp">
+
+                <TextView
+                    android:layout_width="24dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="@string/col_number"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="@dimen/text_size_small"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="3"
+                    android:text="@string/item_name"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="@dimen/text_size_small"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="@string/quantity"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="@dimen/text_size_small"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="2"
+                    android:gravity="center"
+                    android:text="@string/unit_price"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="@dimen/text_size_small"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="2"
+                    android:gravity="center"
+                    android:text="@string/subtotal"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="@dimen/text_size_small"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="40dp"
+                    android:layout_height="1dp" />
+
+            </LinearLayout>
+
+            <!-- Invoice Items RecyclerView (non-scrolling: the NestedScrollView scrolls) -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_invoice_items"
                 android:layout_width="match_parent"
@@ -104,9 +177,105 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:elevation="0dp"
+                android:minHeight="@dimen/button_height"
                 android:text="@string/add_item"
                 android:textColor="@color/primaryColor"
                 app:strokeColor="@color/primaryColor" />
+
+            <!-- Notes Card: internal only (never printed or exported) -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/card_padding">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_notes"
+                        style="@style/AppTextInputStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/notes_optional_hint">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_notes"
+                            style="@style/InputEditText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="top|start"
+                            android:inputType="textMultiLine|textCapSentences"
+                            android:maxLength="500"
+                            android:minLines="3" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Payments Card: edit mode only. Rows are pending until Save. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_payments"
+                style="@style/CardStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/card_padding">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/invoice_payments_title"
+                        android:textColor="@color/textPrimary"
+                        android:textSize="@dimen/text_size_subtitle"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_no_invoice_payments"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/no_invoice_payments"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="@dimen/text_size_body"
+                        android:visibility="gone" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rv_invoice_payments"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:nestedScrollingEnabled="false"
+                        android:overScrollMode="never" />
+
+                    <!-- Outlined, elevation 0 (no doubled shadow) -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_add_invoice_payment"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:elevation="0dp"
+                        android:minHeight="@dimen/button_height"
+                        android:text="@string/add_payment"
+                        android:textColor="@color/primaryColor"
+                        app:strokeColor="@color/primaryColor" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- Footer Card: Totals -->
             <com.google.android.material.card.MaterialCardView
@@ -121,7 +290,99 @@
                     android:orientation="vertical"
                     android:padding="@dimen/card_padding">
 
-                    <!-- Total Row -->
+                    <!-- Subtotal Row (before discount) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/invoice_subtotal"
+                            android:textColor="@color/textPrimary"
+                            android:textSize="@dimen/text_size_body" />
+
+                        <TextView
+                            android:id="@+id/tv_subtotal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="@color/textPrimary"
+                            android:textSize="@dimen/text_size_body"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <!-- Optional fixed discount -->
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/cb_discount"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/add_discount"
+                        android:textColor="@color/textPrimary"
+                        android:textSize="@dimen/text_size_body" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_discount"
+                        style="@style/AppTextInputStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/discount_hint"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_discount"
+                            style="@style/InputEditText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:hint="0"
+                            android:inputType="numberDecimal"
+                            android:textSize="@dimen/text_size_body" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Discount summary Row (shown only when a discount is active) -->
+                    <LinearLayout
+                        android:id="@+id/row_discount_summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/discount"
+                            android:textColor="@color/textSecondary"
+                            android:textSize="@dimen/text_size_body" />
+
+                        <TextView
+                            android:id="@+id/tv_discount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="@color/red"
+                            android:textSize="@dimen/text_size_body"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp"
+                        android:background="@color/divider" />
+
+                    <!-- Net Total Row (after discount) -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -147,8 +408,9 @@
 
                     </LinearLayout>
 
-                    <!-- Paid Row -->
+                    <!-- Paid Row (paid now; create mode only) -->
                     <LinearLayout
+                        android:id="@+id/row_paid_now"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
@@ -165,6 +427,7 @@
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/et_paid"
+                            style="@style/InputTextBox"
                             android:layout_width="120dp"
                             android:layout_height="wrap_content"
                             android:gravity="center"
@@ -173,6 +436,54 @@
                             android:textSize="@dimen/text_size_body" />
 
                     </LinearLayout>
+
+                    <!-- Read-only paid summary (edit mode; paid is derived) -->
+                    <LinearLayout
+                        android:id="@+id/row_paid_summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/paid"
+                            android:textColor="@color/textSecondary"
+                            android:textSize="@dimen/text_size_body" />
+
+                        <TextView
+                            android:id="@+id/tv_paid_summary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/green"
+                            android:textSize="@dimen/text_size_body"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <!-- Credit allocation shown separately; pending payments remain editable -->
+                    <TextView
+                        android:id="@+id/tv_credit_info"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="@dimen/text_size_small"
+                        android:visibility="gone" />
+
+                    <!-- Informational only: edit mode allows paid > net without splitting -->
+                    <TextView
+                        android:id="@+id/tv_payment_overpaid_info"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/amber"
+                        android:textSize="@dimen/text_size_small"
+                        android:visibility="gone" />
 
                     <View
                         android:layout_width="match_parent"
@@ -213,7 +524,7 @@
 
         </LinearLayout>
 
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 
     <!-- Bottom Save Bar -->
     <com.google.android.material.button.MaterialButton
@@ -224,6 +535,6 @@
         android:text="@string/save"
         android:textSize="@dimen/text_size_subtitle"
         app:backgroundTint="@color/primaryColor"
-        app:cornerRadius="8dp" />
+        app:cornerRadius="@dimen/button_corner_radius" />
 
 </LinearLayout>
