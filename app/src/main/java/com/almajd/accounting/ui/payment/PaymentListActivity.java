@@ -26,7 +26,7 @@ import com.almajd.accounting.db.PaymentDao;
 import com.almajd.accounting.model.Payment;
 import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.PaymentSearch;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
@@ -101,7 +101,7 @@ public class PaymentListActivity extends BaseActivity
         rvPayments = findViewById(R.id.rv_payments);
         tvEmpty = findViewById(R.id.tv_empty);
         etSearch = findViewById(R.id.et_search);
-        FloatingActionButton fabAdd = findViewById(R.id.fab_add_payment);
+        ExtendedFloatingActionButton fabAdd = findViewById(R.id.fab_add_payment);
 
         // Restore before attaching the watcher, so rotation does not trigger
         // an extra search for the restored text.

@@ -1691,3 +1691,30 @@ Modified:
   JVM tests.
 - Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
   (7,437,865 bytes), built 2026-10-24 through a temporary `subst` drive.
+
+## Extended FABs on list screens
+
+### Changes
+- Replaced the round add FABs on the customers, orders and payments lists with
+  `ExtendedFloatingActionButton`s, keeping the existing view ids and click
+  handlers.
+- Added the `new_customer` string and reused `new_invoice` / `new_payment` for
+  the three labels. Added white `ic_order_add` and `ic_payment_add` vectors and
+  reused the existing person-add icon.
+- Added a shared `AlMajd.ExtendedFab` style: solid navy, white 14sp bold label
+  and icon, 16dp corner radius, 52dp height, 4dp elevation, no stroke.
+- Kept every FAB at `bottom|end` with a 16dp margin and gave the three
+  RecyclerViews 88dp bottom padding while retaining `clipToPadding=false`.
+- No database, accounting, backup/restore, threading, search/filter or
+  navigation changes.
+
+### Verification
+- `testDebugUnitTest`: 129/129 tests pass (0 failures/errors).
+- `assembleDebug` successful through a temporary `subst X:` drive; the drive
+  was removed afterwards.
+- Emulator (Pixel_3a_XL_API_26): checked all three lists, RTL icon/label order,
+  the final payment card clear of the FAB, and search with the keyboard open on
+  all three lists.
+- Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,433,542 bytes).
+- Scroll-to-shrink was intentionally skipped to avoid adding extra behavior.

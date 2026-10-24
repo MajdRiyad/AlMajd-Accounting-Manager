@@ -25,7 +25,7 @@ import com.almajd.accounting.ui.BaseActivity;
 import com.almajd.accounting.db.CustomerDao;
 import com.almajd.accounting.model.Customer;
 import com.almajd.accounting.util.AppExecutors;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -86,7 +86,7 @@ public class CustomerListActivity extends BaseActivity
         // Views
         rvCustomers = findViewById(R.id.rv_customers);
         tvEmpty = findViewById(R.id.tv_empty);
-        FloatingActionButton fabAdd = findViewById(R.id.fab_add_customer);
+        ExtendedFloatingActionButton fabAdd = findViewById(R.id.fab_add_customer);
 
         // RecyclerView setup
         rvCustomers.setLayoutManager(new LinearLayoutManager(this));

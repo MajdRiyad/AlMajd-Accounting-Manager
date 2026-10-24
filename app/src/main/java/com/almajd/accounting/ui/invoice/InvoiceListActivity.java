@@ -26,7 +26,7 @@ import com.almajd.accounting.model.Invoice;
 import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.OrderSearch;
 import com.google.android.material.chip.ChipGroup;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.List;
@@ -98,7 +98,7 @@ public class InvoiceListActivity extends BaseActivity
         tvEmpty = findViewById(R.id.tv_empty);
         etSearch = findViewById(R.id.et_search);
         chipGroupStatus = findViewById(R.id.chip_group_status);
-        FloatingActionButton fabAdd = findViewById(R.id.fab_add_invoice);
+        ExtendedFloatingActionButton fabAdd = findViewById(R.id.fab_add_invoice);
 
         // Restore the query/chip before attaching listeners so restoration does
         // not schedule an unnecessary search.

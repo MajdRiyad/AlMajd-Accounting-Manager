@@ -40,18 +40,19 @@
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:padding="@dimen/card_margin"
+        android:paddingBottom="@dimen/fab_list_bottom_padding"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
     <!-- FAB -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/fab_add_customer"
+        style="@style/AlMajd.ExtendedFab"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="52dp"
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
-        android:contentDescription="@string/add_customer"
-        android:src="@drawable/ic_add"
-        app:backgroundTint="@color/primaryColor"
-        app:tint="@color/white" />
+        android:contentDescription="@string/new_customer"
+        android:text="@string/new_customer"
+        app:icon="@drawable/ic_add_customer" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -48,6 +48,7 @@
     <string name="payments">المدفوعات</string>
     <string name="reports">التقارير</string>
     <string name="add_customer">إضافة عميل</string>
+    <string name="new_customer">عميل جديد</string>
     <string name="edit_customer">تعديل العميل</string>
     <string name="new_invoice">طلبية جديدة</string>
     <string name="edit_invoice">تعديل الطلبية</string>
