@@ -1718,3 +1718,167 @@ Modified:
 - Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
   (7,433,542 bytes).
 - Scroll-to-shrink was intentionally skipped to avoid adding extra behavior.
+
+---
+
+# Accounting write-path fixes (A1-A7, D1)
+
+Branch: `fix/accounting-writes` (one commit). `SCHEMA_VERSION`, the
+backup/restore code and the `AppExecutors` DB/main threading model are unchanged.
+All DB writes still run on the DB thread and all UI updates are guarded by
+`isFinishing() || isDestroyed()`.
+
+## A1 - Order edit cannot change the customer when payments exist
+- `InvoiceFormActivity`: in edit mode `spinner_store` is disabled (read-only
+  look), so the order's customer can no longer be changed from the form.
+- Defense in depth in `InvoiceDao.updateWithPayments`: after all payment rows are
+  applied, the transaction verifies that every payment still linked to the order
+  has the order's `store_name`; a mismatch returns failure and rolls the whole
+  transaction back (header, items, payment edits/deletes and any on-account
+  payment).
+- Defense in depth in `PaymentDao.insert`, `update`, `insertTwo` and
+  `updateAndInsert`: inside the transaction, a non-null `invoice_id` must resolve
+  to an invoice with the same `store_name` as the payment. A missing invoice or a
+  cross-store link returns `-1`/`false` and writes nothing.
+
+## A2 - Splitting a direct overpayment while editing an order
+- On Save in edit mode, the effective total (pending direct rows + allocated
+  credit) is compared with the net total. If the direct rows exceed what the
+  order can still hold, a confirmation dialog appears:
+  "مجموع الدفعات أكبر من قيمة الطلبية. سيتم تسجيل X على الطلبية و Y كدفعة على
+  الحساب."
+- Confirm writes, in the **same transaction** as the order/items/payment edits:
+  - the carved linked payments, whose sum is exactly
+    `netTotal - allocatedFromCredit`, and
+  - a new on-account payment (`invoice_id NULL`, store = order store, date =
+    today, note = `payment_excess_note`) for the excess `Y`.
+- Cancel writes nothing, leaves the form open and re-enables Save.
+- **Carve-out rule (also documented in `OverpaymentSplit`):** reduce the **last**
+  pending row first (the newest/last row in the list) and work backwards. Earlier
+  rows are left intact. An existing row reduced to zero is deleted; a new row
+  reduced to zero is simply not inserted. Never remove more than the excess.
+- Pure Android-free helper `util/OverpaymentSplit.java` computes direct paid,
+  allocated credit, effective paid, remaining, overpaid amount, the carvable
+  excess, the linked total after carving, and the per-row carve plan. It also
+  applies the plan to a save snapshot only.
+- The edit-screen informational line now says the excess will be recorded on
+  account on Save (it no longer claims the payments will be left untouched).
+
+## A3 - Edit summary includes credit allocated to the order
+- `InvoiceFormActivity` stores `Invoice.getAllocatedFromCredit()` loaded by
+  `InvoiceDao.getById` and uses it in the summary:
+  - `paid = pending direct sum + allocatedFromCredit`
+  - `remaining = max(netTotal - paid, 0)`
+  - the existing "من رصيد الزبون: X" line stays visible when credit > 0.
+- The overpayment calculation uses the same effective paid amount, but only
+  direct rows are carved; credit is never touched. This makes the edit screen
+  show the same paid/remaining as the detail screen and lists for a
+  credit-covered order.
+
+## A4 - Payment form store/order consistency
+- When the store spinner changes, `PaymentFormActivity` immediately resets the
+  order selection to "دفعة على الحساب" and disables Save. The order list is
+  rebuilt for the new store on the DB thread; the existing load token discards
+  stale rebuilds, and Save is re-enabled only when the matching list has been
+  applied.
+- `invoiceRebuildPending` also blocks `validateAndSave` if Save is somehow
+  triggered during that window.
+- The four `PaymentDao` write paths validate `invoice_id` against the invoice's
+  `store_name` inside their transaction (see A1), so an order from the previous
+  store cannot be linked even if the UI is bypassed.
+
+## A5 - Stricter amount parsing
+- `NumberUtils.tryParseAmount(String)` returns `Double`/`null`; `parseAmount`
+  keeps its old signature and returns `0.0` for invalid input for display/legacy
+  callers.
+- Accepted rules:
+  - Arabic-Indic and Extended Arabic-Indic digits, U+066B decimal and U+066C
+    thousands, currency symbol, surrounding whitespace and a leading sign.
+  - `.` is decimal; `,` is thousands only when followed by exactly 3 digits
+    (`1,234.56`, `1,234`).
+  - A comma followed by 1 or 2 digits is a decimal comma when there is no dot
+    (`12,50` -> 12.50).
+  - When both appear, the last separator is decimal and the other is thousands
+    (`1.234,56` -> 1234.56; `1,234.56` -> 1234.56).
+  - Malformed grouping (`1,23,456`, `1,2345`) and junk are invalid.
+- The order form uses the strict variant for item unit price, discount, pending
+  payment amounts and paid-now, and the payment form uses it for the amount.
+  Invalid non-empty text shows a field error and blocks Save instead of becoming
+  zero. Empty text keeps its existing meaning (empty paid-now = 0; empty required
+  amount = error).
+- The amount `EditText`s no longer use digits-only filters. A shared
+  `amount_input_digits` resource allows ASCII, Arabic-Indic and Extended
+  Arabic-Indic digits plus `. , ٫ ٬`, so the separator rules can actually be
+  reached from the keyboard. The parser, not the keyboard filter, remains the
+  authority on validity.
+
+## A6/A7 - Order validation
+- A6: every non-empty line item requires quantity > 0 and a strictly parsed unit
+  price > 0; the net total must be > 0. Field errors use new Arabic strings.
+  Blank trailing rows remain allowed, but a "free" item is not supported.
+- A7: the order date is validated with the existing strict `isValidDbDate`
+  (`yyyy-MM-dd`) on Save in both create and edit mode.
+- `InvoiceItem` keeps the raw quantity/price text in memory only (never stored)
+  so invalid text such as `abc` can be distinguished from a blank field.
+
+## D1 - Customer delete protection
+- `CustomerDao.getMovementCounts(storeName)` returns separate order/payment
+  counts; `countMovements` and `hasMovements` are convenience helpers.
+- `CustomerListActivity` and `CustomerDetailActivity` check on the DB thread
+  before showing the confirmation. A customer with any order or payment gets an
+  Arabic dialog: "لا يمكن حذف عميل لديه X طلبية و Y دفعة" and is not deleted.
+  A customer with zero movements keeps the existing confirmation + delete flow.
+- `CustomerDao.delete` re-checks inside the delete transaction and returns false
+  when movements exist. The `ON DELETE CASCADE` schema is unchanged; this prevents
+  another code path from silently cascading history away.
+
+## Tests
+- New plain JVM tests, no Android dependencies:
+  - `OverpaymentSplitTest` (13): no excess; excess smaller than / equal to the
+    last row; excess spanning two rows; new vs existing rows; row reduced to
+    zero; blank new rows; `0.1 + 0.2`; net total 0; negative inputs; credit
+    covering the whole order; partial credit; credit + direct exceeding.
+  - `NumberUtilsTest` extended (+5) for decimal comma, comma-as-thousands,
+    last-separator-wins, Arabic separators, malformed grouping, empty/junk and
+    signed input.
+- `./gradlew testDebugUnitTest`: **147/147 tests pass** (129 prior + 18 new;
+  0 failures/errors/skipped).
+
+## Emulator verification (Pixel_3a_XL_API_26)
+- A1: order #1 in edit mode showed `spinner_store` as `enabled=false`.
+- A2: changed order #1's net total from 1,250.00 to 1,000.00 and added one
+  1,200.00 direct payment. The confirmation dialog offered 1,000.00 linked and
+  200.00 on account. After confirming, the order showed total/paid 1,000.00 and
+  remaining 0.00; the DB held a 1,000.00 linked payment and a 200.00 unlinked
+  payment.
+- A3: order #2 for 200.00 was covered by the 200.00 on-account credit. Its edit
+  summary showed paid 200.00, "من رصيد الزبون: 200.00", and remaining 0.00.
+  Adding a 50.00 direct payment showed paid 250.00 plus the warning; the split
+  dialog offered 0.00 linked and 50.00 on account, and the DB stored the 50.00
+  unlinked.
+- A4: in the payment form, selected Alpha order #3 and then changed the store to
+  Beta while the DB was temporarily locked to make the pending state observable.
+  The invoice spinner immediately reset to "دفعة على الحساب" and Save was
+  `enabled=false`; after the rebuild finished Save was `enabled=true`.
+- A5: entered `12,50` in the payment form amount. The field kept the comma and
+  the saved DB payment amount was 12.50.
+- D1: deleting Alpha from both the customer list and customer detail showed the
+  blocked dialog with 3 orders and 3 payments. Gamma Store, which had no
+  movements, reached the confirmation dialog and was deleted.
+- Cross-store DAO rejection still follows from the transaction checks in A1/A4
+  and is not separately exposed by the UI.
+
+## Build
+- `./gradlew testDebugUnitTest assembleDebug --console=plain` -> BUILD SUCCESSFUL
+  (AGP 7.4.2 / Gradle 7.5); 147/147 tests pass.
+- The temporary `subst P:` drive was removed after the build.
+- Debug APK copied to `C:\Users\majd\Desktop\AlMajdAccounting-debug.apk`
+  (7,420,774 bytes).
+
+## Noticed but not fixed
+- The order summary can show a temporary effective overpayment when the order
+  total is reduced below credit allocated under the old total; the allocation is
+  derived again after Save, so no extra on-account money is invented and only
+  the direct carve is written.
+- Pre-existing and untouched: DB first open/migration on the main thread; money
+  stored as `double`; Excel export limitations documented above.

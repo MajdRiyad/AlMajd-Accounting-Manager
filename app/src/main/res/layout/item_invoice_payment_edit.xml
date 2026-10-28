@@ -22,7 +22,7 @@
             style="@style/InputEditText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:digits="0123456789."
+            android:digits="@string/amount_input_digits"
             android:gravity="center"
             android:inputType="numberDecimal"
             android:textSize="@dimen/text_size_body" />

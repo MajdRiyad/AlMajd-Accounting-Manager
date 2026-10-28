@@ -95,6 +95,8 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
         }
 
         holder.tvSubtotal.setText(NumberUtils.formatCurrency(item.getSubtotal()));
+        holder.etQuantity.setError(null);
+        holder.etUnitPrice.setError(null);
 
         holder.binding = false;
 
@@ -214,8 +216,12 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
      */
     private void updateSubtotal(ViewHolder holder, int position) {
         // NumberUtils tolerates Arabic-Indic digits typed on an Arabic keyboard.
-        int qty = NumberUtils.parseInt(holder.etQuantity.getText().toString().trim());
-        double price = NumberUtils.parseAmount(holder.etUnitPrice.getText().toString().trim());
+        String quantityText = holder.etQuantity.getText().toString().trim();
+        String priceText = holder.etUnitPrice.getText().toString().trim();
+        int qty = NumberUtils.parseInt(quantityText);
+        // Invalid text stays invalid (0 here) and the form reports the error on
+        // Save instead of silently saving a zero amount.
+        double price = NumberUtils.parseAmount(priceText);
 
         double subtotal = NumberUtils.round2(qty * price);
 
@@ -223,7 +229,11 @@ public class InvoiceItemAdapter extends RecyclerView.Adapter<InvoiceItemAdapter.
         item.setQuantity(qty);
         item.setUnitPrice(price);
         item.setSubtotal(subtotal);
+        item.setQuantityText(quantityText);
+        item.setUnitPriceText(priceText);
 
+        holder.etQuantity.setError(null);
+        holder.etUnitPrice.setError(null);
         holder.tvSubtotal.setText(NumberUtils.formatCurrency(subtotal));
 
         recalculateTotal();

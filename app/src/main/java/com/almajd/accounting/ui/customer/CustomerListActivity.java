@@ -280,9 +280,43 @@ public class CustomerListActivity extends BaseActivity
     }
 
     /**
-     * Shows a confirmation dialog before deleting the customer.
+     * D1: checks movement history first (on the DB thread). Customers with any
+     * order or payment are blocked with separate counts; only an empty customer
+     * reaches the confirmation dialog.
      */
     private void confirmDelete(final Customer customer) {
+        final String storeName = customer.getStoreName();
+        AppExecutors.runOnDb(() -> {
+            final CustomerDao.MovementCounts counts =
+                    customerDao.getMovementCounts(storeName);
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (counts.hasAny()) {
+                    showDeleteBlocked(counts);
+                    return;
+                }
+                showDeleteConfirm(customer);
+            });
+        });
+    }
+
+    private void showDeleteBlocked(CustomerDao.MovementCounts counts) {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.customer_delete_blocked_title)
+                .setMessage(getString(R.string.customer_has_movements,
+                        String.valueOf(counts.orders),
+                        String.valueOf(counts.payments)))
+                .setPositiveButton(R.string.dismiss, null)
+                .show();
+    }
+
+    /**
+     * Shows the existing confirmation dialog for a customer with no movements.
+     * CustomerDao.delete re-checks inside its transaction as defense in depth.
+     */
+    private void showDeleteConfirm(final Customer customer) {
         new AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(R.string.confirm_delete_message)

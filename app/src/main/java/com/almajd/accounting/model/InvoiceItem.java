@@ -9,6 +9,14 @@ public class InvoiceItem {
     private double unitPrice;
     private double subtotal;
 
+    /**
+     * Raw quantity/price text from the form. Kept in memory only so the form can
+     * distinguish a blank field from invalid text (for example "abc") without
+     * treating both as zero. Not persisted.
+     */
+    private String quantityText;
+    private String unitPriceText;
+
     public InvoiceItem() {
     }
 
@@ -68,5 +76,21 @@ public class InvoiceItem {
 
     public void setSubtotal(double subtotal) {
         this.subtotal = subtotal;
+    }
+
+    public String getQuantityText() {
+        return quantityText;
+    }
+
+    public void setQuantityText(String quantityText) {
+        this.quantityText = quantityText;
+    }
+
+    public String getUnitPriceText() {
+        return unitPriceText;
+    }
+
+    public void setUnitPriceText(String unitPriceText) {
+        this.unitPriceText = unitPriceText;
     }
 }

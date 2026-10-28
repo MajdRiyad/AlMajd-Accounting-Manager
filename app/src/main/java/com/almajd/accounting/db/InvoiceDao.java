@@ -206,6 +206,22 @@ public class InvoiceDao {
      * @return true when the whole transaction committed
      */
     public boolean updateWithPayments(Invoice invoice, List<PendingPayment> pendingPayments) {
+        return updateWithPayments(invoice, pendingPayments, 0.0);
+    }
+
+    /**
+     * Same as {@link #updateWithPayments(Invoice, List)} plus an optional
+     * on-account payment for the direct overpayment carved out on the edit
+     * screen. The carve-out is persisted in the same transaction as the order,
+     * its items and its linked payments. The new payment has {@code invoice_id
+     * NULL}, the order's store, today's date and the standard
+     * {@code payment_excess_note}.
+     *
+     * @param onAccountPaid excess carved out of the direct rows; 0 means none
+     * @return true when the whole transaction committed
+     */
+    public boolean updateWithPayments(Invoice invoice, List<PendingPayment> pendingPayments,
+                                      double onAccountPaid) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         boolean success = false;
         db.beginTransaction();
@@ -309,12 +325,60 @@ public class InvoiceDao {
                 }
             }
 
+            // Excess carved out of the direct rows: separate on-account money.
+            // It is not linked to the order, so it reduces the customer balance
+            // without being counted twice in the order's paid total.
+            double roundedOnAccount = NumberUtils.round2(onAccountPaid);
+            if (roundedOnAccount > 0) {
+                ContentValues excessValues = new ContentValues();
+                excessValues.put(DatabaseHelper.COL_STORE_NAME, invoice.getStoreName());
+                excessValues.put(DatabaseHelper.COL_AMOUNT, roundedOnAccount);
+                excessValues.put(DatabaseHelper.COL_PAYMENT_DATE,
+                        DateUtils.todayAsDbFormat());
+                excessValues.put(DatabaseHelper.COL_NOTES,
+                        context.getString(R.string.payment_excess_note, invoice.getId()));
+                excessValues.putNull(DatabaseHelper.COL_INVOICE_ID);
+                if (db.insert(DatabaseHelper.TABLE_PAYMENTS, null, excessValues) == -1) {
+                    return false;
+                }
+            }
+
+            // Defense in depth for A1: no linked payment may belong to a
+            // different store than the order. This is checked after all deletes/
+            // updates/inserts, so removing a bad row is allowed, but changing an
+            // order's store while history remains is rolled back as a whole.
+            if (hasLinkedPaymentStoreMismatch(db, invoice.getId(), invoice.getStoreName())) {
+                return false;
+            }
+
             db.setTransactionSuccessful();
             success = true;
         } finally {
             db.endTransaction();
         }
         return success;
+    }
+
+    /**
+     * True when at least one payment linked to {@code invoiceId} has a different
+     * (or missing) store name. Runs inside the caller's transaction.
+     */
+    private boolean hasLinkedPaymentStoreMismatch(SQLiteDatabase db, long invoiceId,
+                                                   String storeName) {
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery(
+                    "SELECT COUNT(*) FROM " + DatabaseHelper.TABLE_PAYMENTS +
+                            " WHERE " + DatabaseHelper.COL_INVOICE_ID + " = ?" +
+                            " AND (" + DatabaseHelper.COL_STORE_NAME + " IS NULL" +
+                            " OR " + DatabaseHelper.COL_STORE_NAME + " <> ?)",
+                    new String[]{String.valueOf(invoiceId), storeName});
+            return cursor != null && cursor.moveToFirst() && cursor.getInt(0) > 0;
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.almajd.accounting.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.After;
@@ -78,6 +79,45 @@ public class NumberUtilsTest {
         assertEquals(0.0, NumberUtils.parseAmount(null), 1e-9);
         assertEquals(0.0, NumberUtils.parseAmount("   "), 1e-9);
         assertEquals(0.0, NumberUtils.parseAmount("abc"), 1e-9);
+    }
+
+    @Test
+    public void strictParseUsesDecimalCommaWhenThereIsNoDot() {
+        assertEquals(12.50, NumberUtils.tryParseAmount("12,50"), 1e-9);
+        assertEquals(12.5, NumberUtils.tryParseAmount("12,5"), 1e-9);
+    }
+
+    @Test
+    public void strictParseUsesCommaAsThousandsOnlyForThreeDigits() {
+        assertEquals(1234.0, NumberUtils.tryParseAmount("1,234"), 1e-9);
+        assertEquals(1234567.0, NumberUtils.tryParseAmount("1,234,567"), 1e-9);
+        assertNull(NumberUtils.tryParseAmount("1,23,456"));
+        assertNull(NumberUtils.tryParseAmount("1,2345"));
+    }
+
+    @Test
+    public void strictParseUsesTheLastSeparatorAsDecimal() {
+        assertEquals(1234.56, NumberUtils.tryParseAmount("1.234,56"), 1e-9);
+        assertEquals(1234.56, NumberUtils.tryParseAmount("1,234.56"), 1e-9);
+        assertEquals(1234567.89, NumberUtils.tryParseAmount("1.234.567,89"), 1e-9);
+    }
+
+    @Test
+    public void strictParseAcceptsArabicSeparatorsAndDigits() {
+        // ١٬٢٣٤٫٥٦ -> 1,234.56
+        assertEquals(1234.56,
+                NumberUtils.tryParseAmount("\u0661\u066C\u0662\u0663\u0664\u066B\u0665\u0666"),
+                1e-9);
+    }
+
+    @Test
+    public void strictParseHandlesEmptyGarbageAndSigns() {
+        assertNull(NumberUtils.tryParseAmount(null));
+        assertNull(NumberUtils.tryParseAmount("   "));
+        assertNull(NumberUtils.tryParseAmount("abc"));
+        assertNull(NumberUtils.tryParseAmount("1.2.3"));
+        assertEquals(-12.5, NumberUtils.tryParseAmount("-12,50"), 1e-9);
+        assertEquals(12.5, NumberUtils.tryParseAmount("+12.5"), 1e-9);
     }
 
     @Test

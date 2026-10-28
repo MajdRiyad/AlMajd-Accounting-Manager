@@ -41,12 +41,81 @@ public class CustomerDao {
         return rows > 0;
     }
 
+    /**
+     * Deletes a customer only when they have no movement history. The check and
+     * delete share one transaction, so no invoice or payment can be inserted
+     * between them. The ON DELETE CASCADE schema is intentionally untouched:
+     * this guard prevents any path from silently cascading history away.
+     */
     public boolean delete(String storeName) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-        int rows = db.delete(DatabaseHelper.TABLE_CUSTOMERS,
-                DatabaseHelper.COL_STORE_NAME + " = ?",
-                new String[]{storeName});
-        return rows > 0;
+        db.beginTransaction();
+        try {
+            if (getMovementCounts(db, storeName).hasAny()) {
+                return false;
+            }
+            int rows = db.delete(DatabaseHelper.TABLE_CUSTOMERS,
+                    DatabaseHelper.COL_STORE_NAME + " = ?",
+                    new String[]{storeName});
+            if (rows > 0) {
+                db.setTransactionSuccessful();
+            }
+            return rows > 0;
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    /** Orders + payments for one customer (used for the delete guard). */
+    public int countMovements(String storeName) {
+        MovementCounts counts = getMovementCounts(storeName);
+        return counts.orders + counts.payments;
+    }
+
+    /** True when the customer has at least one order or one payment. */
+    public boolean hasMovements(String storeName) {
+        return getMovementCounts(storeName).hasAny();
+    }
+
+    /** Separate order/payment counts for the blocked-delete message. */
+    public MovementCounts getMovementCounts(String storeName) {
+        return getMovementCounts(dbHelper.getReadableDatabase(), storeName);
+    }
+
+    private MovementCounts getMovementCounts(SQLiteDatabase db, String storeName) {
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery(
+                    "SELECT " +
+                            "(SELECT COUNT(*) FROM " + DatabaseHelper.TABLE_INVOICES +
+                            " WHERE " + DatabaseHelper.COL_STORE_NAME + " = ?), " +
+                            "(SELECT COUNT(*) FROM " + DatabaseHelper.TABLE_PAYMENTS +
+                            " WHERE " + DatabaseHelper.COL_STORE_NAME + " = ?)",
+                    new String[]{storeName, storeName});
+            if (cursor != null && cursor.moveToFirst()) {
+                return new MovementCounts(cursor.getInt(0), cursor.getInt(1));
+            }
+            return new MovementCounts(0, 0);
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+    }
+
+    /** Immutable order/payment counts for a customer. */
+    public static final class MovementCounts {
+        public final int orders;
+        public final int payments;
+
+        public MovementCounts(int orders, int payments) {
+            this.orders = orders;
+            this.payments = payments;
+        }
+
+        public boolean hasAny() {
+            return orders > 0 || payments > 0;
+        }
     }
 
     public Customer getByStoreName(String storeName) {

@@ -341,6 +341,34 @@ public class CustomerDetailActivity extends BaseActivity {
     }
 
     private void confirmDelete() {
+        AppExecutors.runOnDb(() -> {
+            final CustomerDao.MovementCounts counts =
+                    customerDao.getMovementCounts(storeName);
+            AppExecutors.runOnMain(() -> {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (counts.hasAny()) {
+                    showDeleteBlocked(counts);
+                    return;
+                }
+                showDeleteConfirm();
+            });
+        });
+    }
+
+    private void showDeleteBlocked(CustomerDao.MovementCounts counts) {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.customer_delete_blocked_title)
+                .setMessage(getString(R.string.customer_has_movements,
+                        String.valueOf(counts.orders),
+                        String.valueOf(counts.payments)))
+                .setPositiveButton(R.string.dismiss, null)
+                .show();
+    }
+
+    /** Existing confirmation for a customer with no movements (D1). */
+    private void showDeleteConfirm() {
         new AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(R.string.confirm_delete_message)

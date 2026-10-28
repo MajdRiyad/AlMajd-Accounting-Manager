@@ -93,6 +93,9 @@ public class PaymentFormActivity extends BaseActivity {
     /** Incremented on every invoice-spinner rebuild so stale results are dropped. */
     private int invoiceLoadToken = 0;
 
+    /** True while Save must stay disabled because the new store's list is loading. */
+    private boolean invoiceRebuildPending = false;
+
     /** Guards against attaching the store spinner listener more than once. */
     private boolean storeListenerAttached = false;
 
@@ -340,6 +343,8 @@ public class PaymentFormActivity extends BaseActivity {
         }
         spinnerInvoice.setSelection(selection);
         builtForStore = store;
+        invoiceRebuildPending = false;
+        btnSave.setEnabled(true);
     }
 
     /**
@@ -359,14 +364,16 @@ public class PaymentFormActivity extends BaseActivity {
                     if (builtForStore == null) {
                         return;
                     }
-                    rebuildInvoiceSpinner(null, null);
+                    beginInvoiceRebuild(null);
                     return;
                 }
-                // Avoid clobbering the current selection with a redundant rebuild.
-                if (store.equals(builtForStore)) {
+                // Avoid clobbering the current selection with a redundant rebuild,
+                // unless a rebuild is still pending (the user may have switched
+                // back to the store whose old list is currently displayed).
+                if (store.equals(builtForStore) && !invoiceRebuildPending) {
                     return;
                 }
-                rebuildInvoiceSpinner(store, null);
+                beginInvoiceRebuild(store);
             }
 
             @Override
@@ -374,7 +381,7 @@ public class PaymentFormActivity extends BaseActivity {
                 if (builtForStore == null) {
                     return;
                 }
-                rebuildInvoiceSpinner(null, null);
+                beginInvoiceRebuild(null);
             }
         });
     }
@@ -406,6 +413,18 @@ public class PaymentFormActivity extends BaseActivity {
     }
 
     // ── Invoice spinner ──────────────────────────────────────────────────
+
+    /**
+     * A4: when the store changes, the old order selection is no longer valid.
+     * Reset to "on account" immediately and keep Save disabled until the list
+     * for the new store has actually been applied (the token drops stale loads).
+     */
+    private void beginInvoiceRebuild(String store) {
+        invoiceRebuildPending = true;
+        btnSave.setEnabled(false);
+        spinnerInvoice.setSelection(ON_ACCOUNT_POSITION);
+        rebuildInvoiceSpinner(store, null);
+    }
 
     /**
      * Rebuilds the invoice spinner for the given store on the background thread:
@@ -465,6 +484,12 @@ public class PaymentFormActivity extends BaseActivity {
      * Handles the overpayment-against-an-invoice case with a confirmation dialog.
      */
     private void validateAndSave() {
+        // A4: a store change started an order-list rebuild; saving now could link
+        // an order from the previous store.
+        if (invoiceRebuildPending) {
+            return;
+        }
+
         boolean valid = true;
 
         // Validate store selection (must not be the prompt at position 0)
@@ -473,7 +498,8 @@ public class PaymentFormActivity extends BaseActivity {
             valid = false;
         }
 
-        // Validate amount
+        // Validate amount. Strict parsing means "12,50" is 12.50, while junk is
+        // a field error instead of a silent zero (A5).
         String amountText = etAmount.getText() != null
                 ? etAmount.getText().toString().trim() : "";
         double amount = 0;
@@ -481,17 +507,16 @@ public class PaymentFormActivity extends BaseActivity {
             tilAmount.setError(getString(R.string.required_field));
             valid = false;
         } else {
-            try {
-                amount = NumberUtils.parseAmount(amountText);
-                if (amount <= 0) {
-                    tilAmount.setError(getString(R.string.required_field));
-                    valid = false;
-                } else {
-                    tilAmount.setError(null);
-                }
-            } catch (Exception e) {
-                tilAmount.setError(getString(R.string.required_field));
+            Double parsed = NumberUtils.tryParseAmount(amountText);
+            if (parsed == null) {
+                tilAmount.setError(getString(R.string.invalid_amount));
                 valid = false;
+            } else if (NumberUtils.round2(parsed) <= 0) {
+                tilAmount.setError(getString(R.string.amount_must_be_positive));
+                valid = false;
+            } else {
+                amount = parsed;
+                tilAmount.setError(null);
             }
         }
 

@@ -339,6 +339,7 @@
                             style="@style/InputEditText"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:digits="@string/amount_input_digits"
                             android:gravity="center"
                             android:hint="0"
                             android:inputType="numberDecimal"
@@ -432,6 +433,7 @@
                             android:layout_height="wrap_content"
                             android:gravity="center"
                             android:hint="0"
+                            android:digits="@string/amount_input_digits"
                             android:inputType="numberDecimal"
                             android:textSize="@dimen/text_size_body" />
 

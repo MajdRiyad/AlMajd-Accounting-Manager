@@ -26,7 +26,22 @@ public class PaymentDao {
      */
     public long insert(Payment payment) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-        return insertInternal(db, payment);
+        db.beginTransaction();
+        try {
+            // Defense in depth: a linked payment must belong to the same store
+            // as its invoice. The form normally prevents this choice, but no
+            // other write path may create a cross-store link.
+            if (!invoiceStoreMatches(db, payment)) {
+                return -1;
+            }
+            long id = insertInternal(db, payment);
+            if (id != -1) {
+                db.setTransactionSuccessful();
+            }
+            return id;
+        } finally {
+            db.endTransaction();
+        }
     }
 
     /**
@@ -34,7 +49,19 @@ public class PaymentDao {
      */
     public boolean update(Payment payment) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-        return updateInternal(db, payment);
+        db.beginTransaction();
+        try {
+            if (!invoiceStoreMatches(db, payment)) {
+                return false;
+            }
+            boolean updated = updateInternal(db, payment);
+            if (updated) {
+                db.setTransactionSuccessful();
+            }
+            return updated;
+        } finally {
+            db.endTransaction();
+        }
     }
 
     /**
@@ -130,6 +157,8 @@ public class PaymentDao {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         db.beginTransaction();
         try {
+            if (!invoiceStoreMatches(db, first)) return false;
+            if (second != null && !invoiceStoreMatches(db, second)) return false;
             if (insertInternal(db, first) == -1) return false;
             if (second != null && insertInternal(db, second) == -1) return false;
             db.setTransactionSuccessful();
@@ -147,12 +176,42 @@ public class PaymentDao {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         db.beginTransaction();
         try {
+            if (!invoiceStoreMatches(db, updated)) return false;
+            if (inserted != null && !invoiceStoreMatches(db, inserted)) return false;
             if (!updateInternal(db, updated)) return false;
             if (inserted != null && insertInternal(db, inserted) == -1) return false;
             db.setTransactionSuccessful();
             return true;
         } finally {
             db.endTransaction();
+        }
+    }
+
+    /**
+     * True when an unlinked payment is allowed, or when its invoice exists and
+     * belongs to the same store as the payment. Runs inside the caller's
+     * transaction so a concurrent change cannot slip between check and write.
+     */
+    private boolean invoiceStoreMatches(SQLiteDatabase db, Payment payment) {
+        if (payment == null) return false;
+        if (payment.getInvoiceId() == null) return true;
+
+        Cursor cursor = null;
+        try {
+            cursor = db.query(DatabaseHelper.TABLE_INVOICES,
+                    new String[]{DatabaseHelper.COL_STORE_NAME},
+                    DatabaseHelper.COL_ID + " = ?",
+                    new String[]{String.valueOf(payment.getInvoiceId())},
+                    null, null, null);
+            if (cursor == null || !cursor.moveToFirst()) {
+                return false;
+            }
+            String invoiceStore = cursor.getString(0);
+            return invoiceStore != null && invoiceStore.equals(payment.getStoreName());
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
         }
     }
 

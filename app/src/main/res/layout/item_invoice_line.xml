@@ -54,6 +54,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:layout_weight="2"
+        android:digits="@string/amount_input_digits"
         android:gravity="center"
         android:hint="@string/unit_price"
         android:inputType="numberDecimal"

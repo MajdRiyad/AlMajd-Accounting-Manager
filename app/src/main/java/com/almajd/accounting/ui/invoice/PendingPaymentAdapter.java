@@ -32,6 +32,10 @@ public class PendingPaymentAdapter
     private final List<PendingPayment> rows = new ArrayList<>();
     private final Listener listener;
 
+    /** Row currently showing the strict amount error (identity match). */
+    private PendingPayment amountErrorRow;
+    private String amountErrorMessage;
+
     public interface Listener {
         void onPaymentsChanged();
 
@@ -47,6 +51,20 @@ public class PendingPaymentAdapter
         if (newRows != null) {
             rows.addAll(newRows);
         }
+        notifyDataSetChanged();
+    }
+
+    /** Shows a strict-parse/required error on one row's amount field. */
+    public void showAmountError(PendingPayment row, String message) {
+        amountErrorRow = row;
+        amountErrorMessage = message;
+        notifyDataSetChanged();
+    }
+
+    /** Clears every pending amount error (called before a new validation pass). */
+    public void clearAmountErrors() {
+        amountErrorRow = null;
+        amountErrorMessage = null;
         notifyDataSetChanged();
     }
 
@@ -66,6 +84,7 @@ public class PendingPaymentAdapter
         holder.binding = true;
         holder.etAmount.setText(row.getAmountText() != null ? row.getAmountText() : "");
         holder.etDate.setText(row.getPaymentDate() != null ? row.getPaymentDate() : "");
+        holder.tilAmount.setError(row == amountErrorRow ? amountErrorMessage : null);
         holder.binding = false;
 
         TextWatcher amountWatcher = new TextWatcher() {
@@ -84,8 +103,13 @@ public class PendingPaymentAdapter
                 if (pos == RecyclerView.NO_POSITION || pos >= rows.size()) {
                     return;
                 }
-                rows.get(pos).setAmountText(s != null ? s.toString() : "");
+                PendingPayment changed = rows.get(pos);
+                changed.setAmountText(s != null ? s.toString() : "");
                 holder.tilAmount.setError(null);
+                if (changed == amountErrorRow) {
+                    amountErrorRow = null;
+                    amountErrorMessage = null;
+                }
                 listener.onPaymentsChanged();
             }
         };

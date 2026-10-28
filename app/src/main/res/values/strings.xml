@@ -19,6 +19,14 @@
     <string name="add_discount">إضافة خصم</string>
     <string name="discount_hint">قيمة الخصم</string>
     <string name="discount_invalid">قيمة الخصم يجب أن تكون بين 0 والمجموع قبل الخصم</string>
+    <string name="invalid_amount">قيمة المبلغ غير صالحة</string>
+    <string name="amount_must_be_positive">يجب أن يكون المبلغ أكبر من صفر</string>
+    <!-- Characters accepted by amount fields before NumberUtils validates the separator rules. -->
+    <string name="amount_input_digits" translatable="false">0123456789.,٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹٫٬</string>
+    <string name="item_quantity_required">يجب أن تكون كمية الصنف أكبر من صفر</string>
+    <string name="item_price_required">يجب أن يكون سعر الصنف أكبر من صفر</string>
+    <string name="order_date_invalid">تاريخ الطلبية غير صالح</string>
+    <string name="order_total_must_be_positive">يجب أن يكون إجمالي الطلبية أكبر من صفر</string>
     <string name="invoice_notes">ملاحظات الطلبية</string>
     <string name="notes_optional_hint">ملاحظات (اختياري)</string>
     <string name="paid">المدفوع</string>
@@ -76,6 +84,8 @@
     <string name="payment_saved">تم حفظ الدفعة</string>
     <string name="deleted_successfully">تم الحذف بنجاح</string>
     <string name="delete_failed">تعذر الحذف، حاول مرة أخرى</string>
+    <string name="customer_delete_blocked_title">لا يمكن حذف العميل</string>
+    <string name="customer_has_movements">لا يمكن حذف عميل لديه %1$s طلبية و %2$s دفعة</string>
     <string name="required_field">هذا الحقل مطلوب</string>
     <string name="store_exists">اسم المحل موجود مسبقاً</string>
     <string name="no_customers">لا يوجد عملاء. أضف عميلاً جديداً!</string>
@@ -115,6 +125,8 @@
     <string name="overpayment_message">المبلغ المدخل أكبر من المتبقي على الطلبية. سيتم تسجيل %1$s على الطلبية و%2$s كدفعة على الحساب.</string>
     <string name="paid_now_overpayment_title">المدفوع أكبر من إجمالي الطلبية</string>
     <string name="paid_now_overpayment_message">المبلغ المدفوع مقدماً أكبر من إجمالي الطلبية. سيتم تسجيل %1$s على الطلبية و%2$s كدفعة على الحساب.</string>
+    <string name="edit_overpayment_title">الدفعات أكبر من إجمالي الطلبية</string>
+    <string name="edit_overpayment_message">مجموع الدفعات أكبر من قيمة الطلبية. سيتم تسجيل %1$s على الطلبية و %2$s كدفعة على الحساب.</string>
     <string name="invalid_date_range">تاريخ البداية يجب أن يكون قبل تاريخ النهاية أو مساوياً له.</string>
     <string name="confirm">تأكيد</string>
     <string name="save_failed">تعذر الحفظ، حاول مرة أخرى</string>
@@ -125,7 +137,7 @@
     <string name="payment_delete_message">هل تريد حذف هذه الدفعة؟ سيتم تطبيق الحذف عند حفظ الطلبية.</string>
     <string name="payment_amount_required">يجب أن يكون مبلغ كل دفعة أكبر من صفر</string>
     <string name="payment_date_invalid">تاريخ الدفعة غير صالح</string>
-    <string name="payments_exceed_order_total">الدفعات المسجلة تتجاوز إجمالي الطلبية بمقدار %1$s. لن يتم تعديل الدفعات تلقائياً.</string>
+    <string name="payments_exceed_order_total">الدفعات المسجلة تتجاوز إجمالي الطلبية بمقدار %1$s. سيتم تسجيل الفائض كدفعة على الحساب عند الحفظ.</string>
 
     <!-- Customer balance wording (never show a bare negative number) -->
     <string name="balance_owed">عليه %s</string>

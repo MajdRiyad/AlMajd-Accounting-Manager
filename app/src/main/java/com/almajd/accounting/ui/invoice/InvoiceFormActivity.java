@@ -35,8 +35,8 @@ import com.almajd.accounting.util.AppExecutors;
 import com.almajd.accounting.util.DateUtils;
 import com.almajd.accounting.util.InvoiceTotals;
 import com.almajd.accounting.util.NumberUtils;
+import com.almajd.accounting.util.OverpaymentSplit;
 import com.almajd.accounting.util.PdfExporter;
-import com.almajd.accounting.util.PendingPaymentTotals;
 import com.almajd.accounting.util.ShareHelper;
 
 import java.io.File;
@@ -149,6 +149,12 @@ public class InvoiceFormActivity extends BaseActivity
     private long editInvoiceId = -1;
 
     /**
+     * Customer credit allocated to the edited order (loaded through
+     * InvoiceDao.getById). It counts as paid but is never rewritten or carved.
+     */
+    private double allocatedFromCredit = 0.0;
+
+    /**
      * ID of the invoice saved by this (create-mode) form, or -1 before a
      * successful save. Once it is set the form only reports success and closes;
      * it must never save again.
@@ -231,6 +237,13 @@ public class InvoiceFormActivity extends BaseActivity
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setTitle(editMode ? R.string.edit_invoice : R.string.new_invoice);
+        }
+
+        // A1: an order with payment history must keep its customer. The spinner
+        // is read-only in edit mode; InvoiceDao/PaymentDao also reject cross-store
+        // links inside their transactions as defense in depth.
+        if (editMode) {
+            spinnerStore.setEnabled(false);
         }
 
         // --- Date field ---
@@ -512,6 +525,7 @@ public class InvoiceFormActivity extends BaseActivity
             rowPaidNow.setVisibility(View.GONE);
         }
         rowPaidSummary.setVisibility(View.VISIBLE);
+        allocatedFromCredit = NumberUtils.round2(invoice.getAllocatedFromCredit());
         if (invoice.getAllocatedFromCredit() > 0) {
             tvCreditInfo.setText(getString(R.string.credit_from_customer_amount,
                     NumberUtils.formatCurrency(invoice.getAllocatedFromCredit())));
@@ -615,8 +629,11 @@ public class InvoiceFormActivity extends BaseActivity
         InvoiceTotals baseTotals = InvoiceTotals.calculate(currentSubtotal, discount, 0);
 
         if (editMode) {
-            PendingPaymentTotals paymentTotals =
-                    PendingPaymentTotals.calculate(baseTotals.netTotal, pendingPayments);
+            // A3: paid is direct rows + customer credit allocated to this order.
+            // The credit line stays visible while the direct rows remain
+            // editable; the overpayment warning therefore covers both.
+            OverpaymentSplit paymentTotals = OverpaymentSplit.calculate(
+                    baseTotals.netTotal, allocatedFromCredit, pendingPayments);
             tvSubtotal.setText(NumberUtils.formatCurrency(baseTotals.subtotal));
             tvDiscount.setText(NumberUtils.formatCurrency(baseTotals.discount));
             tvTotal.setText(NumberUtils.formatCurrency(baseTotals.netTotal));
@@ -717,6 +734,7 @@ public class InvoiceFormActivity extends BaseActivity
      * have an amount greater than zero. Deleted rows are skipped.
      */
     private boolean validatePendingPayments() {
+        paymentAdapter.clearAmountErrors();
         for (PendingPayment row : pendingPayments) {
             if (row.isDeleted()) {
                 continue;
@@ -724,9 +742,17 @@ public class InvoiceFormActivity extends BaseActivity
             if (row.isNew() && row.hasEmptyAmount()) {
                 continue;
             }
-            if (row.getAmount() <= 0) {
-                Toast.makeText(this, R.string.payment_amount_required,
-                        Toast.LENGTH_SHORT).show();
+            if (row.hasEmptyAmount()) {
+                paymentAdapter.showAmountError(row, getString(R.string.payment_amount_required));
+                return false;
+            }
+            Double parsed = NumberUtils.tryParseAmount(row.getAmountText());
+            if (parsed == null) {
+                paymentAdapter.showAmountError(row, getString(R.string.invalid_amount));
+                return false;
+            }
+            if (NumberUtils.round2(parsed) <= 0) {
+                paymentAdapter.showAmountError(row, getString(R.string.payment_amount_required));
                 return false;
             }
             if (!isValidDbDate(row.getPaymentDate())) {
@@ -769,6 +795,10 @@ public class InvoiceFormActivity extends BaseActivity
      * Validates the form inputs and saves the invoice (insert or update).
      */
     private void validateAndSave() {
+        etDate.setError(null);
+        etPaid.setError(null);
+        tilDiscount.setError(null);
+
         // 1. Validate store selection (index 0 is the prompt, not a valid choice)
         int storePos = spinnerStore.getSelectedItemPosition();
         if (storePos <= 0) {
@@ -777,22 +807,51 @@ public class InvoiceFormActivity extends BaseActivity
         }
         String storeName = storeNames.get(storePos);
 
-        // 2. Validate date
+        // 2. Validate date (strict yyyy-MM-dd, in create and edit mode)
         String date = etDate.getText().toString().trim();
         if (date.isEmpty()) {
             etDate.setError(getString(R.string.required_field));
             etDate.requestFocus();
             return;
         }
+        if (!isValidDbDate(date)) {
+            etDate.setError(getString(R.string.order_date_invalid));
+            etDate.requestFocus();
+            return;
+        }
 
-        // 3. Get items and validate at least one valid item
+        // 3. Every non-empty item needs quantity > 0 and a strictly parsed
+        // price > 0. Blank rows are ignored, so an unused trailing row is fine.
         List<InvoiceItem> items = itemAdapter.getAllItems();
         List<InvoiceItem> validItems = new ArrayList<>();
-        for (InvoiceItem item : items) {
-            if (item.getItemName() != null && !item.getItemName().trim().isEmpty()
-                    && item.getQuantity() > 0) {
-                validItems.add(item);
+        for (int i = 0; i < items.size(); i++) {
+            InvoiceItem item = items.get(i);
+            String itemName = item.getItemName();
+            if (itemName == null || itemName.trim().isEmpty()) {
+                continue;
             }
+
+            int quantity = resolveItemQuantity(item);
+            if (quantity <= 0) {
+                showItemFieldError(i, true, getString(R.string.item_quantity_required));
+                return;
+            }
+
+            Double price = resolveItemUnitPrice(item);
+            if (price == null) {
+                showItemFieldError(i, false, getString(R.string.invalid_amount));
+                return;
+            }
+            double roundedPrice = NumberUtils.round2(price);
+            if (roundedPrice <= 0) {
+                showItemFieldError(i, false, getString(R.string.item_price_required));
+                return;
+            }
+
+            item.setQuantity(quantity);
+            item.setUnitPrice(roundedPrice);
+            item.setSubtotal(NumberUtils.round2(quantity * roundedPrice));
+            validItems.add(item);
         }
 
         if (validItems.isEmpty()) {
@@ -803,13 +862,21 @@ public class InvoiceFormActivity extends BaseActivity
         // 4. Calculate the line-item subtotal (rounded to 2 decimals)
         double subtotal = 0.0;
         for (InvoiceItem item : validItems) {
-            double sub = NumberUtils.round2(item.getQuantity() * item.getUnitPrice());
-            item.setSubtotal(sub);
-            subtotal += sub;
+            subtotal += item.getSubtotal();
         }
         subtotal = NumberUtils.round2(subtotal);
 
         // 5. Validate the optional fixed discount: 0 <= discount <= subtotal.
+        // Strict parsing catches invalid non-empty text instead of treating it
+        // as a zero discount (A5).
+        String discountText = etDiscount.getText() != null
+                ? etDiscount.getText().toString().trim() : "";
+        if (cbDiscount.isChecked() && !discountText.isEmpty()
+                && NumberUtils.tryParseAmount(discountText) == null) {
+            tilDiscount.setError(getString(R.string.invalid_amount));
+            etDiscount.requestFocus();
+            return;
+        }
         double discount = getEnteredDiscount();
         if (!InvoiceTotals.isValidDiscount(subtotal, discount)) {
             tilDiscount.setError(getString(R.string.discount_invalid));
@@ -820,18 +887,30 @@ public class InvoiceFormActivity extends BaseActivity
         final InvoiceTotals totals = InvoiceTotals.calculate(subtotal, discount, 0);
         final double netTotal = totals.netTotal;
 
-        // 6. Payments. Create mode keeps the "paid now" field unchanged. Edit
-        // mode validates the pending rows, but paid/remaining stay derived.
+        // A6: a fully discounted (zero/negative) order is not a useful record.
+        if (netTotal <= 0) {
+            tilDiscount.setError(getString(R.string.order_total_must_be_positive));
+            etDiscount.requestFocus();
+            return;
+        }
+
+        // 6. Payments. Create mode uses "paid now"; edit mode uses pending rows.
         double paidNow = 0.0;
         if (!editMode) {
-            try {
-                String paidStr = etPaid.getText().toString().trim();
-                if (!paidStr.isEmpty()) {
-                    paidNow = NumberUtils.round2(NumberUtils.parseAmount(paidStr));
+            String paidStr = etPaid.getText().toString().trim();
+            if (!paidStr.isEmpty()) {
+                Double parsedPaid = NumberUtils.tryParseAmount(paidStr);
+                if (parsedPaid == null) {
+                    etPaid.setError(getString(R.string.invalid_amount));
+                    etPaid.requestFocus();
+                    return;
                 }
-            } catch (Exception ignored) { }
-            if (paidNow < 0) {
-                paidNow = 0;
+                paidNow = NumberUtils.round2(parsedPaid);
+                if (paidNow < 0) {
+                    etPaid.setError(getString(R.string.amount_must_be_positive));
+                    etPaid.requestFocus();
+                    return;
+                }
             }
         } else if (!validatePendingPayments()) {
             return;
@@ -859,12 +938,65 @@ public class InvoiceFormActivity extends BaseActivity
         // On create, a "paid now" larger than the NET invoice total is never
         // applied silently: ask first, then split the amount (net total linked to
         // the invoice + excess on account) in the same transaction as the insert.
-        if (!isEdit && paidNow > netTotal + 0.0001) {
-            showPaidNowOverpaymentDialog(invoice, netTotal, paidNow);
+        if (!isEdit) {
+            if (paidNow > netTotal + 0.0001) {
+                showPaidNowOverpaymentDialog(invoice, netTotal, paidNow);
+                return;
+            }
+            saveInvoice(invoice, false, paidNow, 0.0);
             return;
         }
 
-        saveInvoice(invoice, isEdit, paidNow, 0.0);
+        // A2/A3: on edit, the effective paid is direct rows + allocated credit.
+        // Only a real excess is split; the credit is never carved.
+        OverpaymentSplit split = OverpaymentSplit.calculate(
+                netTotal, allocatedFromCredit, pendingPayments);
+        if (split.excess > 0) {
+            showEditOverpaymentDialog(invoice, split);
+            return;
+        }
+
+        saveInvoice(invoice, true, 0.0, 0.0);
+    }
+
+    /** Reads the item quantity from its raw field, falling back to the model. */
+    private int resolveItemQuantity(InvoiceItem item) {
+        String raw = item.getQuantityText();
+        if (raw == null) {
+            return item.getQuantity();
+        }
+        return NumberUtils.parseInt(raw);
+    }
+
+    /**
+     * Reads the item price from its raw field. Returns null when non-empty text
+     * is invalid; blank text resolves to the model value (which is 0 for a new
+     * row, so the caller reports the required-field error).
+     */
+    private Double resolveItemUnitPrice(InvoiceItem item) {
+        String raw = item.getUnitPriceText();
+        if (raw == null) {
+            return item.getUnitPrice();
+        }
+        if (raw.trim().isEmpty()) {
+            return 0.0;
+        }
+        return NumberUtils.tryParseAmount(raw);
+    }
+
+    /** Shows a field error on a line-item row, focusing/scrolling to it. */
+    private void showItemFieldError(int position, boolean quantity, String message) {
+        RecyclerView.ViewHolder holder =
+                rvInvoiceItems.findViewHolderForAdapterPosition(position);
+        if (holder instanceof InvoiceItemAdapter.ViewHolder) {
+            InvoiceItemAdapter.ViewHolder row = (InvoiceItemAdapter.ViewHolder) holder;
+            EditText field = quantity ? row.etQuantity : row.etUnitPrice;
+            field.setError(message);
+            field.requestFocus();
+            nsvForm.smoothScrollTo(0, rvInvoiceItems.getTop() + holder.itemView.getTop());
+        } else {
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        }
     }
 
     /**
@@ -905,6 +1037,47 @@ public class InvoiceFormActivity extends BaseActivity
     }
 
     /**
+     * Confirmation shown when the pending direct rows plus allocated credit
+     * exceed the edited order's net total (A2/A3). Confirming carves the excess
+     * out of the last direct rows and records it on account in the same
+     * transaction. Cancelling saves nothing and leaves the form untouched.
+     */
+    private void showEditOverpaymentDialog(final Invoice invoice,
+                                           final OverpaymentSplit split) {
+        btnSave.setEnabled(false);
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.edit_overpayment_title)
+                .setMessage(getString(R.string.edit_overpayment_message,
+                        NumberUtils.formatCurrency(split.linkedPaidAfter),
+                        NumberUtils.formatCurrency(split.excess)))
+                .setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // Work on a snapshot so the visible rows stay untouched
+                        // until the write succeeds.
+                        List<PendingPayment> snapshot = snapshotPendingPayments();
+                        OverpaymentSplit snapshotSplit = OverpaymentSplit.calculate(
+                                split.netTotal, allocatedFromCredit, snapshot);
+                        snapshotSplit.applyToRows();
+                        saveInvoice(invoice, true, 0.0, snapshotSplit.excess, snapshot);
+                    }
+                })
+                .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        btnSave.setEnabled(true);
+                    }
+                })
+                .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        btnSave.setEnabled(true);
+                    }
+                })
+                .show();
+    }
+
+    /**
      * Persists the invoice on the background thread, then reports the result on
      * the main thread. The save button is disabled for the whole write so a
      * second tap cannot insert a duplicate. {@code linkedPaid} is recorded as a
@@ -917,14 +1090,27 @@ public class InvoiceFormActivity extends BaseActivity
      */
     private void saveInvoice(final Invoice invoice, final boolean isEdit,
                              final double linkedPaid, final double onAccountPaid) {
+        saveInvoice(invoice, isEdit, linkedPaid, onAccountPaid,
+                isEdit ? snapshotPendingPayments() : null);
+    }
+
+    /**
+     * Save overload used after the edit overpayment dialog has already carved a
+     * payment-row snapshot. The snapshot and the on-account amount are written
+     * in one {@link InvoiceDao#updateWithPayments(Invoice, List, double)}
+     * transaction.
+     */
+    private void saveInvoice(final Invoice invoice, final boolean isEdit,
+                             final double linkedPaid, final double onAccountPaid,
+                             final List<PendingPayment> paymentsSnapshot) {
         btnSave.setEnabled(false);
-        final List<PendingPayment> paymentsSnapshot =
-                isEdit ? snapshotPendingPayments() : null;
         AppExecutors.runOnDb(() -> {
             final long invoiceId;
             if (isEdit) {
-                // One transaction: invoice + items + payment edits/inserts/deletes.
-                invoiceId = invoiceDao.updateWithPayments(invoice, paymentsSnapshot)
+                // One transaction: invoice + items + payment edits/inserts/deletes
+                // (+ the carved on-account excess, if any).
+                invoiceId = invoiceDao.updateWithPayments(
+                        invoice, paymentsSnapshot, onAccountPaid)
                         ? invoice.getId() : -1L;
             } else {
                 invoiceId = invoiceDao.insert(invoice, linkedPaid, onAccountPaid);
